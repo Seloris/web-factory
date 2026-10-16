@@ -15,4 +15,4 @@ To make a pack: copy a project's component `CLAUDE.md` that has grown good conve
 
 | Pack | Description |
 |---|---|
-| `dotnet-angular` | .NET (Clean Architecture, CQRS with a source-generated mediator, FastEndpoints, EF Core, xUnit + Testcontainers) and Angular (Nx, signals, generated OpenAPI client). |
+| `react-express` | Full TypeScript: Express API (zod, Drizzle ORM on PostgreSQL, PGlite in-process for local runs and tests, Vitest + Supertest) and React front (Vite, TanStack Query, client typed from the API's OpenAPI document). |

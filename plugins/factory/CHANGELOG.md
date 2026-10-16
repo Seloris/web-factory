@@ -2,6 +2,12 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — A TypeScript pack replaces the .NET / Angular one
+
+- **`react-express` replaces `dotnet-angular`.** The next projects are full TypeScript (React front, Express API), and a pack is only worth keeping for a stack a project uses; the .NET / Angular pack stays in git history (last present in `7fdb9ac`). The workflow does not change: the same `handoff` / `prepare` pair carries the API contract to the front (OpenAPI generated from zod, types generated with `openapi-typescript`), and the same table-driven skills read their facts from the component's `CLAUDE.md` (`drizzle-migrations` for `ef-migrations`, `write-api-tests` for `write-integration-tests`, `openapi-client` rewritten).
+- **PostgreSQL through PGlite for local runs and tests.** The database had to run with `npm ci` alone, on Windows, for anyone trying a project: PGlite is PostgreSQL in WebAssembly, in the Node process, with no Docker and no native build; deployment uses a real PostgreSQL with the same migrations. SQLite was set aside: its drivers need a native addon or a given Node version, and moving to PostgreSQL later means rewriting the migrations.
+- **Route tests run with the fast suite.** They hit an in-memory PGlite, no external system, in seconds: the reason integration tests never run unasked does not apply, so they belong to the api component's `test` and run at the end of every stage. The pack declares no `integration_tests`; the rule still holds for tests that reach real systems.
+
 ## 2026-10-17 — The pane set aside, the plugin used from the project
 
 - **`factory-helper` is out of the marketplace.** It followed the workflow while the workflow still moved, so it lagged behind the skills; it comes back once the workflow settles (last present in `b794003`). New projects no longer enable it, `factory-init` no longer ignores its `.factory-state/` folder, and the docs no longer send the person to it for the next step's model: the manifest's preset says which model each role is meant for.
