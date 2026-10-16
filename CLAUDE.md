@@ -21,7 +21,7 @@ The factory plugin for Claude Code and its marketplace: one disciplined workflow
 
 - `plugins/factory/`: the plugin. `skills/` (`factory-init`, `write-spec`, `write-plan`, `implement`, `review`, `grill-me`, `test-in-browser`), `agents/` (`architect`, `senior-dev`, `reviewer`, `runner`), `scripts/` (the manifest parser `manifest.mjs`, `timestamp.mjs`: ES modules, Node 20+, no dependency), `reference/` (`workflow-rules.md`: what every skill does the same way; `caveman.md`: the voice of agent-to-agent messages), `templates/` (what `factory-init` writes into a project), `stacks/` (stack packs), `examples/two-components/` (the test project), `docs/` (`workflow.md`, `flow.md`, `manifest.md`, `cheatsheet.md`), `tests/`, `CHANGELOG.md`.
 - `plugins/factory-board/`: the board mod (function hooks, TypeScript): a pane that follows the features, their plans and the running stages, and prepares the next `/factory:` prompt. `hooks/` (`register.tsx`, `planning.ts` the parser, `scan.ts` the reader), `types/` (its state contract), `tests/`, `README.md`.
-- `samples/todo-app/`: a sample factory project (to-do app, `react-express` pack, feature `home`); open a session at that folder to try the workflow for real.
+- `samples/todo-app/`: the sample project (a to-do app), built by the workflow itself: open a session at that folder and run `/factory:factory-init`, then the skills; only its `.claude/settings.json` (the plugin enabled) is written by hand.
 - `.claude-plugin/marketplace.json`: the marketplace (`factory`, `factory-board`). `.claude/settings.json`: the push denial and the allowed scripts. `.claude/rules/memory.md`: the team memory of this repository.
 
 ## Conventions
