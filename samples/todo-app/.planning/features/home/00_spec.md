@@ -1,7 +1,7 @@
 # Home (Accueil) — PRD
 
 > **Slug**: `home`
-> **Status**: Draft
+> **Status**: Approved
 > **Last updated**: 2026-10-17
 
 ## TL;DR
