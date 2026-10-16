@@ -1,0 +1,16 @@
+# Local secrets and accounts
+.claude/local/
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+
+# Local PGlite database
+.data/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
