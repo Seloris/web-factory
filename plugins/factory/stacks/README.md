@@ -7,6 +7,7 @@ stacks/{stack}/
   README.md                   first line: one-line description (shown by factory-init)
   templates/{kind}.CLAUDE.md  component CLAUDE.md pre-filled for that kind (api, front, db, worker, lib)
   skills/{name}/SKILL.md      stack-specific skills, read in place when a component's CLAUDE.md names them
+  gitignore                   optional: lines factory-init appends to the project's .gitignore
 ```
 
 A pack never changes the workflow: the plugin's `skills/` know no stack. A pack's skill reads what it needs from the component's `CLAUDE.md` (project names, folders, fixtures), which the pack's template declares in named sections, so the skill works in every project that uses the pack.

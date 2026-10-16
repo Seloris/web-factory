@@ -62,7 +62,7 @@ The layers are the plan's sections, in this order: `db` (tables, migration), `se
 - **Routes are thin:** guard, `validate(...)`, one service call, the status code and the response. No query, no business rule in a router.
 - **Services** take the repository and the `Clock` as parameters (`createOrderService({ orders, clock })`); no import of the database client in a service. Time always through `clock.now()`, never `new Date()` or `Date.now()` in services or repositories.
 - **Errors:** a service throws a typed `AppError` (`NotFoundError`, `ForbiddenError`, `ConflictError`, `BusinessRuleError` with a stable `code`); the error middleware turns it into a problem details response (`application/problem+json`, RFC 9457). Validation failures are `400`, missing entities `404`, scope violations `403`. Never `throw new Error(...)` for an expected case. Express 5 forwards rejected promises to the middleware: no `try`/`catch` in routers.
-- **Authorization:** every router declares its guard; a public route says so explicitly. Data access filters by the caller's scope (tenant, owner) inside the service or repository, never in the router.
+- **Authorization:** every router declares its guard, or says explicitly that it is public (an application without sign-in says so once, in `app.ts`). Data access filters by the caller's scope (tenant, owner) inside the service or repository, never in the router.
 - **Persistence:** Drizzle query builder or relational queries, no raw SQL except a documented case (`sql` template, parameterised); select only the columns a response needs; no N+1 (a join or one `inArray` query). Writes that span several tables run in `db.transaction(...)`.
 - **Naming:** camelCase in TypeScript, snake_case in the database (Drizzle `casing: "snake_case"`); booleans with the `is`/`has`/`can` prefix; identifiers in English.
 - Comments explain why, never what.
@@ -93,7 +93,7 @@ The `drizzle-migrations` skill reads this table.
 |---|---|
 | Setup | `test/setup.ts`: `createTestContext()` returns `{ app, db, clock, seed, reset }` on an in-memory PGlite with the migrations applied; one context per file (`beforeAll`), `reset()` truncates every table in `beforeEach` |
 | HTTP client | Supertest: `request(app).post("/v1/orders").send(body)` |
-| Authenticated calls | `seed.user({ roles })` then `.set(authHeader(user))` |
+| Authenticated calls | {{authenticated_calls}} |
 | Factories | `test/factories.ts`, `build{Entity}(overrides)` |
 | Database assertion | read back through `db` (Drizzle) after every write |
 | Problem details type | `ProblemDetails` from `src/shared/errors.ts` |

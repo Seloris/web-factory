@@ -2,6 +2,16 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — `factory-init` tried for real on the sample
+
+Running `/factory:factory-init` on the empty `samples/todo-app` (pack `react-express`, an api and a web component, no sign-in) made the person invent what the interview did not ask and fix what the templates assumed.
+
+- **The interview asks the pack's placeholders.** The pack's README listed placeholders "asked by factory-init" that no round asked; round 2 now ends with them, read from the pack's `## Placeholders` table with its recommended values, after a one-line description per component (the title of its `CLAUDE.md`) that was not asked either. The root `CLAUDE.md`'s local development section is now described (the components' Local run condensed in stage order).
+- **Sign-in is a question, not an assumption.** The pack's templates hard-coded the `logins:` line and the authenticated calls of the API tests, and the logins example file was written whenever a component had a `url`. Round 1 asks whether the application has a sign-in; `logins` and `{{authenticated_calls}}` are optional placeholders whose lines drop when empty, and the example file is written only when a component has `logins`.
+- **A pack ships its `gitignore`.** The pack said `.data/pglite` was git-ignored and nothing wrote it; a pack may now carry a `gitignore` file whose lines `factory-init` appends to the project's `.gitignore`.
+- **The marketplace is the repository, not the plugin's folder.** The skill recommended `${CLAUDE_PLUGIN_ROOT}` for `{{factory_marketplace}}`; it now points at the folder holding `.claude-plugin/marketplace.json`, keeping an existing value.
+- **Exact content, whatever the tool.** "Write tool, never heredocs" conflicted with the harness asking for Bash in auto mode; the rule is now what mattered: no shell expansion on the file's content.
+
 ## 2026-10-17 — Commit messages proposed before the commit
 
 - **Every commit question shows its message.** The pack's commit was asked as a bare "commit?", and the person only saw the message once it was in the history, too late to correct it cheaply. A request to approve a commit now shows the exact message in a code block, and the yes covers both. The rule is in the workflow rules (`## Commits`), in the template of a project's `CLAUDE.md` (for requests made outside a skill), and in this repository's `CLAUDE.md`.

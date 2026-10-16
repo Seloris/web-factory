@@ -64,7 +64,7 @@ commands:
   handoff: npm run export-openapi            # produces the manifest's handoff file (api stage end)
   prepare: npm run generate-client           # front stage start, from the previous handoff
   integration_tests: dotnet test MyApp.IntegrationTests --filter "{filter}"   # never run unasked
-logins: .claude/local/test-logins.md         # accounts for test-in-browser (git-ignored)
+logins: .claude/local/test-logins.md         # accounts for test-in-browser (git-ignored); absent when the application has no sign-in
 ```
 
 Only `kind` and `commands.build` are required. A component without `test` gets no test step; one without `lint` gets no lint step.

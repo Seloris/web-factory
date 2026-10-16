@@ -8,7 +8,7 @@ commands:
   build: npm run build
   lint: npx eslint {files}
   prepare: npx openapi-typescript {{api_handoff}} --output src/api/schema.d.ts
-logins: .claude/local/test-logins.md
+logins: {{logins}}
 ```
 
 All commands run from this component's path. The front has no unit tests: never create a `*.test.tsx`. Lint only the files a stage changed, never the whole app.
@@ -52,7 +52,8 @@ src/
 
 ## Testing
 
-None on the front. The `test-in-browser` skill checks a change in the real app on {{url}}, with the accounts of `.claude/local/test-logins.md`.
+- No unit tests on the front: the `test-in-browser` skill checks a change in the real app on {{url}}.
+- Test accounts: `{{logins}}` (git-ignored), one per profile.
 
 ## Local run
 
