@@ -1,0 +1,9 @@
+{
+  "name": "factory",
+  "version": "0.1.0",
+  "description": "Spec → plan → implement → review → close workflow for web applications, driven by a per-project manifest in CLAUDE.md. Skills: init, write-spec, write-plan, implement, grill-me, reviewer, test-in-browser, caveman. Agents: architect, senior-dev, reviewer, runner.",
+  "author": {
+    "name": "Daniel Djordjevic"
+  },
+  "keywords": ["workflow", "spec", "plan", "review", "web", "factory"]
+}
