@@ -64,12 +64,12 @@ async function startRun($: EngineInterface, run: Pick<FactoryBoardRun, 'feature'
   await $.store.set(RUN_PREFIX + sessionId, record)
 }
 
-/** Updates this session's run, when it has one. */
+/** Updates this session's run, when it has one. A `done` run stays done until a new `/factory:` prompt. */
 async function touchRun($: EngineInterface, status: FactoryBoardRunStatus): Promise<void> {
   const sessionId = await $.session.id()
   const key = RUN_PREFIX + sessionId
   const run = (await $.store.get(key)) as FactoryBoardRun | undefined
-  if (run === undefined || run.status === status) return
+  if (run === undefined || run.status === status || run.status === 'done') return
   await $.store.set(key, { ...run, status, updatedAt: await $.clock.now() })
 }
 
@@ -89,6 +89,23 @@ const STATE_COLOR: Record<FactoryBoardFeature['state'], string | undefined> = {
   running: 'blue',
   review: 'magenta',
   done: 'green',
+}
+
+const RUN_LABEL: Record<FactoryBoardRunStatus, string> = {
+  running: '● en cours',
+  waiting: '○ attend une réponse',
+  done: '✓ terminé',
+}
+
+const RUN_COLOR: Record<FactoryBoardRunStatus, string | undefined> = {
+  running: 'green',
+  waiting: 'yellow',
+  done: undefined,
+}
+
+const SPEC_STATUS_LABEL: Record<string, string> = {
+  Draft: 'brouillon',
+  Approved: 'validée',
 }
 
 function bar(done: number, total: number, cells: number): string {
@@ -154,6 +171,8 @@ export const register: Register = on => {
     const ran = await next(e)
     const isCommit = /\bgit\b[^|&;\n]*\bcommit\b/.test(e.command)
     if (isCommit && ran.deny === undefined && ran.isError !== true) {
+      // Every factory skill ends its job with its commit (spec, plan, stage, squash).
+      if (e.agentId === undefined) await touchRun($, 'done')
       const before = await read($, board)
       const after = await refresh($)
       for (const line of committed(before, after)) $.ui.toast(line, { timeoutMs: 8000 })
@@ -247,14 +266,12 @@ export const register: Register = on => {
                     {plan.validationTotal > 0 ? ` · validation ${plan.validationDone}/${plan.validationTotal}` : ''}
                   </Text>
                 ) : (
-                  <Text dimColor>{feature.specStatus ? `spec ${feature.specStatus}` : 'pas de spec'}</Text>
+                  <Text dimColor>{feature.specStatus ? `spec ${SPEC_STATUS_LABEL[feature.specStatus] ?? feature.specStatus}` : 'pas de spec'}</Text>
                 )}
               </Box>
               {runs.map(run => (
                 <Box key={`run:${run.sessionId}`} paddingLeft={2}>
-                  <Text color={run.status === 'running' ? 'green' : 'yellow'}>
-                    {run.status === 'running' ? '● en cours' : '○ attend une réponse'}
-                  </Text>
+                  <Text color={RUN_COLOR[run.status]}>{RUN_LABEL[run.status]}</Text>
                   <Text dimColor>
                     {' '}
                     {run.command} · session {run.sessionId.slice(0, 8)} · depuis {age(now, run.since)}

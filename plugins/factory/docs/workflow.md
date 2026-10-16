@@ -22,8 +22,8 @@ A development request (feature, change, bug fix) goes straight to `implement` wi
 - **Never push.** Agents create branches and commits locally; a human pushes. `factory-init` writes the deny rule in the project's `.claude/settings.json`.
 - **One stage per session.** A new session starts with a clean context; the plan's Progress checklist and the branch's commits say where to resume.
 - **Review before every stage commit.** The `reviewer` agent, read-only, with no stake in the code.
-- **Silence is not approval.** A spec or a plan is drafted in its file, summarised in chat in a few lines, and committed only after an explicit yes.
-- **Spec changes go through `write-spec`**, even from a plan or from code: a delta that restates the person's own request is applied without asking; a business change they did not ask for is proposed first.
+- **Silence is not approval.** A spec or a plan is drafted in its file, summarised in chat in a few lines, and committed only after an explicit yes. That yes approves it: a spec is `Draft` until its first commit and `Approved` from then on.
+- **Spec changes go through `write-spec`**, even from a plan or from code, and ship in the plan's or the stage's commit: a delta that restates the person's own request is applied without asking; a business change they did not ask for is proposed first.
 - **Subagents are the lead's choice.** `runner` for a command whose output would flood the context (a full suite, a build), `Explore` for a broad search, inline for a quick command or a single read. Nothing blocks the lead; it reads a short report instead of raw output when that is cheaper.
 - **Integration tests are never run unasked.** The lead gives the filtered command; it runs only on the person's explicit request, in the session.
 - **Next prompts.** Every step ends with the prompt(s) of the next step, each in its own code block, real paths filled in.

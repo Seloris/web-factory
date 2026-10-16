@@ -2,6 +2,11 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — A committed spec is approved
+
+- **The spec's commit approves it.** The `home` spec of the sample was committed after the person's explicit yes and still read `Draft`, waiting for a plan to approve it, and the board showed the `write-spec` session as still waiting for an answer. The yes to the commit is the approval: `write-spec` switches `Status` to `Approved` just before the spec's first commit, and an approved spec stays so; plans and stages update it through called mode, in their own commit. `write-plan` still approves a spec it drafted in called mode, or one committed before this rule.
+- **The board closes a run at its commit.** A run went from `running` to `waiting` at each turn end and stayed so until the session ended, whether the skill asked a question or was done. Every factory skill ends its job with a commit, so a successful `git commit` in the session's main loop marks its run `✓ terminé`; the spec status reads `brouillon` or `validée`.
+
 ## 2026-10-17 — `factory-init` tried for real on the sample
 
 Running `/factory:factory-init` on the empty `samples/todo-app` (pack `react-express`, an api and a web component, no sign-in) made the person invent what the interview did not ask and fix what the templates assumed.

@@ -10,13 +10,14 @@ A Claude Code mod (function hooks) for projects that use the factory. It opens a
 | State | `spec seule`, `plan prêt`, `en cours`, `à valider`, `à fermer`, from the latest `dev-plans/*/plan.md`: its Progress ticks and its Validation checklist |
 | Stages | One line per `### Stage N — …` of the plan's Progress, with the short SHA of the stage's commit once its subject (`Commit:` line) is on the branch |
 | Draft | `(brouillon)` while `plan.md` is untracked, as the planning rule defines a draft |
-| Runs | `● en cours` or `○ attend une réponse`, per session that submitted a `/factory:` prompt on the feature, with the session id and the age |
+| Spec | `spec brouillon` (`Draft`) or `spec validée` (`Approved`), from the spec header, for a feature with no plan yet |
+| Runs | `● en cours`, `○ attend une réponse` or `✓ terminé`, per session that submitted a `/factory:` prompt on the feature, with the session id and the age |
 
 The source of truth stays the files and git. The board is rescanned every 10 seconds, after each `git commit` run through Bash, and at the end of each turn. A stage whose commit reaches the branch, or a Validation checklist that becomes complete, raises a toast.
 
 ## The one thing the mod keeps
 
-The runs live in the mod's own store (`$.store`, a JSON file under the user's Claude Code directory, shared by every session, never in the repository). A run is written when a prompt starting with `/factory:implement`, `/factory:write-plan`, `/factory:write-spec` or `/factory:review` names a feature (a `.planning/features/{slug}` path, or a bare slug for `write-plan` and `write-spec`), set to `running` at each turn start, `waiting` at each turn end, dropped when the session ends. A run nobody touched for a day is dropped as a dead session. A prompt typed without the `/factory:` command records nothing: use the pane's button, which prepares the exact command.
+The runs live in the mod's own store (`$.store`, a JSON file under the user's Claude Code directory, shared by every session, never in the repository). A run is written when a prompt starting with `/factory:implement`, `/factory:write-plan`, `/factory:write-spec` or `/factory:review` names a feature (a `.planning/features/{slug}` path, or a bare slug for `write-plan` and `write-spec`), set to `running` at each turn start, `waiting` at each turn end, `done` once the session's main loop runs a successful `git commit` (every factory skill ends its job with its commit), dropped when the session ends. A `done` run stays done until the session submits a new `/factory:` prompt. A run nobody touched for a day is dropped as a dead session. A prompt typed without the `/factory:` command records nothing: use the pane's button, which prepares the exact command.
 
 ## Buttons
 

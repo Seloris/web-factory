@@ -30,7 +30,7 @@ Given an uncommitted plan folder that the person says is validated (`/factory:wr
    Iterate until the person is satisfied: apply each change with a targeted `Edit` of the draft and say what changed in a line or two. Never rewrite the whole file, and move the folder when the person corrects the slug, the type or the name. Record the questions the person answered in the Decisions section as they are answered.
 5. **One confirmation**, which always names the branch and shows the commit message in a code block: *"Commit the plan `.planning/features/{slug}/dev-plans/{folder}/` on branch `{branch}` with `docs({slug}): plan {type}-{name}`?"* The plan's Progress already carries each stage's commit subject, so the person approves those with the plan. On no, go back to step 4; if the person drops the plan, delete the draft folder and say so. On yes:
    - on the base branch, create the branch the person validated (the uncommitted draft follows); on another branch, stay on it;
-   - if the spec's `Status` is still `Draft`, have `write-spec` mark it `Approved` (status only: no extra confirmation, the plan confirmation covers it);
+   - if the spec's `Status` is still `Draft` (a spec this plan drafted in called mode, or one committed before specs were approved at their commit), have `write-spec` mark it `Approved` (status only: no extra confirmation, the plan confirmation covers it);
    - commit the plan folder, with the `00_spec.md` delta or status change if any, and nothing else from the working tree: `docs({slug}): plan {type}-{name}`. Never push.
 6. **Stop.** End with the branch and the path of the new plan folder, then the next prompts: `/factory:implement {plan folder}` in a new session.
 

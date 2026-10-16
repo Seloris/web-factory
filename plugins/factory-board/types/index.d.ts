@@ -58,7 +58,7 @@ export type FactoryBoardFeature = {
   state: FactoryBoardFeatureState
 }
 
-export type FactoryBoardRunStatus = 'running' | 'waiting'
+export type FactoryBoardRunStatus = 'running' | 'waiting' | 'done'
 
 /** One session working on one feature, as the mod saw it start. */
 export type FactoryBoardRun = {
@@ -70,7 +70,10 @@ export type FactoryBoardRun = {
   folder: string | null
   /** The factory skill the session was started with (`implement`, `write-plan`…). */
   command: string
-  /** `running` while a turn runs, `waiting` once it ended and the person is asked. */
+  /**
+   * `running` while a turn runs, `waiting` once it ended and the person is asked,
+   * `done` once the session's main loop committed: the skill's job is over.
+   */
   status: FactoryBoardRunStatus
   /** When the run was recorded (ms since the epoch). */
   since: number

@@ -217,6 +217,7 @@ test('the pane lists the features, unfolds the stages and prepares the prompt', 
     expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('2 feature(s)')
     expect(await ui.find({ key: 'row:demo', text: /en cours/ })).toBeDefined()
     expect(await ui.find({ key: 'row:tags', text: /spec seule/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /spec validée/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /1\/2 stages · validation 0\/2/ })).toBeDefined()
 
     await ui.press({ key: 'row:demo' })
@@ -233,12 +234,13 @@ test('the pane lists the features, unfolds the stages and prepares the prompt', 
   }
 })
 
-test('a /factory: prompt records the run, the turn end marks it waiting, the session end drops it', async ($, on) => {
+test('a /factory: prompt records the run, the turn end marks it waiting, a commit marks it done, the session end drops it', async ($, on) => {
   const store = mockProject(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('prompt.submit', ($, e) => ({ text: e.text }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
   await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
 
   await $.prompt.submit({ text: `/factory:implement ${PLAN_FOLDER}`, wait: false, origin: { kind: 'composer' } })
@@ -252,6 +254,12 @@ test('a /factory: prompt records the run, the turn end marks it waiting, the ses
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ key: 'run:session-aaaa-1111', text: /attend une réponse/ })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('1 en attente')
+
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "docs(demo): spec"' } as never)
+  expect((store.get('run:session-aaaa-1111') as Record<string, unknown>).status).toBe('done')
+  await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 't2', reason: 'answer' })
+  expect((store.get('run:session-aaaa-1111') as Record<string, unknown>).status).toBe('done')
+  expect(await ui.find({ key: 'run:session-aaaa-1111', text: /terminé/ })).toBeDefined()
   await ui.unmount()
 
   await $.session.end({ sessionId: 'session-aaaa-1111', reason: 'other', resume: { sessionId: 'session-aaaa-1111' } as never })

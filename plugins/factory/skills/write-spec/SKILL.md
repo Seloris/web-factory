@@ -21,10 +21,10 @@ The prompt names the feature: `/factory:write-spec {feature}`. The spec lives un
 - `US-NN`, `BR-NN` and `Q-NN` are append-only and never renumbered (plans reference them). `FR-NN` is revised in place under the same id.
 - A resolved `Q-NN` is removed from Open Questions and becomes an `FR-NN` or `BR-NN`.
 - Renaming a Domain Glossary entry is a breaking change: update every plan that uses the old name.
-- `Status` starts at `Draft` and becomes `Approved` the first time a plan is confirmed against the spec (`write-plan` asks for it). Bump `Last updated` on every edit.
+- `Status` is `Draft` while the spec has never been committed, and `Approved` in every commit: the person's yes to the spec's first commit approves it, so the switch is made just before that commit. An approved spec stays `Approved`: the plans and the stages that change it later go through called mode. Bump `Last updated` on every edit.
 - Written in `language.repo`, with business terms of the person's language allowed inline in backticks.
 - A spec written or updated on its own (Procedure below) is its own commit, containing only `00_spec.md` (and its `assets/`): `docs({slug}): spec — {summary}`.
-- In called mode, the spec change is **not** committed alone: it goes into the calling skill's commit (the plan's commit, or the implementation stage's commit), so the spec and the change that motivates it ship together. The `Draft` → `Approved` switch also goes in the plan's commit. Never push.
+- In called mode, the spec change is **not** committed alone: it goes into the calling skill's commit (the plan's commit, or the implementation stage's commit), so the spec and the change that motivates it ship together. A spec still `Draft` (new in called mode) is switched to `Approved` in that commit. Never push.
 
 ## Called mode
 
@@ -41,7 +41,7 @@ When `write-plan` or `implement` calls this skill for a business behaviour chang
 2. **New or update.** For an update, read the current spec and edit it in place. If it already holds uncommitted changes (`git diff` on the file is not empty), say so and ask the person what to do with them before drafting: they would end up in the spec's commit. Read the code to understand current behaviour, but never copy technical detail into the spec.
 3. **Offer the grill.** Before drafting, always offer it in one line, in `language.chat`: *"I can challenge you first on the business rules and edge cases (`grill-me`). Shall we?"* On yes, run the `grill-me` skill on the spec, then draft from its decisions. On no, go on.
 4. **Draft the whole spec in one pass**, straight into `00_spec.md`, uncommitted, with only the sections that earn their place (Template below). The spec's text is produced once, in the file: never paste a section in chat. Then post one message: a link to the file, the gist of each section in a line, the Domain Glossary table in full when there is one (every future plan uses these names), and the questions left open. Iterate until the person is satisfied: apply each refinement with a targeted `Edit` and say what changed in a line. Never rewrite the whole file.
-5. **Confirm and commit.** Ask *"Commit `.planning/features/{slug}/00_spec.md`?"*, and on yes commit it (see Rules). If the person drops it instead, delete the draft of a new spec, or take your own edits back out of an existing one (never `git checkout` the file: it may hold other uncommitted changes), and say so. Unless another skill called this one, end with the next prompt: `/factory:write-plan {slug}` in a new session.
+5. **Confirm and commit.** Ask *"Commit `.planning/features/{slug}/00_spec.md`?"* with the message in a code block, and say that the commit approves the spec. On yes, set `Status` to `Approved` and commit it (see Rules). If the person drops it instead, delete the draft of a new spec, or take your own edits back out of an existing one (never `git checkout` the file: it may hold other uncommitted changes), and say so. Unless another skill called this one, end with the next prompt: `/factory:write-plan {slug}` in a new session.
 6. **Images** the person shares are saved in `.planning/features/{slug}/assets/` and referenced from the relevant section (usually UX Flow or Problem).
 
 ## Template

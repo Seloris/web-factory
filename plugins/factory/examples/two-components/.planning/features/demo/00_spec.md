@@ -1,7 +1,7 @@
 # Demo counter (Compteur de démo) — PRD
 
 > **Slug**: `demo`
-> **Status**: Draft
+> **Status**: Approved
 > **Last updated**: 2026-10-16
 
 ## TL;DR
