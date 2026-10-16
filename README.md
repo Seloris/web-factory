@@ -38,7 +38,7 @@ Then the loop, each step ending with the prompt of the next one ready to copy:
 
 Or, for a small change, straight to `/factory:implement {request}`. `/factory:grill-me {slug}` settles open decisions before a spec or a plan; `/factory:review` reviews the branch, `/factory:review plan {plan folder}` a plan.
 
-Read `plugins/factory/docs/workflow.md` for the whole loop, `docs/manifest.md` for the manifest, `docs/cheatsheet.md` for the one-page version, `docs/roadmap.md` for what comes later.
+Read `plugins/factory/docs/workflow.md` for the whole loop, `docs/manifest.md` for the manifest, `docs/cheatsheet.md` for the one-page version.
 
 ## Develop the plugin
 

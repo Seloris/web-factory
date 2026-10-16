@@ -24,7 +24,7 @@ reference/              workflow-rules.md (read first by every skill), caveman.m
 templates/              what factory-init writes into a project
 stacks/                 stack packs (component templates + skills), read in place
 examples/two-components/   the test project the tests run against (echo commands)
-docs/                   workflow.md, flow.md (diagram), manifest.md, cheatsheet.md, roadmap.md
+docs/                   workflow.md, flow.md (diagram), manifest.md, cheatsheet.md
 tests/                  node --test
 CHANGELOG.md            why each rule of the process exists
 ```
