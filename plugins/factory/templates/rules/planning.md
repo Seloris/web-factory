@@ -1,7 +1,7 @@
 ---
 description: "Feature planning under .planning/: folder layout, dev-plan folder and plan.md structure (one section per component, sub-divided by its layers), Progress and Validation checklists, plan header, reserved slugs, images and technical debt. Use when writing a spec or a plan."
 paths:
-  - ".planning/**"
+  - "**/.planning/**"
 ---
 
 # Planning conventions
@@ -27,7 +27,7 @@ Written only through the `write-spec` skill, which holds the spec template and e
 
 `{YYYYMMDD}-{HHmmss}-{type}-{name}/`
 
-- Timestamp: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/timestamp.mjs"` (the `factory` plugin's script) and use its output as-is. Never write it by hand.
+- Timestamp: run `node ${CLAUDE_PLUGIN_ROOT}/scripts/timestamp.mjs` (the factory plugin's script) and use its output as-is. Never write it by hand.
 - `{type}`: `init`, `add`, `fix`, `refactor`, `remove` or `migrate`. `{name}`: kebab-case description.
 - A new iteration is a new folder; never edit a past plan. The plan being implemented is not past: `implement` ticks its Progress and records its Deviations. Ticking a plan's Validation after its implementation is allowed: it is how the review and the tests are recorded.
 - A plan folder that has never been committed (its `plan.md` is untracked) is a draft `write-plan` is still iterating on with the person: it is not approved, and `implement` never starts from it. A committed plan with uncommitted Progress ticks is not a draft.
@@ -62,7 +62,7 @@ Feature: `{slug}` · Components: `api`, `web` · Spec: US-03, FR-02, BR-05
 | Context | Why this iteration and what it changes. Optional: a Mermaid `flowchart TD` when the interactions are non-trivial. |
 | Decisions | Each question the person answered while planning, and each decision spanning several steps: `- {question or decision} → {answer} ({impact})`. |
 | One section per component touched | Named after the component, in stage order, with one `###` subsection per layer of that component's `layers` that the plan touches, in the component's order. Each subsection says what to create or change, precisely enough to implement without guessing: entities, use cases, contracts (routes, request and response fields, authorization), persistence, state and actions, pages and components. Reference the previous component's handoff instead of duplicating its contract. |
-| Conventions | Changes to `CLAUDE.md` files, `.claude/` (rules, settings) or the plugin: file, change, rationale. Required whenever the plan introduces or changes a convention. |
+| Conventions | Changes to `CLAUDE.md` files, `.claude/` (rules, settings) or the factory plugin: file, change, rationale. Required whenever the plan introduces or changes a convention. |
 | Tests | **Mandatory.** Per component: the unit tests to write and the integration tests to add or update, following that component's testing conventions, or "none" with the reason. The implementation writes exactly these tests. |
 | Deviations | Written by `implement`, not at planning time: each departure from the plan the person accepted during implementation: `- {what the plan said} → {what was done} ({reason})`. Absent when there is none. |
 | Progress | The implementation checklist (below). |
@@ -108,7 +108,7 @@ The checks made once every stage is done, one checkbox each, in a section of the
 
 - **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings on another component, or a plan implemented before this rule), `implement`'s final review ticks it (`/factory:implement {plan folder} — final review` once every stage is ticked).
 - **Browser test:** only when a touched component declares a `url`. Ticked when every scenario passed.
-- **Integration tests:** only when the Tests section names integration tests of a component that declares `commands.integration_tests`, listed in the item. Ticked when the person asked for the run and every test passed: the lead hands the run to `runner`, quoting the person's request.
+- **Integration tests:** only when the Tests section names integration tests of a component that declares `commands.integration_tests`, listed in the item. Ticked when the person asked for the run and every test passed.
 
 The checklist is the only record of these checks: an item absent or unticked means the check was not done. The tick goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.
 
@@ -126,7 +126,7 @@ Infer the header instead of asking for it, and state it at the top of the plan p
 
 | Slug | For | `plan.md` sections |
 |---|---|---|
-| `tooling` | `CLAUDE.md` files, `.claude/`, CI/CD, build config, non-plan docs | Free-form sections instead of the component sections |
+| `tooling` | `CLAUDE.md` files, `.claude/`, the factory plugin, CI/CD, build config, non-plan docs | Free-form sections instead of the component sections |
 | `shared` | Cross-feature refactors, multi-feature migrations, global auth or middleware | Standard component sections |
 
 Neither has a `00_spec.md`.

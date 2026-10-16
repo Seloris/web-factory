@@ -1,21 +1,21 @@
 ---
-name: init
-description: "Set up a repository as a factory project: interview the person (name, base branch, language, model preset, then each component: name, path, kind, stack, commands, url), write the root CLAUDE.md with the manifest, one autonomous CLAUDE.md per component (from the stack pack when one exists), .planning/, .claude/settings.json, the planning and memory rules and docs/CONTRIBUTING.md. Also adds a component (init component {name}), switches the model preset (init models {preset}) or re-applies a stack pack (init stack {component} {stack}). Writes the instruction layer only, never application code."
+name: factory-init
+description: "Set up the current repository as a factory project: interview the person (name, base branch, language, model preset, then each component: name, path, kind, stack, commands, url), write its factory.yaml manifest and CLAUDE.md, one autonomous CLAUDE.md per component (from the stack pack when one exists), .planning/, .claude/settings.json (the plugin enabled, push denied), the planning and memory rules and docs/CONTRIBUTING.md. Also adds a component (factory-init component {component}), switches the model preset (factory-init models {preset}) or re-applies a stack pack (factory-init stack {component} {stack}). Writes the instruction layer only, never application code."
 ---
 
-# Init a factory project
+# Init a project
 
-Turns the current repository into a project the `factory` workflow can run on. It writes instructions, never application code: the code skeleton is the person's, or a future stack pack's.
+Turns the repository the session opened into a project the factory workflow can run on. It writes instructions, never application code: the code skeleton is the person's, or a future stack pack's.
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (language, hard rules, commits). Talk to the person in their language from the first message (ask in the language they used).
+Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, language, hard rules, commits). Talk to the person in their language from the first message (ask in the language they used).
 
 ## Modes
 
-- `/factory:init` with no manifest in the repository: full setup (below).
-- `/factory:init` with a manifest: say what exists and offer the three partial modes.
-- `/factory:init component {name}`: interview for one component, write its `CLAUDE.md`, add it to the manifest's `components`.
-- `/factory:init models {preset|role=model …}`: change the manifest's `models` and the `env.CLAUDE_CODE_SUBAGENT_MODEL` of `.claude/settings.json` (the `runner` model).
-- `/factory:init stack {component} {stack}`: re-apply a stack pack's template and skills to an existing component (its `CLAUDE.md` is rewritten: ask first, and keep its Conventions section).
+- `/factory:factory-init` with no `factory.yaml` at the root: full setup (below). An empty folder is fine: `git init` with the base branch when there is no repository yet, and the person brings the code, or a stack pack's skeleton does later.
+- `/factory:factory-init` with a manifest: say what exists and offer the three partial modes.
+- `/factory:factory-init component {component}`: interview for one component, write its `CLAUDE.md`, add it to the manifest's `components`.
+- `/factory:factory-init models {preset|role=model …}`: change the manifest's `models` and the `env.CLAUDE_CODE_SUBAGENT_MODEL` of `.claude/settings.json` (the `runner` model).
+- `/factory:factory-init stack {component} {stack}`: re-apply a stack pack's template to an existing component (its `CLAUDE.md` is rewritten: ask first, and keep its Conventions section).
 
 ## Full setup
 
@@ -35,7 +35,7 @@ In the `grill-me` format (numbered questions, each with a recommended answer phr
 
 Round 2, one round per component (merge small ones):
 
-1. **Path** and **kind** (`api`, `front`, `db`, `worker`, `lib`).
+1. **Path** (relative to the root) and **kind** (`api`, `front`, `db`, `worker`, `lib`).
 2. **Stack**: one of the packs, or free text for a stack with no pack.
 3. **Layers**, in implementation order (recommended from the pack, else a sensible default for the kind: `[Domain, Application, Infrastructure, Api]` for an API, `[data, pages, ui]` for a front).
 4. **Commands**: `build`, `test`, `lint` (with `{files}` where the changed files go), and when relevant `prepare`, `handoff` with the handoff file, `integration_tests` with `{filter}`; recommended from the pack, else from the detected tool (`dotnet build`, `npm run build`…). Leave out what the component does not have (a front with no unit tests has no `test`).
@@ -46,25 +46,25 @@ Stop asking when every value is known. Offer the `grill-me` skill once, in one l
 
 ### 3. Write
 
-From `${CLAUDE_PLUGIN_ROOT}/templates/`, filling the `{{placeholders}}` and dropping the lines of empty optional values:
+Into the project, from the plugin's `${CLAUDE_PLUGIN_ROOT}/templates/`, filling the `{{placeholders}}` and dropping the lines of empty optional values:
 
 | File | From | Notes |
 |---|---|---|
-| `CLAUDE.md` | `templates/CLAUDE.md` | the manifest block, hard rules, glossary table (empty), local development. An existing `CLAUDE.md` or `AGENTS.md`: keep its content below the manifest, and show the merge before writing. |
+| `factory.yaml` | `templates/factory.yaml` | the manifest. |
+| `CLAUDE.md` | `templates/CLAUDE.md` | description, hard rules, glossary table (empty), local development. An existing `CLAUDE.md` or `AGENTS.md`: keep its content below the template's, and show the merge before writing. |
 | `{path}/CLAUDE.md` per component | the pack's `templates/{kind}.CLAUDE.md` when the stack has a pack and a template for that kind, else `templates/component/CLAUDE.md` | the `component` block, structure, conventions, testing, local run. |
-| `.claude/settings.json` | `templates/settings.json` | push denied, timestamp and manifest scripts allowed, `CLAUDE_CODE_SUBAGENT_MODEL` = the preset's runner model. Merge into an existing file, never replace it. |
+| `.claude/settings.json` | `templates/settings.json` | the `webapp-factory` marketplace known and the plugin enabled (`{{factory_marketplace}}`: the marketplace's folder or repository, recommended from `${CLAUDE_PLUGIN_ROOT}`), push denied, timestamp and manifest scripts allowed, `CLAUDE_CODE_SUBAGENT_MODEL` = the preset's runner model. Merge into an existing file, never replace it. |
 | `.claude/rules/planning.md`, `.claude/rules/memory.md` | `templates/rules/` | as is. |
-| `.claude/skills/{name}/` | the pack's `skills/` | copied for each component whose stack has a pack; a pack skill already present is updated only on a yes. |
 | `.planning/technical-debt.md`, `.planning/features/.gitkeep` | `templates/technical-debt.md` | |
 | `docs/CONTRIBUTING.md` | `templates/docs/CONTRIBUTING.md` | base branch filled in. An existing one is kept and shown for the person to reconcile. |
-| `.claude/local/test-logins.example.md` | `templates/test-logins.example.md` | only when a component has a `url`; `.claude/local/` is added to `.gitignore`. |
-| `.gitignore` | | adds `.claude/local/` and `.factory-state/` when missing. |
+| `.claude/local/test-logins.example.md` | `templates/test-logins.example.md` | only when a component has a `url`. |
+| `.gitignore` | | adds `.claude/local/` when missing. |
 
-Write each file with the Write tool; never with shell heredocs.
+A pack's skills are not copied: they stay in `${CLAUDE_PLUGIN_ROOT}/stacks/{stack}/skills/` and the skills read them from there (see the workflow rules). Write each file with the Write tool; never with shell heredocs.
 
 ### 4. Verify
 
-Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs"` and show the resolved manifest's summary (name, base branch, preset, stages with their commands). Fix whatever it reports. Check that the plugin's hooks are active (`/hooks` lists `require-runner` and `delegate-exploration`); if the plugin is not enabled for the project, say how (`/plugin`).
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` and show the resolved manifest's summary (name, base branch, preset, stages with their commands). Fix whatever it reports.
 
 ### 5. Commit
 

@@ -1,8 +1,0 @@
-{
-  "name": "factory-helper",
-  "version": "0.0.0",
-  "description": "Pane following the factory workflow: the picked plan's timeline, the prompt and model of its next step, the sessions of this machine and a compliance score. Not implemented yet.",
-  "author": {
-    "name": "Daniel Djordjevic"
-  }
-}

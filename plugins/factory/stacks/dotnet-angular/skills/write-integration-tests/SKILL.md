@@ -56,7 +56,7 @@ The lightest that satisfies the case, as the reference tests do: the standard se
 
 1. Every derived case is written; no case the code does not support.
 2. Usings, namespace, primary-constructor base call.
-3. Do not run the suite: it is slow. Give the filtered command from the component's `commands.integration_tests` (`{filter}` = `{Name}EndpointTests`), and run it only if the person explicitly asks, through `runner`, quoting the request word for word.
+3. Do not run the suite: it is slow. Give the filtered command from the component's `commands.integration_tests` (`{filter}` = `{Name}EndpointTests`), and run it only if the person explicitly asks in this session.
 
 ## Rules
 

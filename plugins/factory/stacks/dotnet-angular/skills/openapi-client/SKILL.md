@@ -7,7 +7,7 @@ description: "Export the OpenAPI document from the .NET API without running a se
 
 Run the command, nothing else: no diff review, no extra build. The front stage's build catches any type error the new client causes.
 
-The commands are those of the manifest (`node "${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs"`): the api component's `commands.handoff` writes the handoff file named in the manifest; the front component's `commands.prepare` regenerates the client from that committed file. Run them from each component's path, through the `runner` agent in the lead session.
+The commands are those of the manifest (`node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root): the api component's `commands.handoff` writes the handoff file named in the manifest; the front component's `commands.prepare` regenerates the client from that committed file. Run them from each component's path.
 
 | When | Command | Writes |
 |---|---|---|

@@ -11,10 +11,18 @@
       "PowerShell(git * push:*)"
     ]
   },
-  "env": {
-    "CLAUDE_CODE_SUBAGENT_MODEL": "{{runner_model}}"
+  "extraKnownMarketplaces": {
+    "webapp-factory": {
+      "source": {
+        "source": "directory",
+        "path": "{{factory_marketplace}}"
+      }
+    }
   },
   "enabledPlugins": {
     "factory@webapp-factory": true
+  },
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "{{runner_model}}"
   }
 }

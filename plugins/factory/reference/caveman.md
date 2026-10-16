@@ -1,11 +1,6 @@
----
-name: caveman
-description: "Terse caveman voice: answer first, fluff gone, every technical fact kept. Use for /factory:caveman, 'caveman mode', 'be brief', 'less tokens'. Stays on until 'stop caveman' or 'normal mode'. Its rules also govern every message between agents (subagent prompts and reports), applied without invoking the skill."
----
+# Caveman voice
 
-# Caveman
-
-Speak like a caveman who is also a senior engineer: every fact, no padding. Fewer tokens, same information.
+The voice of every message between agents: a prompt sent to a subagent, a subagent's final report, a message to another session. Speak like a caveman who is also a senior engineer: every fact, no padding. Fewer tokens, same information.
 
 ## Rules
 
@@ -25,5 +20,5 @@ Caveman: "Build fail. `OrderService` needs `IDateService`. Not registered. Fix: 
 
 ## Scope
 
-- Invoked (`/factory:caveman`): the whole session speaks caveman to the person until they say "stop caveman" or "normal mode".
-- Not invoked: the rules still apply to agent-to-agent messages only (a prompt sent to a subagent, a subagent's report). Files written to the repository never use the caveman voice, and a lead relaying a subagent's report rewrites it in normal prose for the person.
+- Agent-to-agent messages only. Files written to a workspace never use the caveman voice, and a lead relaying a subagent's report rewrites it in normal prose for the person.
+- Speaking caveman to the person is the person's choice, through their own `caveman` skill or output style, not the factory's.

@@ -1,13 +1,15 @@
 # The manifest
 
-The factory knows nothing about a project's stack. Everything it needs is declared in two places, both read by `plugins/factory/scripts/manifest.mjs` (the single parser used by the skills, the hooks and the helper pane):
+The factory knows nothing about a project's stack. Everything it needs is declared in two places, inside the project, both read by the plugin's `scripts/manifest.mjs` (the single parser used by the skills):
 
-1. the **root `CLAUDE.md`**, which holds a fenced `factory` block describing the repository;
+1. the project's **`factory.yaml`**, at its root beside `CLAUDE.md`, which describes the application: name, base branch, languages, models, components in implementation order;
 2. one **`CLAUDE.md` per component**, which holds a fenced `component` block describing that component. Claude Code loads a subfolder's `CLAUDE.md` when it works on files under it, so a component is autonomous: it can move to its own repository and keep its instructions.
 
-Both blocks are YAML (a small subset: maps, lists, scalars, inline `[a, b]` and `{a: b}`, `#` comments). The rest of each file is free Markdown: conventions, glossary, hard rules.
+Both are YAML (a small subset: maps, lists, scalars, inline `[a, b]` and `{a: b}`, `#` comments). The rest of each `CLAUDE.md` is free Markdown: conventions, glossary, hard rules.
 
-## Root block: ` ```factory `
+The parser walks up from the folder it is given to the nearest `factory.yaml`, so a component's folder finds the project's manifest; it never walks past a `.git` folder, so a nested repository never inherits the manifest around it.
+
+## `factory.yaml`
 
 ```yaml
 name: my-app
@@ -16,7 +18,7 @@ language:
   chat: fr                     # what agents speak to the user
   repo: en                     # everything written to the repository
 models: standard               # a preset name, or a map of roles (below)
-components:                    # the order is the order of the stages
+components:                    # the order is the order of the stages; paths relative to this file
   - name: api
     path: src/api
     handoff: src/api/openapi.json     # file the stage leaves for the next ones (optional)
@@ -24,10 +26,6 @@ components:                    # the order is the order of the stages
     path: src/web
     needs: [api]                      # stages that must be committed first (optional)
     url: http://localhost:4200        # enables the "Browser test" validation item (optional)
-hooks:                         # optional, all default to true
-  require_runner: true         # builds/tests/lint denied in the lead session
-  delegate_exploration: true   # long inline exploration bursts denied
-  exploration_limit: 4
 ```
 
 ### Models
@@ -51,7 +49,7 @@ models:
   reviewer: fable
 ```
 
-Agents in the plugin carry no `model` in their frontmatter: the skill that spawns one passes the role's model, and the helper pane's `agent.spawn` hook enforces it. A session's own model is picked by the person when creating the session; the skills check it against the role they need (the *model guard*) and delegate to the matching agent when it does not fit.
+The plugin's agents carry no `model` in their frontmatter: the skill that spawns one passes the role's model. A session's own model is picked by the person when creating the session.
 
 ## Component block: ` ```component `
 
@@ -77,18 +75,18 @@ One stage per component, in the manifest's order, honouring `needs`. A stage:
 
 1. starts with its `commands.prepare` when it has one (the front regenerates its client from the API's handoff);
 2. implements the component's layers in order, tests first;
-3. verifies: `build`, `test` in full, `lint` on the changed files, all through the `runner` agent;
+3. verifies: `build`, `test` in full, `lint` on the changed files;
 4. is reviewed by the `reviewer` agent;
 5. ends with `commands.handoff` when it has one, and one commit.
 
-A project with one component has one stage; nothing in the plugin knows the words "API" or "front".
+A project with one component has one stage; nothing in the plugin's skills knows the words "API" or "front".
 
 ## Reading the manifest from a script
 
 ```js
-import { readManifest } from "./scripts/manifest.mjs";
-const m = readManifest(process.cwd());   // walks up to the root CLAUDE.md
+import { readManifest } from "<plugin root>/scripts/manifest.mjs";
+const m = readManifest(process.cwd());   // walks up to the nearest factory.yaml, stopping at a .git folder
 m.name; m.baseBranch; m.models.planner; m.components[0].commands.build;
 ```
 
-`node plugins/factory/scripts/manifest.mjs [dir]` prints the resolved manifest as JSON, which is how a skill reads it without parsing YAML itself.
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root prints the resolved manifest as JSON, which is how a skill reads it without parsing YAML itself.

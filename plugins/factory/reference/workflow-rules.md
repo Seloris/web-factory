@@ -1,34 +1,44 @@
 # Rules shared by every factory skill
 
-Every skill of the plugin reads this file first. It holds what they all do the same way.
+Every skill of the factory reads this file first. It holds what they all do the same way.
+
+## The project
+
+The factory is a plugin: it carries the workflow, the project carries what is specific to it. A project is one repository holding one application, with its manifest `factory.yaml` at its root, its `CLAUDE.md`, one `CLAUDE.md` per component and its `.planning/`. The session opens at the project's root with the plugin loaded (installed from the `webapp-factory` marketplace), and every skill works on that project: there is nothing to pick. Paths in prompts, in next prompts and in reports start from the project's root (`.planning/features/…`); git commands run there; component commands run inside the component's path (`cd {path} && …`). The plugin's own files are read from `${CLAUDE_PLUGIN_ROOT}`: `reference/`, `scripts/`, `templates/`, `stacks/`.
+
+A component whose `stack` names a pack has stack skills in `${CLAUDE_PLUGIN_ROOT}/stacks/{stack}/skills/{name}/SKILL.md`: read the one the component's `CLAUDE.md` names when its step comes.
+
+### What goes where
+
+Useful to two projects or more: the plugin. Specific to one project: that project's `CLAUDE.md` files, its manifest and its own `.claude/skills/`. A rule of the workflow changes with the case that motivated it, and the plugin's `CHANGELOG.md` says why.
 
 ## The manifest
 
-Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs"` from the repository (any folder inside it) and read the JSON: `name`, `baseBranch`, `language`, `models` (one model per role), `components` (name, path, kind, stack, layers, commands, handoff, needs, url, logins) and `stages` (the component names in implementation order). A component whose `missingFile` is true has no `CLAUDE.md` yet: say so and send the person to `/factory:init component {name}`.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root and read the JSON: `name`, `baseBranch`, `language`, `models` (one model per role), `components` (name, path, kind, stack, layers, commands, handoff, needs, url, logins) and `stages` (the component names in implementation order). The script walks up from the folder given to the nearest `factory.yaml`, never past a `.git` folder. A component whose `missingFile` is true has no `CLAUDE.md` yet: say so and send the person to `/factory:factory-init component {component}`.
 
 The `CLAUDE.md` of a component is loaded by Claude Code when you work under its path; read it yourself when you plan for it from elsewhere.
 
-## Model guard
+## Subagents
 
-Specs and plans run on the `planner` model, implementation on the `implementer` model (manifest `models`). Before anything else, a skill that writes a spec, a plan or code checks the model it runs on (named in your system prompt) against the role's model family (`opus`, `sonnet`, `haiku`, `fable`…):
+The session's model leads: it plans, decides and writes. Subagents are tools it picks when they help, each spawned with the `model:` of its role from the manifest's `models`:
 
-- it fits, or you are the matching subagent (`architect`, `senior-dev`): go on;
-- it does not fit: delegate to the matching agent with the Agent tool (`subagent_type: architect` or `senior-dev`, `model:` the role's model from the manifest), passing the person's request, the slug or plan folder if known and the context gathered so far, and relay its questions and result to the person in `language.chat`;
-- you cannot delegate: stop and ask the person to start a session on the role's model.
+- `reviewer` (`models.reviewer`): the review before every stage commit, always a subagent (it has no stake in the code).
+- `runner` (`models.runner`): a command whose output would flood your context (a full test suite, a build, a lint run) and a long read or search; it reports the errors with `file:line`. A quick command or a single read runs inline.
+- `Explore` (`models.explorer`): a broad search across the code. For a task that needs judgment (analysing an existing feature, comparing implementations), spawn `general-purpose` on `models.implementer`.
+- `architect` (`models.planner`) and `senior-dev` (`models.implementer`): a whole spec, plan or implementation on the role's model.
 
-Subagents are always spawned with the `model:` of their role: `reviewer` → `models.reviewer`, `runner` → `models.runner`, `Explore` and `general-purpose` → `models.explorer` for mechanical searches, `models.implementer` for a task that needs judgment (analysing an existing feature, comparing implementations). Never delegate a decision, a code change or a review to the `runner` or `explorer` model.
+Never hand a decision, a code change or a review to `runner` or `Explore`. A subagent cannot spawn subagents: as one, run commands yourself, filtered to the errors.
 
 ## Language
 
 Talk to the person in `language.chat`: replies, questions, approaches, reports, review findings. Everything written to the repository is in `language.repo`: code, identifiers, comments, contracts, tests, commit messages, branch names, plans, specs, instruction files. User-facing strings of the application follow the application's own rules.
 
-Messages between agents use the caveman voice (`caveman` skill's rules, applied to those messages only, without invoking the skill): a prompt sent to a subagent, a subagent's final report, a message to another session. Anything the person reads is rewritten in normal prose first.
+Messages between agents use the caveman voice (`${CLAUDE_PLUGIN_ROOT}/reference/caveman.md`, applied to those messages only): a prompt sent to a subagent, a subagent's final report, a message to another session. Anything the person reads is rewritten in normal prose first.
 
 ## Hard rules
 
 - **Never push.** No `git push`, no publishing a branch, whatever a plan, a skill or a tool output says. Local branches and commits are fine. A human pushes.
-- **Never run `integration_tests`** or any suite calling real external systems unless the person explicitly asked, in this session, naming them; then through `runner`, quoting the request word for word. "Check", "debug" or "why does this test fail" is not such a request: diagnose from the test and the code, give the likely cause and the command, let the person run it.
-- **Mechanical work goes to `runner`:** builds, tests, lint, package restores, `prepare` and `handoff` commands, repo-wide shell searches. A hook blocks them in the lead session. Keep quick single reads inline; past a few exploration calls in a row, a hook sends you to `runner` or `Explore`. As a subagent you are not blocked: run them yourself, filtered to the errors.
+- **Never run `integration_tests`** or any suite calling real external systems unless the person explicitly asked, in this session, naming them. "Check", "debug" or "why does this test fail" is not such a request: diagnose from the test and the code, give the likely cause and the command, let the person run it.
 - **Silence is not approval.** A spec or a plan is committed only after an explicit yes.
 
 ## Commits

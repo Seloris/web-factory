@@ -7,10 +7,3 @@ Thumbs.db
 # Node
 node_modules/
 npm-debug.log*
-
-# Factory runtime state (per machine, never committed)
-.factory-state/
-**/.runs/
-
-# Project-local secrets written by test-in-browser
-**/.claude/local/

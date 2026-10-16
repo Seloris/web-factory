@@ -10,7 +10,7 @@ A page shows a counter that any signed-in user can increment. It exists to exerc
 
 ## Problem
 
-The plugin needs a feature small enough to plan and implement in minutes, touching both components.
+The factory needs a feature small enough to plan and implement in minutes, touching both components.
 
 ## Goals
 

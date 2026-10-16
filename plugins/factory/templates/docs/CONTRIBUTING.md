@@ -18,7 +18,7 @@ A simplified Conventional Commits.
 - `style` – formatting, whitespace
 - `test` – tests only
 - `docs` – documentation (README, `docs/`, `.planning/`)
-- `tools` – tooling around the project (`.claude/`, scripts)
+- `tools` – tooling around the project (`.claude/`, the factory plugin, scripts)
 - `ops` – CI/CD, infrastructure
 - `chore` – anything else (`.gitignore`…)
 

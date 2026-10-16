@@ -12,7 +12,6 @@
       "PowerShell(git * push:*)"
     ]
   },
-  "env": {
-    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  "enabledPlugins": {
   }
 }

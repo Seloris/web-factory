@@ -2,10 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { declaredCommands, fencedBlock, parseYaml, readManifest, resolveModels, stages } from "../scripts/manifest.mjs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { fencedBlock, findRoot, parseYaml, readManifest, resolveModels, stages } from "../scripts/manifest.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const example = join(here, "..", "..", "..", "examples", "two-components");
+const example = join(here, "..", "examples", "two-components");
 
 test("parseYaml: maps, lists, scalars, flow, comments", () => {
   const out = parseYaml(`
@@ -85,14 +87,7 @@ test("readManifest: the example project", () => {
   assert.equal(web.url, "http://localhost:4200");
   assert.equal(web.commands.prepare, "node scripts/echo.mjs prepare web");
   assert.equal(web.logins, ".claude/local/test-logins.md");
-  assert.equal(m.hooks.explorationLimit, 4);
   assert.deepEqual(stages(m).map((c) => c.name), ["api", "web"]);
-});
-
-test("declaredCommands: placeholders stripped", () => {
-  const m = readManifest(example);
-  const lint = declaredCommands(m).find((c) => c.component === "api" && c.key === "lint");
-  assert.equal(lint.prefix, "node scripts/echo.mjs lint api");
 });
 
 test("stages: needs order and cycles", () => {
@@ -102,5 +97,23 @@ test("stages: needs order and cycles", () => {
 });
 
 test("readManifest: errors", () => {
-  assert.throws(() => readManifest("/"), /No CLAUDE.md/);
+  assert.throws(() => readManifest("/"), /No factory.yaml/);
+});
+
+test("findRoot: the project's factory.yaml from any folder under it, never past a nested repository's boundary", () => {
+  const dir = mkdtempSync(join(tmpdir(), "factory-root-"));
+  try {
+    writeFileSync(join(dir, "factory.yaml"), "name: outer\ncomponents:\n  - {name: a, path: a}\n");
+    const nested = join(dir, "vendor", "inner");
+    mkdirSync(join(nested, "src"), { recursive: true });
+    assert.equal(findRoot(join(nested, "src")), dir, "no manifest below: the project's is found from a subfolder");
+    mkdirSync(join(nested, ".git"));
+    assert.equal(findRoot(join(nested, "src")), null, "a .git folder stops the walk");
+    writeFileSync(join(nested, "factory.yaml"), "name: inner\ncomponents:\n  - {name: b, path: b}\n");
+    assert.equal(findRoot(join(nested, "src")), nested, "the nested project's own manifest wins");
+    writeFileSync(join(nested, "CLAUDE.md"), "```factory\nname: legacy\n```\n");
+    assert.equal(readManifest(nested).name, "inner", "a ```factory block in CLAUDE.md is no longer a manifest");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

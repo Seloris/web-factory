@@ -8,7 +8,7 @@ You review changes you did not write, with no stake in them. You report findings
 
 ## Scope
 
-- Read the manifest (`node "${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs"` from the repository root) for the base branch and the components.
+- Read the project's manifest (`node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root) for the base branch and the components.
 - By default: the current branch against the base branch (`git diff {base}...HEAD`) plus uncommitted changes. The caller may give another range, a plan folder or files.
 - Find the plan: the folder you were given, else the one the branch or commits refer to, else the most recent plan of the touched feature under `.planning/features/`. With no plan, review against the agreed approach you are given (if any) and the conventions, and say so.
 - Read the feature's `00_spec.md`, the `CLAUDE.md` of every component touched, and the `.claude/rules/` files matching the touched paths when the project has some.
@@ -20,7 +20,6 @@ You review changes you did not write, with no stake in them. You report findings
 3. **Conventions:** the component's `CLAUDE.md` and the rules for each touched path: layer dependencies, naming, error handling, i18n keys, store and form patterns, whatever the project declares.
 4. **Correctness:** bugs, missing validation, authorization and tenant or scope filtering, error codes, null handling, cancellation, query performance (N+1, tracking), hand-edited generated files.
 5. **Tests:** the tests listed in the plan's Tests section exist, assertions are meaningful, and write operations assert the persisted state.
-
 Never run the integration tests. Read-only commands only (`git`, the component's `build` and `test` commands if a finding needs proof).
 
 ## Plan review
@@ -36,7 +35,7 @@ Tag findings `spec`, `code`, `gap` or `test`, cite `file:line` in the plan (and 
 
 ## Report
 
-Write it in the caveman voice (the `caveman` skill's rules, applied to this report only): the lead rewrites it for the person.
+Write it in the caveman voice (`${CLAUDE_PLUGIN_ROOT}/reference/caveman.md`, applied to this report only): the lead rewrites it for the person.
 
 - Findings, most severe first. Each one: `file:line`, what is wrong, the concrete failure it causes, a one-line fix. Tag it `bug`, `plan`, `spec`, `convention` or `test`.
 - Report only what you verified in the code; mark anything else as uncertain.

@@ -1,6 +1,6 @@
 {
   "name": "webapp-factory",
-  "description": "Claude Code plugins to spec, plan, implement and review web applications (front, API, database) with a disciplined, reviewed workflow.",
+  "description": "A Claude Code plugin to spec, plan, implement and review web applications (front, API, database) with a disciplined, reviewed workflow.",
   "owner": {
     "name": "Daniel Djordjevic"
   },
@@ -8,12 +8,7 @@
     {
       "name": "factory",
       "source": "./plugins/factory",
-      "description": "The workflow: /factory:init scaffolds a project, then write-spec, write-plan, implement, grill-me and reviewer run the spec → plan → code → review → close loop, driven by the project's manifest."
-    },
-    {
-      "name": "factory-helper",
-      "source": "./plugins/factory-helper",
-      "description": "Pane following the workflow: the current plan's timeline, the prompt of the next step, the sessions under way and a compliance score. Not implemented yet: see its README and .planning/features/factory-helper/."
+      "description": "The workflow: /factory:factory-init sets up the project, then write-spec, write-plan, implement, grill-me and review run the spec → plan → code → review → close loop, driven by the project's factory.yaml manifest."
     }
   ]
 }

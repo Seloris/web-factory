@@ -27,7 +27,7 @@ Manage the migrations of the api component's DbContext. Every project fact comes
 5. **Idempotent SQL script** when the change must be deployed: `dotnet ef migrations script {previous} {new} --idempotent --project {Infrastructure} --output "{SQL scripts folder}/{timestamp}_{NNN_Name}.sql"`, with the full migration basenames.
 6. **Commit** the migration files (`.cs` + `.Designer.cs`), the updated snapshot and any SQL script together with the model change: in an `implement` stage, in the stage's single commit.
 
-In the lead session the `dotnet ef` runs go through the `runner` agent (the hook blocks builds inline; `dotnet ef` builds); read its report.
+A `dotnet ef` run builds first and prints a lot: hand it to the `runner` agent and read its report.
 
 ## Variants
 

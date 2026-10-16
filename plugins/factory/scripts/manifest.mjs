@@ -1,9 +1,12 @@
-// The single reader of a project's manifest: the ```factory block of the root CLAUDE.md and the
-// ```component block of each component's CLAUDE.md. Used by the skills (through the CLI below),
-// the hooks and the helper pane. No dependency: a small YAML subset is parsed here (maps, lists,
-// scalars, inline [a, b] and {a: b}, # comments), which is all a manifest needs.
+// The single reader of a project's manifest: the `factory.yaml` at its root and the ```component
+// block of each component's CLAUDE.md. Used by the skills, through the CLI below. No dependency:
+// a small YAML subset is parsed here (maps, lists, scalars, inline [a, b] and {a: b}, # comments),
+// which is all a manifest needs.
 //
 // CLI: node manifest.mjs [dir]   → the resolved manifest as JSON (exit 1 with a message on error)
+// From the project's root: node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs
+
+export const MANIFEST_FILE = "factory.yaml";
 
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -180,11 +183,14 @@ export const fencedBlock = (markdown, lang) => {
 
 // ---------- manifest ----------
 
+// Walks up from `dir` to the nearest folder holding a `factory.yaml`: the project's root, from any
+// folder under it. Stops at the repository boundary (a folder holding `.git`) once it is passed: a
+// nested repository never inherits the manifest of the one around it.
 export const findRoot = (dir) => {
   let cur = resolve(dir);
   for (;;) {
-    const file = join(cur, "CLAUDE.md");
-    if (existsSync(file) && fencedBlock(readFileSync(file, "utf8"), "factory") !== null) return cur;
+    if (existsSync(join(cur, MANIFEST_FILE))) return cur;
+    if (existsSync(join(cur, ".git"))) return null;
     const parent = dirname(cur);
     if (parent === cur) return null;
     cur = parent;
@@ -227,9 +233,8 @@ const readComponent = (root, c) => {
 
 export const readManifest = (dir = process.cwd()) => {
   const root = findRoot(dir);
-  if (!root) throw new Error(`No CLAUDE.md with a \`\`\`factory block found from ${resolve(dir)} upwards`);
-  const block = fencedBlock(readFileSync(join(root, "CLAUDE.md"), "utf8"), "factory");
-  const spec = parseYaml(block) ?? {};
+  if (!root) throw new Error(`No ${MANIFEST_FILE} found from ${resolve(dir)} upwards`);
+  const spec = parseYaml(readFileSync(join(root, MANIFEST_FILE), "utf8")) ?? {};
   if (!spec.name) throw new Error("Manifest: `name` is required");
   if (!Array.isArray(spec.components) || spec.components.length === 0) throw new Error("Manifest: `components` must list at least one component");
   const components = spec.components.map((c, i) => {
@@ -238,7 +243,6 @@ export const readManifest = (dir = process.cwd()) => {
   });
   const names = new Set(components.map((c) => c.name));
   for (const c of components) for (const n of c.needs) if (!names.has(n)) throw new Error(`Manifest: component "${c.name}" needs unknown component "${n}"`);
-  const hooks = spec.hooks ?? {};
   return {
     root,
     name: String(spec.name),
@@ -246,11 +250,6 @@ export const readManifest = (dir = process.cwd()) => {
     language: { chat: spec.language?.chat ?? "en", repo: spec.language?.repo ?? "en" },
     models: resolveModels(spec.models),
     components,
-    hooks: {
-      requireRunner: hooks.require_runner !== false,
-      delegateExploration: hooks.delegate_exploration !== false,
-      explorationLimit: Number.isFinite(Number(hooks.exploration_limit)) && hooks.exploration_limit != null ? Number(hooks.exploration_limit) : 4,
-    },
   };
 };
 
@@ -264,15 +263,6 @@ export const stages = (manifest) => {
     done.push(pending.splice(idx, 1)[0]);
   }
   return done;
-};
-
-// Every command the manifest declares, placeholders removed, for the hooks.
-export const declaredCommands = (manifest) => {
-  const out = [];
-  for (const c of manifest.components)
-    for (const [key, cmd] of Object.entries(c.commands))
-      out.push({ component: c.name, key, command: cmd, prefix: cmd.replace(/\{[a-z_]+\}/g, "").trim() });
-  return out;
 };
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

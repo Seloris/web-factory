@@ -1,6 +1,6 @@
 ---
 name: write-spec
-description: "Draft or update a feature's business spec (.planning/features/{slug}/00_spec.md) with the person: problem, users, domain glossary, user stories, functional requirements, business rules. The only way 00_spec.md is ever written. Use for a new business idea, to update the spec of an existing feature, when a plan needs a spec that does not exist yet, or when planning or implementing reveals a business behaviour change."
+description: "Draft or update a feature's business spec (.planning/features/{slug}/00_spec.md) with the person: problem, non-goals, functional requirements, business rules, plus the user stories and the glossary when they add something. The only way 00_spec.md is ever written. Use for a new business idea, to update the spec of an existing feature, when a plan needs a spec that does not exist yet, or when planning or implementing reveals a business behaviour change."
 ---
 
 # Write or update a feature spec
@@ -9,11 +9,15 @@ The spec says what the feature does, for whom, why, and which rules it enforces.
 
 This skill is the only writer of `00_spec.md`: planning (`write-plan`) and implementation (`implement`) call it instead of editing the spec themselves.
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first, and the project's `.claude/rules/planning.md`.
+Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, language), and the project's `.claude/rules/planning.md`.
+
+The prompt names the feature: `/factory:write-spec {feature}`. The spec lives under `.planning/features/{slug}/`.
 
 ## Rules
 
 - A single file per feature: no sibling files or subfolders (except `assets/`). Existing specs are edited in place, never redrafted.
+- **Each fact once.** The plan and the reviewer work from the numbered requirements; the other sections give them context, they do not repeat them. A sentence that restates another section is removed. A business rule that is already a non-goal is a non-goal.
+- An `FR-NN` is one sentence the reviewer can check an implementation against; its reason goes in the same sentence (`… so that …`) when it is not obvious.
 - `US-NN`, `BR-NN` and `Q-NN` are append-only and never renumbered (plans reference them). `FR-NN` is revised in place under the same id.
 - A resolved `Q-NN` is removed from Open Questions and becomes an `FR-NN` or `BR-NN`.
 - Renaming a Domain Glossary entry is a breaking change: update every plan that uses the old name.
@@ -31,23 +35,28 @@ When `write-plan` or `implement` calls this skill for a business behaviour chang
    **Delta the person did not ask for** (a business behaviour change discovered while planning or coding): propose it in chat and wait for the person's yes before editing.
 3. Do not commit: the calling skill commits `00_spec.md` with its own work. Return to it: no next prompts.
 
-## Model guard
-
-Specs run on the `planner` model: apply the model guard of the workflow rules (delegate to `architect` when the session is on another model).
-
 ## Procedure
 
 1. **Slug.** List `.planning/features/` and propose a slug, reusing an existing one first: *"Suggested feature slug: **`{slug}`** (existing | new) — {rationale}. Confirm, or suggest another?"* Wait for confirmation.
 2. **New or update.** For an update, read the current spec and edit it in place. If it already holds uncommitted changes (`git diff` on the file is not empty), say so and ask the person what to do with them before drafting: they would end up in the spec's commit. Read the code to understand current behaviour, but never copy technical detail into the spec.
 3. **Offer the grill.** Before drafting, always offer it in one line, in `language.chat`: *"I can challenge you first on the business rules and edge cases (`grill-me`). Shall we?"* On yes, run the `grill-me` skill on the spec, then draft from its decisions. On no, go on.
-4. **Walk the sections one at a time**, in template order, drafting each one straight into `00_spec.md`, uncommitted (a new spec starts as the title and header block). The spec's text is produced once, in the file: never paste a section in chat. After each section, post a link to the file and the section's gist in a line or two, and ask the person to confirm or refine it; apply a refinement with a targeted `Edit`.
-5. **Domain Glossary checkpoint.** Present the glossary table in chat, the one section shown there, and wait for explicit approval: every future plan uses these names.
-6. **Confirm and commit.** Once every section is validated, ask *"Commit `.planning/features/{slug}/00_spec.md`?"*, and on yes commit it (see Rules). If the person drops it instead, delete the draft of a new spec, or take your own edits back out of an existing one (never `git checkout` the file: it may hold other uncommitted changes), and say so. Unless another skill called this one, end with the next prompt: `/factory:write-plan {slug}` in a new session.
-7. **Images** the person shares are saved in `.planning/features/{slug}/assets/` and referenced from the relevant section (usually UX Flow or Problem).
+4. **Draft the whole spec in one pass**, straight into `00_spec.md`, uncommitted, with only the sections that earn their place (Template below). The spec's text is produced once, in the file: never paste a section in chat. Then post one message: a link to the file, the gist of each section in a line, the Domain Glossary table in full when there is one (every future plan uses these names), and the questions left open. Iterate until the person is satisfied: apply each refinement with a targeted `Edit` and say what changed in a line. Never rewrite the whole file.
+5. **Confirm and commit.** Ask *"Commit `.planning/features/{slug}/00_spec.md`?"*, and on yes commit it (see Rules). If the person drops it instead, delete the draft of a new spec, or take your own edits back out of an existing one (never `git checkout` the file: it may hold other uncommitted changes), and say so. Unless another skill called this one, end with the next prompt: `/factory:write-plan {slug}` in a new session.
+6. **Images** the person shares are saved in `.planning/features/{slug}/assets/` and referenced from the relevant section (usually UX Flow or Problem).
 
 ## Template
 
-Required sections: TL;DR, Problem, Goals, Users & Context, User Stories, Functional Requirements, Business Rules. Omit UX Flow for features with no user interface, Non-goals and Open Questions when empty, the Domain Glossary when no entity is introduced or reused.
+Required: the header block, TL;DR, Problem, Non-goals, Functional Requirements. The other sections only when they say something the required ones do not:
+
+| Section | Write it when |
+|---|---|
+| Goals | the observable outcomes are not obvious from the TL;DR |
+| Users & Context | there are several roles, or the circumstances of use matter (frequency, device, place); one role with an obvious use is a clause of the TL;DR |
+| Domain Glossary | the feature introduces or reuses a name the plans and the code will carry (an entity, a concept with a business meaning); never for the words of the UI |
+| User Stories | there are several roles, or a benefit no FR carries; a single role whose reasons are in the FRs needs none |
+| Business Rules | a policy or constraint an implementation could silently break, and which is not already a non-goal |
+| UX Flow | the feature has a user interface |
+| Open Questions | a decision is still open |
 
 ```markdown
 # {Feature name} ({feature name in the person's language, if different}) — PRD
@@ -92,7 +101,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 
 ## Functional Requirements
 
-- **FR-01** — {What the system must do, one sentence.}
+- **FR-01** — {What the system must do, one sentence, with its reason when not obvious.}
 
 ## Business Rules
 

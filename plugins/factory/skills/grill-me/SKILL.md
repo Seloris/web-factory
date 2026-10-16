@@ -1,13 +1,13 @@
 ---
 name: grill-me
-description: "Grill the person on a spec, a dev-plan, a request or a project setup: rounds of numbered questions, each with a recommended answer, until every open decision is settled, then hand the decisions to write-spec, write-plan, implement or init. Writes nothing itself. Run it only when the person types /factory:grill-me or accepts the offer: write-spec, write-plan, init and any agent facing an ambiguous request offer it, never start it on their own."
+description: "Grill the person on a spec, a dev-plan, a request or a project setup: rounds of numbered questions, each with a recommended answer, until every open decision is settled, then hand the decisions to write-spec, write-plan, implement or init. Writes nothing itself. Run it only when the person types /grill-me or accepts the offer: write-spec, write-plan, init and any agent facing an ambiguous request offer it, never start it on their own."
 ---
 
 # Grill me
 
 Interview the person until the spec, plan, request or setup has no open decision left. Find the edge cases now, not during the plan or the code. Inspired by Matt Pocock's `grill-me` / `grilling` skills (MIT).
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (manifest, language, models).
+Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, manifest, language, subagents).
 
 Run only on `/factory:grill-me` or after the person said yes to the offer. Offering it is cheap; running it costs several rounds, so never start it unasked.
 
@@ -16,11 +16,11 @@ Run only on `/factory:grill-me` or after the person said yes to the offer. Offer
 - **Spec** (`/factory:grill-me {slug}`, or offered by `write-spec`): business questions only. Who, when, which rule, what happens in each edge case: unauthorized user, empty list, concurrent edits, limits, multi-tenant or multi-scope cases when the project has them. A technical question (endpoint, contract, table, component) is parked for the plan: note it and move on.
 - **Plan** (`/factory:grill-me plan {plan folder}`, or offered by `write-plan`): technical decisions too, checked against the spec ids and the conventions of the components in scope (their `CLAUDE.md`, the project's `.claude/rules/`). A business gap found here is a spec question first.
 - **Request** (offered by any agent when a request is ambiguous): whatever blocks the work.
-- **Setup** (offered by `init`): the manifest's values: components, stacks, commands, models, base branch.
+- **Setup** (offered by `factory-init`): the manifest's values: components, stacks, commands, models, base branch.
 
 ## Facts and decisions
 
-- **Facts** you look up yourself, never ask: current code behaviour, existing specs and plans, the conventions. Delegate a broad lookup to `runner` or `Explore` (see the model rules).
+- **Facts** you look up yourself, never ask: current code behaviour, existing specs and plans, the conventions.
 - **Decisions** go to the person: business rules, scope, trade-offs, names.
 
 ## Rounds
@@ -38,6 +38,6 @@ Write nothing, commit nothing. End with a summary in chat:
 - **Spec target:** each decision mapped to `+ US-NN`, `+ FR-NN` / `~ FR-NN`, `+ BR-NN` or a glossary entry; questions left open as `Q-NN`; parked technical questions for the plan. Then continue with `write-spec`, which writes them (the person's answers count as their request: no second confirmation for them).
 - **Plan target:** the decisions for the plan's Decisions section, and the steps they change. Then continue with `write-plan`.
 - **Request target:** the agreed decisions, then resume the calling skill.
-- **Setup target:** the manifest values, then resume `init`.
+- **Setup target:** the manifest values, then resume `factory-init`.
 
 When a skill called this one, return to it with the summary: no next prompts.
