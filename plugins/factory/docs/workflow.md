@@ -27,6 +27,7 @@ A development request (feature, change, bug fix) goes straight to `implement` wi
 - **Subagents are the lead's choice.** `runner` for a command whose output would flood the context (a full suite, a build), `Explore` for a broad search, inline for a quick command or a single read. Nothing blocks the lead; it reads a short report instead of raw output when that is cheaper.
 - **Integration tests are never run unasked.** The lead gives the filtered command; it runs only on the person's explicit request, in the session.
 - **Next prompts.** Every step ends with the prompt(s) of the next step, each in its own code block, real paths filled in.
+- **Commit messages proposed before the commit.** Every request to approve a commit shows its exact message; a stage commit, made without asking, uses the subject the plan's Progress (or the approach) announced.
 - **Done footer.** A turn that committed ends with `## ✅ JOB DONE` and one line per commit: hash, subject, branch, `not pushed`.
 - **Language.** Agents speak to the person in `language.chat`; everything written to the repository is in `language.repo`. Messages between agents use the caveman voice; anything the person reads is rewritten in normal prose.
 

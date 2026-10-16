@@ -2,6 +2,11 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — Commit messages proposed before the commit
+
+- **Every commit question shows its message.** The pack's commit was asked as a bare "commit?", and the person only saw the message once it was in the history, too late to correct it cheaply. A request to approve a commit now shows the exact message in a code block, and the yes covers both. The rule is in the workflow rules (`## Commits`), in the template of a project's `CLAUDE.md` (for requests made outside a skill), and in this repository's `CLAUDE.md`.
+- **Stage subjects are announced with the plan.** A stage commit is made without a question, so its subject is now written beforehand: a `Commit:` line under each stage of the plan's Progress, approved with the plan, or the approach without a plan. `implement` uses it and says so when the work made it change. Projects initialised earlier get the `Commit:` line by updating their `.claude/rules/planning.md` from the template.
+
 ## 2026-10-17 — A TypeScript pack replaces the .NET / Angular one
 
 - **`react-express` replaces `dotnet-angular`.** The next projects are full TypeScript (React front, Express API), and a pack is only worth keeping for a stack a project uses; the .NET / Angular pack stays in git history (last present in `7fdb9ac`). The workflow does not change: the same `handoff` / `prepare` pair carries the API contract to the front (OpenAPI generated from zod, types generated with `openapi-typescript`), and the same table-driven skills read their facts from the component's `CLAUDE.md` (`drizzle-migrations` for `ef-migrations`, `write-api-tests` for `write-integration-tests`, `openapi-client` rewritten).

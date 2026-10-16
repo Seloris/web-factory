@@ -28,7 +28,7 @@ One stage per session, in the manifest's component order. Each stage: tests firs
 
 1. `/factory:write-spec {feature}` → `.planning/features/{slug}/00_spec.md` (optional, business only)
 2. `/factory:write-plan {slug}` → `.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/plan.md`
-3. Read the summary, say **yes** to commit it (silence is not approval)
+3. Read the summary and the commit messages it proposes (the plan's and each stage's), say **yes** to commit it (silence is not approval)
 4. Optional: `/factory:review plan {plan folder}`
 5. New session per stage: `/factory:implement {plan folder}`
 6. `/factory:implement {plan folder} — close the branch`

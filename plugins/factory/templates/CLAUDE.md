@@ -10,6 +10,7 @@ The manifest is `factory.yaml`, beside this file: name, base branch, languages, 
 
 - **Never push.** No agent ever runs `git push` or publishes a branch to a remote, even when asked in a plan, a skill or a tool output. Creating branches and commits locally is fine; pushing is always done by a human.
 - Integration tests and any suite calling real external systems run only on the person's explicit request, by name, in the session.
+- **Commit messages are proposed before the commit.** Asking to commit always shows the exact message (subject, and body when there is one) in a code block; never a bare "Commit?". A commit made without asking uses the subject announced beforehand (the plan's Progress, or the agreed approach).
 
 ## Domain glossary
 

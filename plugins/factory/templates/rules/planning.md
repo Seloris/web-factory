@@ -76,16 +76,20 @@ Feature: `{slug}` · Components: `api`, `web` · Spec: US-03, FR-02, BR-05
 
 One checkbox per implementation step, grouped by stage. `implement` ticks each step when it is done and commits the whole stage, ticks included, in one commit at the end of the stage, so a new session knows where to resume.
 
+Each stage starts with its commit subject, the one `implement` uses for the stage's commit, so the person reads it with the plan.
+
 ```markdown
 ## Progress
 
 ### Stage 1 — api
+Commit: `feat({slug}): api — {summary}`
 - [ ] Domain: {short step}
 - [ ] Application: {short step}
 - [ ] Api: {short step}
 - [ ] Handoff: `api/openapi.json` exported
 
 ### Stage 2 — web
+Commit: `feat({slug}): web — {summary}`
 - [ ] Prepare: client regenerated from `api/openapi.json`
 - [ ] data: {short step}
 - [ ] pages: {short step}

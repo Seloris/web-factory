@@ -68,7 +68,7 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` and show the resolved mani
 
 ### 5. Commit
 
-Propose one commit of the files written, `tools(tooling): factory init`, and make it on the person's yes. Never push. Then the next prompts:
+Propose one commit of the files written, with its message in a code block (`tools(tooling): factory init`, and a body listing the files), and make it on the person's yes. Never push. Then the next prompts:
 
 ```
 /factory:write-spec {first feature}

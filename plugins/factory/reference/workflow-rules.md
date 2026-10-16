@@ -45,6 +45,11 @@ Messages between agents use the caveman voice (`${CLAUDE_PLUGIN_ROOT}/reference/
 
 Conventional-style, in `language.repo`: `{type}({slug}): {summary}`, with `{type}` in `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `tools`, `ops`, `chore`. A stage commit names its stage: `{type}({slug}): {stage} — {summary}`. The project's `docs/CONTRIBUTING.md` may refine this; it wins.
 
+**Proposed before made.** The person sees a commit's message before the commit exists:
+
+- Every question asking the person to approve a commit shows the exact message in a code block, ready to use: the subject, and the body when there is one. Never a bare "Commit?". The yes approves the commit and its message; a correction to the message is applied without asking again.
+- A commit made without a question (a stage commit) uses the subject announced beforehand: the plan's Progress line for that stage, or the approach without a plan. When the work drifted from it, the stage report gives the subject used and says why it changed.
+
 ## Next prompts
 
 At the end of each workflow step (spec written, plan written, stage implemented, review done), end the message with the prompt(s) for the next step(s), each in its own code block, with the real slug and plan folder filled in. Example after a plan:
