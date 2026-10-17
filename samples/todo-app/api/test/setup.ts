@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import { createApp } from "../src/app.js";
 import { migrateDatabase, openDatabase, type Database } from "../src/db/client.js";
+import { todos, type NewTodoRow } from "../src/features/todos/todos.table.js";
 import type { Clock } from "../src/shared/clock.js";
+import { buildTodo } from "./factories.js";
 
 const EPOCH = "2026-01-01T00:00:00.000Z";
 
@@ -24,7 +26,11 @@ export async function createTestContext() {
   await migrateDatabase(db);
   const clock = createTestClock();
   const app = createApp({ db, clock });
-  const seed = {};
+  const seed = {
+    // Inserts in argument order, so ids grow in that order.
+    todos: (...overrides: Partial<NewTodoRow>[]) =>
+      db.insert(todos).values(overrides.map((o) => buildTodo(o))).returning(),
+  };
   const reset = async () => {
     const tables = await db.execute<{ table_name: string }>(sql`
       select table_name from information_schema.tables

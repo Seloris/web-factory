@@ -161,15 +161,20 @@ None: `web/CLAUDE.md` forbids front tests. The browser test of the Validation co
 7. Delete a todo: the dialog names it; cancel keeps it; confirm removes it (FR-09).
 8. Delete the last todo of the selected tag: the dropdown falls back to every todo.
 
+## Deviations
+
+- `todoIdParamsSchema = z.object({ id: z.coerce.number().int().positive() })` → `.max(2_147_483_647)` added, with a `400` route test for an id beyond it (the `integer` column's bound: a larger id passed validation and failed in Postgres as a `500`).
+- `registry.register("Todo", todoSchema)` and the `ProblemDetails` registration → `.meta({ id: "Todo" })` on `todoSchema`, and `.meta({ id: "ProblemDetails" })` on `problemDetailsSchema` in `src/shared/errors.ts`, so every feature shares the one component (`registry.register` needs `extendZodWithOpenApi`, which the skeleton does not call; zod-to-openapi reads zod v4's `meta` id the same way: the document holds both components and the responses `$ref` them).
+
 ## Progress
 
 ### Stage 1 — api
 Commit: `feat(home): api — todos list, create, complete and delete`
-- [ ] db: `todos` table, schema re-export, migration `create_todos`
-- [ ] services: `todoSchema`, repository, service (BR-03, BR-04), `buildTodo` and `seed.todos`, service tests
-- [ ] routes: contracts and OpenAPI registration, router, wiring in `createApp`, export script import, route tests
-- [ ] Conventions: `api/CLAUDE.md` and root `CLAUDE.md` updated
-- [ ] Handoff: `api/openapi.json` exported, `Todo` and `ProblemDetails` referenced as components
+- [x] db: `todos` table, schema re-export, migration `create_todos`
+- [x] services: `todoSchema`, repository, service (BR-03, BR-04), `buildTodo` and `seed.todos`, service tests
+- [x] routes: contracts and OpenAPI registration, router, wiring in `createApp`, export script import, route tests
+- [x] Conventions: `api/CLAUDE.md` and root `CLAUDE.md` updated
+- [x] Handoff: `api/openapi.json` exported, `Todo` and `ProblemDetails` referenced as components
 
 ### Stage 2 — web
 Commit: `feat(home): web — home page with todos, filters and delete confirmation`

@@ -1,14 +1,17 @@
 import type { ErrorRequestHandler } from "express";
 import { z } from "zod";
 
-export const problemDetailsSchema = z.object({
-  type: z.string(),
-  title: z.string(),
-  status: z.number().int(),
-  detail: z.string().optional(),
-  code: z.string().optional(),
-  errors: z.record(z.string(), z.array(z.string())).optional(),
-});
+// One OpenAPI component for every feature's error responses.
+export const problemDetailsSchema = z
+  .object({
+    type: z.string(),
+    title: z.string(),
+    status: z.number().int(),
+    detail: z.string().optional(),
+    code: z.string().optional(),
+    errors: z.record(z.string(), z.array(z.string())).optional(),
+  })
+  .meta({ id: "ProblemDetails" });
 
 export type ProblemDetails = z.infer<typeof problemDetailsSchema>;
 

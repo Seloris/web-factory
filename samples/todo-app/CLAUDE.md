@@ -1,6 +1,6 @@
 # todo-app
 
-A task management application: create, list and delete tasks from the home page.
+A task management application: create, list, complete, filter and delete todos from the home page.
 
 The manifest is `factory.yaml`, beside this file: name, base branch, languages, model preset, components in implementation order. Each component has its own `CLAUDE.md` under its path: stack, layers, commands, conventions. The workflow (`/factory:write-spec`, `/factory:write-plan`, `/factory:implement`, `/factory:review`, `/factory:grill-me`) comes from the factory plugin (`.claude/settings.json` enables it); `docs/CONTRIBUTING.md` holds the branch and commit conventions, `.claude/rules/planning.md` the planning conventions, `.claude/rules/memory.md` the team memory.
 
@@ -18,7 +18,8 @@ The code uses identifiers in English, each mapped to a business term. Use the id
 
 | Identifier | Business term | Meaning |
 |---|---|---|
-| | | |
+| `Todo` | `Todo` | A task the person wants to remember, completed or not |
+| `Tag` | `Tag` | A free label put on a todo to group it with others on the same subject |
 
 ## Local development
 

@@ -1,4 +1,4 @@
-# api — the todo-app API: tasks (create, list, delete)
+# api — the todo-app API: todos (list, create, complete, delete)
 
 ```component
 kind: api
@@ -60,9 +60,9 @@ The layers are the plan's sections, in this order: `db` (tables, migration), `se
 - **TypeScript strict**, ES modules, no `any` (use `unknown` and narrow); no default exports.
 - **Contracts first:** every route's params, query, body and response have a zod schema in `{feature}.schema.ts`; the TypeScript types come from `z.infer`, never declared a second time. Every schema is registered in the OpenAPI registry with the route, so the handoff document is complete.
 - **Routes are thin:** guard, `validate(...)`, one service call, the status code and the response. No query, no business rule in a router.
-- **Services** take the repository and the `Clock` as parameters (`createTaskService({ tasks, clock })`); no import of the database client in a service. Time always through `clock.now()`, never `new Date()` or `Date.now()` in services or repositories.
+- **Services** take the repository and the `Clock` as parameters (`createTodoService({ todos, clock })`); no import of the database client in a service. Time always through `clock.now()`, never `new Date()` or `Date.now()` in services or repositories.
 - **Errors:** a service throws a typed `AppError` (`NotFoundError`, `ForbiddenError`, `ConflictError`, `BusinessRuleError` with a stable `code`); the error middleware turns it into a problem details response (`application/problem+json`, RFC 9457). Validation failures are `400`, missing entities `404`, scope violations `403`. Never `throw new Error(...)` for an expected case. Express 5 forwards rejected promises to the middleware: no `try`/`catch` in routers.
-- **Authorization:** this application has no accounts. Every route is public and its router says so explicitly (the `public` guard); there is no caller scope to filter by. Adding accounts later is a spec change first.
+- **Authorization:** this application has no accounts. Every route is public and its router says so explicitly with a `// Public: no sign-in` comment, as in the health route (there is no guard function); there is no caller scope to filter by. Adding accounts later is a spec change first.
 - **Persistence:** Drizzle query builder or relational queries, no raw SQL except a documented case (`sql` template, parameterised); select only the columns a response needs; no N+1 (a join or one `inArray` query). Writes that span several tables run in `db.transaction(...)`.
 - **Naming:** camelCase in TypeScript, snake_case in the database (Drizzle `casing: "snake_case"`); booleans with the `is`/`has`/`can` prefix; identifiers in English.
 - Comments explain why, never what.
@@ -83,8 +83,8 @@ The `drizzle-migrations` skill reads this table.
 
 ## Testing
 
-- **Vitest** for everything. Services with business rules get unit tests with an in-memory repository fake or the test database; routes get Supertest tests against `createApp` on an in-memory PGlite (see the table below). Names read as sentences: `it("returns 404 when the task does not exist")`; `// Arrange` / `// Act` / `// Assert` sections.
-- Test data comes from the factories of `test/factories.ts` (`buildTask(overrides)`), inserted through the repository or the seed helpers; never a hand-built row a factory can produce.
+- **Vitest** for everything. Services with business rules get unit tests with an in-memory repository fake or the test database; routes get Supertest tests against `createApp` on an in-memory PGlite (see the table below). Names read as sentences: `it("returns 404 when the todo does not exist")`; `// Arrange` / `// Act` / `// Assert` sections.
+- Test data comes from the factories of `test/factories.ts` (`buildTodo(overrides)`), inserted through the repository or the seed helpers; never a hand-built row a factory can produce.
 - The test clock is fixed (`testClock.set(...)`); a test never depends on the real time.
 
 ## API tests
@@ -92,7 +92,7 @@ The `drizzle-migrations` skill reads this table.
 | Item | Value |
 |---|---|
 | Setup | `test/setup.ts`: `createTestContext()` returns `{ app, db, clock, seed, reset }` on an in-memory PGlite with the migrations applied; one context per file (`beforeAll`), `reset()` truncates every table in `beforeEach` |
-| HTTP client | Supertest: `request(app).post("/v1/tasks").send(body)` |
+| HTTP client | Supertest: `request(app).post("/v1/todos").send(body)` |
 | Authenticated calls | none: the API has no accounts, every route is public |
 | Factories | `test/factories.ts`, `build{Entity}(overrides)` |
 | Database assertion | read back through `db` (Drizzle) after every write |

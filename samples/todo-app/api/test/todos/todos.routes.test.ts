@@ -1,0 +1,235 @@
+import { eq } from "drizzle-orm";
+import request from "supertest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { todoListSchema, todoSchema } from "../../src/features/todos/todos.schema.js";
+import { todos } from "../../src/features/todos/todos.table.js";
+import { problemDetailsSchema } from "../../src/shared/errors.js";
+import { createTestContext } from "../setup.js";
+
+const UNKNOWN_ID = 999999;
+
+let ctx: Awaited<ReturnType<typeof createTestContext>>;
+
+beforeAll(async () => {
+  ctx = await createTestContext();
+});
+
+beforeEach(async () => {
+  await ctx.reset();
+});
+
+async function findTodo(id: number) {
+  const [row] = await ctx.db.select().from(todos).where(eq(todos.id, id));
+  return row;
+}
+
+describe("GET /v1/todos", () => {
+  it("returns an empty list when there is no todo", async () => {
+    // Act
+    const res = await request(ctx.app).get("/v1/todos");
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(todoListSchema.parse(res.body)).toEqual([]);
+  });
+
+  it("returns the newest first", async () => {
+    // Arrange
+    const [newest, oldest] = await ctx.seed.todos(
+      { name: "Newest", createdAt: new Date("2026-10-17T10:00:00.000Z") },
+      { name: "Oldest", createdAt: new Date("2026-10-16T10:00:00.000Z") },
+    );
+
+    // Act
+    const res = await request(ctx.app).get("/v1/todos");
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(todoListSchema.parse(res.body)).toEqual([
+      { id: newest?.id, name: "Newest", tag: null, isCompleted: false, createdAt: "2026-10-17T10:00:00.000Z" },
+      { id: oldest?.id, name: "Oldest", tag: null, isCompleted: false, createdAt: "2026-10-16T10:00:00.000Z" },
+    ]);
+  });
+
+  it("breaks ties on the same instant by the latest created first", async () => {
+    // Arrange
+    const [first, second] = await ctx.seed.todos({ name: "First" }, { name: "Second" });
+
+    // Act
+    const res = await request(ctx.app).get("/v1/todos");
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(todoListSchema.parse(res.body).map((todo) => todo.id)).toEqual([second?.id, first?.id]);
+  });
+});
+
+describe("POST /v1/todos", () => {
+  it("returns 201 with the trimmed name, no tag, not completed", async () => {
+    // Arrange
+    ctx.clock.set("2026-10-17T09:00:00.000Z");
+
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name: "  Buy bread  " });
+
+    // Assert
+    expect(res.status).toBe(201);
+    const todo = todoSchema.parse(res.body);
+    expect(todo).toEqual({
+      id: todo.id,
+      name: "Buy bread",
+      tag: null,
+      isCompleted: false,
+      createdAt: "2026-10-17T09:00:00.000Z",
+    });
+    expect(await findTodo(todo.id)).toMatchObject({ name: "Buy bread", tag: null, isCompleted: false });
+  });
+
+  it("accepts a 200-character name and a 30-character tag", async () => {
+    // Arrange
+    const name = "n".repeat(200);
+    const tag = "t".repeat(30);
+
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name, tag });
+
+    // Assert
+    expect(res.status).toBe(201);
+    const todo = todoSchema.parse(res.body);
+    expect(await findTodo(todo.id)).toMatchObject({ name, tag });
+  });
+
+  it.each([
+    { label: "missing", body: {} },
+    { label: "blank", body: { name: "   " } },
+    { label: "201 characters long", body: { name: "n".repeat(201) } },
+  ])("returns 400 with a body.name error when the name is $label", async ({ body }) => {
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send(body);
+
+    // Assert
+    expect(res.status).toBe(400);
+    const problem = problemDetailsSchema.parse(res.body);
+    expect(problem.code).toBe("validation_failed");
+    expect(problem.errors).toHaveProperty(["body.name"]);
+    expect(await ctx.db.select().from(todos)).toEqual([]);
+  });
+
+  it("returns 400 with a body.tag error when the tag is 31 characters long", async () => {
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name: "Buy bread", tag: "t".repeat(31) });
+
+    // Assert
+    expect(res.status).toBe(400);
+    const problem = problemDetailsSchema.parse(res.body);
+    expect(problem.errors).toHaveProperty(["body.tag"]);
+    expect(await ctx.db.select().from(todos)).toEqual([]);
+  });
+
+  it("stores no tag when the tag is only spaces", async () => {
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name: "Buy bread", tag: "   " });
+
+    // Assert
+    expect(res.status).toBe(201);
+    const todo = todoSchema.parse(res.body);
+    expect(todo.tag).toBeNull();
+    expect((await findTodo(todo.id))?.tag).toBeNull();
+  });
+
+  it("reuses the existing tag's casing", async () => {
+    // Arrange
+    await ctx.seed.todos({ tag: "Groceries" });
+
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name: "Buy bread", tag: "groceries" });
+
+    // Assert
+    expect(res.status).toBe(201);
+    const todo = todoSchema.parse(res.body);
+    expect(todo.tag).toBe("Groceries");
+    expect((await findTodo(todo.id))?.tag).toBe("Groceries");
+  });
+});
+
+describe("PATCH /v1/todos/{id}", () => {
+  it("marks a todo completed, then back to not completed", async () => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy bread" });
+    const id = seeded?.id ?? UNKNOWN_ID;
+
+    // Act
+    const completed = await request(ctx.app).patch(`/v1/todos/${id}`).send({ isCompleted: true });
+    const isCompletedAfterFirst = (await findTodo(id))?.isCompleted;
+    const reopened = await request(ctx.app).patch(`/v1/todos/${id}`).send({ isCompleted: false });
+
+    // Assert
+    expect(completed.status).toBe(200);
+    expect(todoSchema.parse(completed.body)).toMatchObject({ id, name: "Buy bread", isCompleted: true });
+    expect(isCompletedAfterFirst).toBe(true);
+    expect(reopened.status).toBe(200);
+    expect(todoSchema.parse(reopened.body)).toMatchObject({ id, isCompleted: false });
+    expect((await findTodo(id))?.isCompleted).toBe(false);
+  });
+
+  it("returns 404 when the todo does not exist", async () => {
+    // Act
+    const res = await request(ctx.app).patch(`/v1/todos/${UNKNOWN_ID}`).send({ isCompleted: true });
+
+    // Assert
+    expect(res.status).toBe(404);
+    expect(problemDetailsSchema.parse(res.body).code).toBe("not_found");
+  });
+
+  it.each([
+    { label: "the id is not a number", id: "abc", body: { isCompleted: true }, field: "params.id" },
+    { label: "the id is zero", id: "0", body: { isCompleted: true }, field: "params.id" },
+    { label: "the id is not an integer", id: "1.5", body: { isCompleted: true }, field: "params.id" },
+    { label: "the id exceeds the integer range", id: "2147483648", body: { isCompleted: true }, field: "params.id" },
+    { label: "isCompleted is missing", id: "1", body: {}, field: "body.isCompleted" },
+  ])("returns 400 when $label", async ({ id, body, field }) => {
+    // Act
+    const res = await request(ctx.app).patch(`/v1/todos/${id}`).send(body);
+
+    // Assert
+    expect(res.status).toBe(400);
+    expect(problemDetailsSchema.parse(res.body).errors).toHaveProperty([field]);
+  });
+});
+
+describe("DELETE /v1/todos/{id}", () => {
+  it("returns 204 and the todo is gone", async () => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy bread" });
+    const id = seeded?.id ?? UNKNOWN_ID;
+
+    // Act
+    const res = await request(ctx.app).delete(`/v1/todos/${id}`);
+
+    // Assert
+    expect(res.status).toBe(204);
+    expect(res.text).toBe("");
+    expect(await findTodo(id)).toBeUndefined();
+  });
+
+  it("returns 404 when the todo does not exist", async () => {
+    // Act
+    const res = await request(ctx.app).delete(`/v1/todos/${UNKNOWN_ID}`);
+
+    // Assert
+    expect(res.status).toBe(404);
+    expect(problemDetailsSchema.parse(res.body).code).toBe("not_found");
+  });
+
+  it.each([
+    { label: "the id is not a number", id: "abc" },
+    { label: "the id exceeds the integer range", id: "2147483648" },
+  ])("returns 400 when $label", async ({ id }) => {
+    // Act
+    const res = await request(ctx.app).delete(`/v1/todos/${id}`);
+
+    // Assert
+    expect(res.status).toBe(400);
+    expect(problemDetailsSchema.parse(res.body).errors).toHaveProperty(["params.id"]);
+  });
+});
