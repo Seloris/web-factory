@@ -11,7 +11,7 @@ A Claude Code mod (function hooks) for projects that use the factory. It opens a
 | Stages | One line per `### Stage N — …` of the plan's Progress, with the short SHA of the stage's commit once its subject (`Commit:` line) is on the branch |
 | Draft | `(brouillon)` while `plan.md` is untracked, as the planning rule defines a draft |
 | Spec | `spec brouillon` (`Draft`) or `spec validée` (`Approved`), from the spec header, for a feature with no plan yet |
-| Timeline | `Spec` (`brouillon`, `validée`, `absente`), `Plan` (`brouillon`, `commité`), one `Stage N — …` per stage (its count, then its short SHA), `Revue finale` (the Validation count), `Clôture de la branche`; the step at hand is the one the primary button prepares |
+| Timeline | `Spec` (`brouillon`, `validée`, `absente`), `Plan` (`brouillon`, `commité`), one `Stage N — …` per stage (its count, then its short SHA), `Revue finale` (the Validation count, a declined item `[-]` counted as settled), `Clôture de la branche`; the step at hand is the one the primary button prepares |
 | Runs | Under each step, newest first: `✓ 16/10 00:21 · Implémentation · 14 min · session 7f0772df`, with `en cours`, `attend une réponse` or `interrompue` when not done. The live ones are also listed above the cards, in a block that unfolds the feature on a click |
 
 The source of truth stays the files and git. The board is rescanned every 10 seconds, after each `git commit` run through Bash, and at the end of each turn. A stage whose commit reaches the branch, or a Validation checklist that becomes complete, raises a toast.

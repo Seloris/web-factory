@@ -24,7 +24,8 @@ const HEADING_1 = /^#\s+(.+?)\s*$/
 const HEADING_2 = /^##\s+(.+?)\s*$/
 const STAGE = /^###\s+Stage\s+(\d+)\s*(?:[—–-]+\s*(.*?))?\s*$/
 const COMMIT = /^Commit:\s*`([^`]+)`/
-const CHECKBOX = /^\s*[-*]\s+\[([ xX])\]/
+// `[-]`: settled without a tick (a validation check the person declined); counts as done.
+const CHECKBOX = /^\s*[-*]\s+\[([ xX-])\]/
 
 /** Reads a `plan.md`: its title, the Progress stages and the Validation count. */
 export function parsePlan(text: string): ParsedPlan {

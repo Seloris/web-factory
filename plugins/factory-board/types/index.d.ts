@@ -44,7 +44,7 @@ export type FactoryBoardFeatureState =
   | 'running'
   /** Every stage ticked, the Validation checklist not yet. */
   | 'review'
-  /** Every stage and every validation item ticked: ready to close. */
+  /** Every stage and every validation item ticked (or declined, `[-]`): ready to close. */
   | 'done'
 
 export type FactoryBoardFeature = {

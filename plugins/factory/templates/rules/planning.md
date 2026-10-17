@@ -106,17 +106,19 @@ The checks made once every stage is done, one checkbox each, in a section of the
 ## Validation
 
 - [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [ ] Tests: the full `test` command of `{components}` green on the plan's final code
 - [ ] Browser test: the change tested in `web` (`test-in-browser` skill)
 - [ ] Integration tests: `{names}` green
 ```
 
 - **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings on another component, or a plan implemented before this rule), `implement`'s final review ticks it (`/factory:implement {plan folder} — final review` once every stage is ticked).
+- **Tests:** whenever a touched component declares `commands.test`, listing those components. Each stage runs its own component's full suite already; this item records one run of every listed suite, in full, on the plan's final code. Ticked when all of them passed; a code change after the tick re-runs every listed suite, or unticks it.
 - **Browser test:** only when a touched component declares a `url`. Ticked when every scenario passed.
 - **Integration tests:** only when the Tests section names integration tests of a component that declares `commands.integration_tests`, listed in the item. Ticked when the person asked for the run and every test passed.
 
-The checklist is the only record of these checks: an item absent or unticked means the check was not done. The tick goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.
+The checklist is the only record of these checks: an item absent or unticked means the check was not done. Review is never skipped; the other items are optional, and an item the person declined is marked `[-]` with the reason, e.g. `- [-] Browser test: not run (declined by the person)`, so the plan says it was not run and why. The tick or the mark goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.
 
-Once the Validation is all ticked, the branch is closed: `implement` squashes its commits (the plan's, each stage's, the review's and the validations') into one, on the person's yes (`/factory:implement {plan folder} — close the branch`). The checklist needs no item for it.
+Once every Validation item is ticked or marked `[-]`, the branch is closed: `implement` squashes its commits (the plan's, each stage's, the review's and the validations') into one, on the person's yes (`/factory:implement {plan folder} — close the branch`). The checklist needs no item for it.
 
 ## Plan header
 

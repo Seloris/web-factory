@@ -155,6 +155,12 @@ test('parsePlan reads the stages, their commits and the validation', () => {
   expect(plan.validationTotal).toBe(2)
 })
 
+test('parsePlan counts a declined validation item as settled', () => {
+  const plan = parsePlan('## Validation\n\n- [x] Review: done\n- [-] Browser test: not run (declined)\n- [ ] Tests: suite green\n')
+  expect(plan.validationDone).toBe(2)
+  expect(plan.validationTotal).toBe(3)
+})
+
 test('parseSpec reads the title without the PRD suffix and the status', () => {
   expect(parseSpec(SPEC)).toEqual({ title: 'Demo counter (Compteur de démo)', status: 'Draft' })
 })

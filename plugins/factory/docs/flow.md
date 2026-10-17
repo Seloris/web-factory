@@ -32,7 +32,10 @@ flowchart TD
     implDirect --> stage
     implPlan --> stage
     stage -- "next stage: new session, same branch" --> stage
-    stage -- "last stage committed,<br/>Validation checklist ticked" --> close
+    stage -- "last stage committed,<br/>Validation item left" --> final
+    stage -- "last stage committed,<br/>Validation settled" --> close
+    final["/factory:implement … final review<br/><i>review, then full tests, browser test,<br/>integration tests on the person's yes</i>"]
+    final --> close
 
     close["/factory:implement … close the branch<br/><i>squash to one commit, on the person's yes</i>"]
     push([A human pushes])
@@ -45,4 +48,5 @@ flowchart TD
 - **Default path.** A request goes straight to `implement`, without a plan. Planning is for large, risky or multi-stage changes, and only when the person asks for it.
 - **With a plan.** `write-spec` only when business behaviour is new; `write-plan` always; the plan is committed only after an explicit yes (silence is not approval); `review plan` is optional.
 - **The stage loop.** Each stage runs in a fresh session: tests first, then the component's build, test and lint commands (the noisy ones through `runner`), then the `reviewer` agent, then one commit. Integration tests run only on the person's explicit request.
-- **Closing.** Once the last stage is committed (and, with a plan, the Validation checklist is all ticked), `implement … close the branch` squashes the branch to one commit on the person's yes. Agents never push.
+- **Final review.** With a plan, the Validation checklist records the review and the tests. What the last stage left open, `implement … final review` settles: the review, then the full tests, the browser test and the integration tests the person says yes to; a declined one is marked `[-]`.
+- **Closing.** Once the last stage is committed (and, with a plan, every Validation item is ticked or marked `[-]`), `implement … close the branch` squashes the branch to one commit on the person's yes. Agents never push.

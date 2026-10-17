@@ -2,6 +2,12 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — The Validation records the tests
+
+- **A `Tests` item in the plan's Validation.** On the sample's `init-home` plan the board showed the review to do, but nothing said whether the tests had run: every stage runs its component's full suite, and no line of the plan recorded it. Whenever a touched component declares `commands.test`, the Validation now holds `Tests: the full test command of {components} green on the plan's final code`; the last stage runs the other listed suites beside its own and ticks it.
+- **The final review settles the whole Validation.** The board's `Revue finale` step counted every Validation item (`0/2`: review and browser test), while `— final review` ran only the reviewer, and no prompt ran a browser test after its stage. The final review now asks first which optional items to run (tests, browser test, integration tests), runs the review, then each item the person said yes to.
+- **A declined check is `[-]`, with its reason.** Closing the branch needed every item ticked, so a browser test the person declined blocked the close forever. An optional item the person declines is marked `- [-] {item}: not run ({reason})`: the plan says it was not run and why, the close accepts it, the board counts it as settled. `Review` is never declined.
+
 ## 2026-10-17 — The prompt names the stage
 
 - **`implement` reads the stage from the prompt.** The board and `write-plan` prepared a bare `/factory:implement {plan folder}`, so nothing in the prompt said which stage a session was about to run, and chaining the stages, which the skill already allowed when the prompt asks for it, had no prompt of its own. The next prompts now name it: `— stage {N} ({component})` for one stage, `— stages {N}-{M} ({components}), chained` for every remaining one in one session, still one commit per stage. A named stage must be the one Progress picks; otherwise the skill stops and says where Progress is.

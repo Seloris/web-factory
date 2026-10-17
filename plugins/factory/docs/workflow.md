@@ -35,9 +35,13 @@ A development request (feature, change, bug fix) goes straight to `implement` wi
 
 The session model is the lead: it plans, decides and writes the code. High-volume mechanical work goes to cheaper subagents when the lead judges it worth it. Which model plays which role comes from the manifest's `models` preset (see `manifest.md`): a subagent is spawned with its role's model. The session's own model is the person's choice; the preset says which one each role is meant for.
 
+## Validation of a plan
+
+The plan's Validation checklist records the checks run on the finished implementation: `Review` (always), `Tests` (the full `test` command of every touched component that has one), `Browser test`, `Integration tests`. The last stage ticks what it ran: the whole-plan review, the full suites, the browser test if the person said yes. `implement … — final review` settles what is left: the review if still open, then the optional items, each run only on the person's yes in the session; a declined one is marked `[-]` with the reason. An unticked item means the check was not run.
+
 ## Closing a branch
 
-A branch reaches `base_branch` as one commit. Stages keep their own commits while the work goes on; once the plan's Validation checklist is all ticked (or, without a plan, the last stage is committed), `implement … — close the branch` squashes them, on the person's yes, after checking that nothing is uncommitted, nothing is pushed and every commit is the feature's.
+A branch reaches `base_branch` as one commit. Stages keep their own commits while the work goes on; once every item of the plan's Validation checklist is ticked or marked `[-]` (or, without a plan, the last stage is committed), `implement … — close the branch` squashes them, on the person's yes, after checking that nothing is uncommitted, nothing is pushed and every commit is the feature's.
 
 ## Planning conventions
 
