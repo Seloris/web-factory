@@ -1,6 +1,6 @@
 # factory-board
 
-A Claude Code mod (function hooks) for projects that use the factory. It opens a pane that lists the project's features, the state of their spec and their latest dev plan, the stages done and the stages left, and the sessions working on them right now. One button per feature prepares the next `/factory:` prompt.
+A Claude Code mod (function hooks) for projects that use the factory. It opens a pane headed by the project, its branch and the live sessions, four tiles (features, without a plan, in progress, stages left), then one row per feature: its state, its stage bar and the button that prepares the next `/factory:` prompt. A row unfolds into its stages and the prompt itself.
 
 ## What it shows
 
@@ -21,10 +21,11 @@ The runs live in the mod's own store (`$.store`, a JSON file under the user's Cl
 
 ## Buttons
 
-- The feature row unfolds its stages, the plan folder and the next action.
-- The primary button fills the prompt box with the next command: `write-spec` for an empty feature, `write-plan` for a spec alone or a draft plan, `implement {plan folder}` for the next stage, `… — final review` once every stage is ticked, `… — close the branch` once the Validation is complete. Enter sends it. Where no prompt box takes it, the prompt is copied instead.
-- `Copier` copies that prompt.
+- The feature row unfolds its plan folder, its stages (the active one marked `◉`), its Validation count and the prepared prompt.
+- The row's primary button fills the prompt box with the next command: `write-spec` for an empty feature, `write-plan` for a spec alone or a draft plan, `implement {plan folder}` for the next stage, `… — final review` once every stage is ticked, `… — close the branch` once the Validation is complete. Enter sends it. Where no prompt box takes it, the prompt is copied instead.
+- `Copier` copies that prompt; `Revue du plan` prepares `/factory:review plan {plan folder}`.
 - `⟳` rescans now.
+- Under 72 cells the row's columns wrap under the feature name and the column header is dropped.
 
 ## Running it
 

@@ -202,7 +202,7 @@ test('committed names a stage whose commit reached the branch', () => {
   expect(committed(null, board(null))).toEqual([])
 })
 
-test('the pane lists the features, unfolds the stages and prepares the prompt', async ($, on) => {
+test('the pane counts the features, lists them, unfolds the stages and prepares the prompt', async ($, on) => {
   mockProject(on)
   const filled: string[] = []
   on('prompt.fill', ($, e) => {
@@ -214,16 +214,26 @@ test('the pane lists the features, unfolds the stages and prepares the prompt', 
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('2 feature(s)')
-    expect(await ui.find({ key: 'row:demo', text: /en cours/ })).toBeDefined()
-    expect(await ui.find({ key: 'row:tags', text: /spec seule/ })).toBeDefined()
+    expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('repo · feat/demo')
+    expect((await ui.find({ key: 'tile:features' }))?.text).toContain('2')
+    expect((await ui.find({ key: 'tile:no-plan' }))?.text).toContain('1')
+    expect((await ui.find({ key: 'tile:stages-left' }))?.text).toContain('1')
+    expect(await ui.find({ key: 'row:demo', text: /demo/ })).toBeDefined()
+    expect(await ui.find({ key: 'row:tags', text: /tags/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /● en cours/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /● spec seule/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /spec validée/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /1\/2 stages · validation 0\/2/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /█{4}░{4} 1\/2/ })).toBeDefined()
+    expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Stage 2 — web')
+    expect(await ui.find({ key: 'stage:demo:1' })).toBeUndefined()
 
     await ui.press({ key: 'row:demo' })
     expect((await ui.find({ key: 'stage:demo:1' }))?.text).toContain('b71e04')
     expect((await ui.find({ key: 'stage:demo:2' }))?.text).toContain('1/3')
-    expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Stage 2 — web')
+    expect(await ui.find({ type: 'Text', text: /Validation\s+0\/2/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: new RegExp(`/factory:implement ${PLAN_FOLDER}`) })).toBeDefined()
+    expect(await ui.find({ key: 'copy:demo' })).toBeDefined()
+    expect(await ui.find({ key: 'review:demo' })).toBeDefined()
 
     await ui.press({ key: 'prepare:demo' })
     expect(filled.at(-1)).toBe(`/factory:implement ${PLAN_FOLDER}`)
