@@ -1,0 +1,185 @@
+# Home page: todos list, add, complete, filter, delete
+
+Feature: `home` · Components: `api`, `web` · Spec: FR-01 to FR-11, BR-01 to BR-04
+
+## Context
+
+First iteration of the application: nothing exists beyond the stack skeleton (the `health` route on the API, an empty home route on the front). This plan builds the `todos` feature end to end: a table and four public routes on the API, then the home page on the front, which lists the todos, adds one with an optional tag, marks it completed, filters it by name and tag, sorts it by state and deletes it after a confirmation.
+
+## Decisions
+
+- Spec Q-01: is the sort by state the default order? → No: a toggle, off when the page opens (spec FR-05 revised).
+- Spec Q-02: is the tag typed freely, and are `Urgent` and `urgent` the same tag? → Typed freely with suggestions of the existing tags (spec FR-11); compared ignoring case, the existing tag's casing is reused (spec BR-03).
+- A tag made only of spaces? → No tag, not an error (spec BR-04).
+- Where do search, tag filter and sort run? → In the browser, over one `GET` returning every todo; the tag dropdown and the suggestions are derived from that list (instant filtering as the person types, a minimal API, a small volume).
+- How is a tag stored? → A nullable `tag` column on `todos`, no `tags` table (a tag only exists through its todos). On create, the service looks up an existing tag ignoring case and reuses its casing; once every `Urgent` is deleted, a new `urgent` is kept as typed.
+- Routes? → `GET /v1/todos`, `POST /v1/todos` (`201`), `PATCH /v1/todos/{id}` with `{ isCompleted }` (`200`), `DELETE /v1/todos/{id}` (`204`); an unknown id is a `404` problem details. `/health` is unchanged.
+- Id type? → An integer identity column. "Newest first" orders by `createdAt` descending, then `id` descending, so that todos created at the same instant (the fixed test clock) keep a deterministic order.
+- Delete confirmation? → A `ConfirmDialog` built on the native `<dialog>`, naming the todo; no `window.confirm` (it blocks the automated browser test and bypasses the translation layer).
+- Naming? → `features/todos/` in both components, `Todo` identifiers; the component `CLAUDE.md` files lose their "tasks" wording and the root glossary gets `Todo` and `Tag` (see Conventions).
+- Mutations and the list? → Every mutation invalidates the todos query on success; no optimistic update (a local API, an instant refetch).
+- Error messages on the front? → French messages from the translation layer: the `400` field errors map to the field's French message, any other failure shows a generic French message. The API's `detail` is English and is never shown.
+- Concurrent creates of `Urgent` and `urgent` while neither exists? → Both casings may be stored; the front compares tags ignoring case everywhere (dropdown, filter, suggestions), so they still read as one tag.
+
+## api
+
+### db
+
+- `src/features/todos/todos.table.ts`: `todos` table (`pgTable("todos", …)`):
+  - `id`: `integer().primaryKey().generatedAlwaysAsIdentity()`
+  - `name`: `varchar({ length: 200 }).notNull()`
+  - `tag`: `varchar({ length: 30 })`, nullable
+  - `isCompleted`: `boolean().notNull().default(false)`
+  - `createdAt`: `timestamp({ withTimezone: true }).notNull()`, no database default: the service sets it from `clock.now()`.
+  - Export `type TodoRow = typeof todos.$inferSelect` and `type NewTodoRow = typeof todos.$inferInsert`.
+- `src/db/schema.ts`: replace `export {};` with `export * from "../features/todos/todos.table.js";`.
+- Migration through the `drizzle-migrations` stack skill: `npm run db:generate -- --name create_todos`, then `npm run db:migrate` (API stopped). The generated files under `drizzle/` are committed as generated.
+
+### services
+
+- `src/features/todos/todos.repository.ts`: `createTodoRepository(db: Database)`, the only code querying `todos`; `export type TodoRepository = ReturnType<typeof createTodoRepository>`. Each method selects only the response columns (`id`, `name`, `tag`, `isCompleted`, `createdAt`) and maps a row to a `Todo` (`createdAt` as `toISOString()`):
+  - `list(): Promise<Todo[]>`: every todo, `orderBy(desc(todos.createdAt), desc(todos.id))`.
+  - `findTagIgnoringCase(tag: string): Promise<string | null>`: the `tag` of one todo whose `lower(tag) = lower($1)`, `limit(1)`, or `null`. Documented raw case: `` sql`lower(${todos.tag}) = lower(${tag})` `` (parameterised), because Drizzle has no case-insensitive equality and `ilike` would treat `%` and `_` in a tag as wildcards.
+  - `insert(row: { name: string; tag: string | null; createdAt: Date }): Promise<Todo>`: `returning(...)` the response columns.
+  - `setCompleted(id: number, isCompleted: boolean): Promise<Todo | null>`: `update … where id … returning`, `null` when no row matched.
+  - `remove(id: number): Promise<boolean>`: `delete … where id … returning({ id })`, `true` when a row was deleted.
+- `src/features/todos/todos.service.ts`: `createTodoService({ todos, clock }: { todos: TodoRepository; clock: Clock })`; `export type TodoService = ReturnType<typeof createTodoService>`:
+  - `listTodos(): Promise<Todo[]>`: `todos.list()`.
+  - `createTodo(input: { name: string; tag?: string | null | undefined }): Promise<Todo>`: the name arrives trimmed and within bounds (the route contract enforces BR-01). The tag is trimmed; empty, `null` or absent becomes `null` (BR-04); otherwise `findTagIgnoringCase` returns the existing casing to reuse, or the typed tag stays (BR-03). Inserts with `createdAt: clock.now()`; `isCompleted` takes the column default (FR-02).
+  - `setTodoCompleted(id: number, isCompleted: boolean): Promise<Todo>`: throws `NotFoundError("Todo", id)` when the repository returns `null` (FR-04).
+  - `deleteTodo(id: number): Promise<void>`: throws `NotFoundError("Todo", id)` when nothing was deleted (FR-09).
+- `Todo` is the type inferred from `todoSchema`, imported by the repository and the service: one declaration. This layer creates `src/features/todos/todos.schema.ts` with `todoSchema`, its `Todo` component registration and `Todo` (see routes); the routes layer adds the request contracts and the paths.
+- `test/factories.ts`: replace `export {};` with `buildTodo(overrides: Partial<NewTodoRow> = {}): NewTodoRow` returning `{ name: "Buy milk", tag: null, isCompleted: false, createdAt: new Date("2026-01-01T00:00:00.000Z"), ...overrides }`.
+- `test/setup.ts`: `seed` becomes `{ todos: (...overrides: Partial<NewTodoRow>[]) => db.insert(todos).values(overrides.map((o) => buildTodo(o))).returning() }` (inserts in argument order, so ids grow in that order).
+
+### routes
+
+- `src/features/todos/todos.schema.ts` (zod, registered in the OpenAPI registry):
+  - `todoSchema = z.object({ id: z.number().int(), name: z.string(), tag: z.string().nullable(), isCompleted: z.boolean(), createdAt: z.iso.datetime() })`, registered as the component `Todo` (`registry.register("Todo", todoSchema)`) so the front reads `components["schemas"]["Todo"]`; `export type Todo = z.infer<typeof todoSchema>`.
+  - `todoListSchema = z.array(todoSchema)`.
+  - `createTodoBodySchema = z.object({ name: z.string().trim().min(1).max(200), tag: z.string().trim().max(30).nullish() })` (BR-01, BR-02; the trimmed empty tag passes and becomes `null` in the service, BR-04).
+  - `todoIdParamsSchema = z.object({ id: z.coerce.number().int().positive() })`.
+  - `setTodoCompletedBodySchema = z.object({ isCompleted: z.boolean() })`.
+  - Register `ProblemDetails` (`problemDetailsSchema` from `src/shared/errors.ts`) as a component, and the four paths: `GET /v1/todos` (`200` list), `POST /v1/todos` (`201` todo, `400` problem), `PATCH /v1/todos/{id}` (`200` todo, `400`, `404` problem), `DELETE /v1/todos/{id}` (`204` no body, `400`, `404` problem). Problem responses use the `application/problem+json` media type.
+- `src/features/todos/todos.routes.ts`: `todosRoutes({ service }: { service: TodoService }): Router`, prefixed `/v1/todos`, public like the health route (`// Public: no sign-in on these routes.`). Each handler: `validate(...)`, `inputOf<...>(res)`, one service call, status and body: `GET` → `200` list; `POST` → `201` todo; `PATCH /:id` → `200` todo; `DELETE /:id` → `204` empty.
+- `src/app.ts`: `createApp({ db, clock })` now uses `db`: builds `createTodoRepository(db)`, `createTodoService({ todos, clock })` and mounts `todosRoutes({ service })` after `healthRoutes`, before `errorHandler`.
+- `scripts/export-openapi.ts`: add `import "../src/features/todos/todos.schema.js";` beside the health import, so the handoff document holds the todos paths.
+- Handoff: `npx tsx scripts/export-openapi.ts openapi.json` writes `api/openapi.json`, committed with the stage. Check that the document holds `components.schemas.Todo` and `components.schemas.ProblemDetails`, and that the todos responses reference them (`$ref`) instead of inlining them: the front's types depend on it.
+
+## web
+
+### data
+
+All under `src/features/todos/data/`; types from `src/api/schema.d.ts` (`type Todo = components["schemas"]["Todo"]`), never redeclared.
+
+- `todoKeys.ts`: `todoKeys = { all: ["todos"] as const, list: () => [...todoKeys.all, "list"] as const }`.
+- `useTodosQuery.ts`: `useQuery({ queryKey: todoKeys.list(), queryFn })` over `api.GET("/v1/todos")`; throws the `ProblemDetails` when `error` is set.
+- `useCreateTodoMutation.ts`: `api.POST("/v1/todos", { body })`, body `{ name, tag }` (the tag sent as typed, `null` when the field is empty); throws the `ProblemDetails`; invalidates `todoKeys.all` on success.
+- `useSetTodoCompletedMutation.ts`: `mutationKey: [...todoKeys.all, "setCompleted"]`, variables `{ id, isCompleted }`, `api.PATCH("/v1/todos/{id}", { params: { path: { id } }, body: { isCompleted } })`; invalidates `todoKeys.all`.
+- `useDeleteTodoMutation.ts`: variables `{ id }`, `api.DELETE("/v1/todos/{id}", …)`; invalidates `todoKeys.all`.
+- `selectTodos.ts`, pure functions:
+  - `selectTags(todos: Todo[]): string[]`: the distinct tags ignoring case (`toLocaleLowerCase("fr")`), first-seen casing kept, sorted with `localeCompare(…, "fr")`.
+  - `selectVisibleTodos(todos: Todo[], view: { search: string; tag: string | null; isSortedByState: boolean }): Todo[]`: keeps the todos whose name contains the trimmed search ignoring case (FR-06) and, when `tag` is set, whose tag equals it ignoring case (FR-07, FR-08); when `isSortedByState`, a stable `toSorted` puts the not-completed first, keeping the API's newest-first order within each state (FR-05). Without the toggle, the API order stands (FR-01).
+
+### pages
+
+- `src/features/todos/pages/HomePage.tsx`: `function HomePage()`, exported as `export { HomePage as Component }` for the lazy route.
+  - Local state: `search` (`""`), `tag` (`string | null`, `null` = every todo), `isSortedByState` (`false`), `todoToDelete` (`Todo | null`).
+  - Derived: `tags = selectTags(todos)`; the active tag is `tag` only while some entry of `tags` equals it ignoring case, else `null` (the last todo of a tag was deleted); `visible = selectVisibleTodos(...)`.
+  - Renders `home.title`, then in the UX Flow order: `TodoForm`, `TodoFilters`, `TodoList`; a loading state (`home.list.loading`) while the query loads; an error state (`home.list.error`) when it fails.
+  - FR-10: no todo at all shows `home.list.empty`; todos but none visible shows `home.list.noMatch`.
+  - Delete: `TodoList`'s `onDelete(todo)` sets `todoToDelete`; `ConfirmDialog` opens naming it; confirm runs the delete mutation then clears `todoToDelete`; cancel clears it (FR-09). A failed delete keeps the dialog open with `common.error.generic`.
+  - Toggle: `onToggleCompleted(todo, isCompleted)` runs the completed mutation; the item's checkbox is disabled while that todo's mutation is pending: `pendingIds` comes from `useMutationState({ filters: { mutationKey: [...todoKeys.all, "setCompleted"], status: "pending" }, select: (m) => m.state.variables.id })` (one `useMutation` only exposes its latest variables); a failure shows `common.error.generic` above the list.
+- `src/router.tsx`: the `/` route becomes `{ path: "/", lazy: () => import("./features/todos/pages/HomePage.tsx") }`.
+
+### ui
+
+Presentational components, props in and callbacks out, each with its CSS Module (`{Name}.module.css`); every string through `t(...)`.
+
+- `src/features/todos/ui/TodoForm.tsx`: props `{ tags: string[]; isPending: boolean; problem: ProblemDetails | null; onSubmit(values: { name: string; tag: string | null }): Promise<void> }`. A name input (`required`, `maxLength={200}`), a tag input (`maxLength={30}`) bound to a `<datalist>` of `tags` (FR-11), a submit button disabled while pending. Client validation before submit: a name blank after trimming shows `home.form.nameRequired`. A `400` problem maps `errors["body.name"]` to `home.form.nameInvalid` and `errors["body.tag"]` to `home.form.tagInvalid`; any other problem shows `common.error.generic`. The fields clear once `onSubmit` resolves.
+- `src/features/todos/ui/TodoFilters.tsx`: props `{ search; tags; tag; isSortedByState; onSearchChange; onTagChange; onSortByStateChange }`. A search input (`type="search"`), a `<select>` with `home.filters.allTags` (value `""`, maps to `null`) then one option per tag, a checkbox `home.filters.sortByState`.
+- `src/features/todos/ui/TodoList.tsx`: props `{ todos; pendingIds: number[]; onToggleCompleted(todo, isCompleted); onDelete(todo) }`; renders a `<ul>` of `TodoItem`.
+- `src/features/todos/ui/TodoItem.tsx`: one `<li>`: a checkbox (`aria-label` `home.item.toggle` with the name) for the state, the name (struck through when completed), the tag as a badge when present (FR-03), a delete button (`home.item.delete`).
+- `src/shared/ui/ConfirmDialog.tsx`: generic, props `{ isOpen; title; message; confirmLabel; cancelLabel; error: string | null; onConfirm(); onCancel() }`. A native `<dialog>`: `showModal()` / `close()` driven by `isOpen` in an effect on a ref; the `cancel` event (Escape) calls `onCancel`. The page passes `home.delete.title`, `home.delete.message` with the todo's name, `home.delete.confirm`, `home.delete.cancel`.
+- `src/shared/lib/i18n.ts` (new): a French dictionary `const fr = { … } as const`, `type TranslationKey = keyof typeof fr`, `t(key: TranslationKey, params?: Record<string, string>): string` replacing `{param}` placeholders. Keys and French values:
+  - `home.title`: "Mes tâches"
+  - `home.form.name`: "Nom", `home.form.tag`: "Tag (optionnel)", `home.form.submit`: "Ajouter"
+  - `home.form.nameRequired`: "Le nom est obligatoire.", `home.form.nameInvalid`: "Le nom doit contenir entre 1 et 200 caractères.", `home.form.tagInvalid`: "Le tag doit contenir au plus 30 caractères."
+  - `home.filters.search`: "Rechercher", `home.filters.tag`: "Tag", `home.filters.allTags`: "Tous les tags", `home.filters.sortByState`: "Non terminées d'abord"
+  - `home.list.loading`: "Chargement…", `home.list.error`: "Impossible de charger les tâches.", `home.list.empty`: "Aucune tâche pour l'instant : ajoutez la première !", `home.list.noMatch`: "Aucune tâche ne correspond à votre recherche."
+  - `home.item.toggle`: "« {name} » terminée" (a checkbox label, right ticked or not), `home.item.delete`: "Supprimer"
+  - `home.delete.title`: "Supprimer la tâche ?", `home.delete.message`: "La tâche « {name} » sera supprimée définitivement.", `home.delete.confirm`: "Supprimer", `home.delete.cancel`: "Annuler"
+  - `common.error.generic`: "Une erreur est survenue. Réessayez."
+
+## Conventions
+
+- `api/CLAUDE.md`: the title becomes "the todo-app API: todos (list, create, complete, delete)"; the examples follow the real feature: `createTaskService({ tasks, clock })` → `createTodoService({ todos, clock })`, `buildTask(overrides)` → `buildTodo(overrides)`, `/v1/tasks` → `/v1/todos`, "the task does not exist" → "the todo does not exist". The Authorization bullet says how a router declares itself public: a `// Public: no sign-in` comment, as in the health route (there is no `public` guard function). Rationale: the instructions name the domain's real identifiers and the real mechanism.
+- `web/CLAUDE.md`: the title becomes "the todo-app front: the home page lists, adds, completes, filters and deletes todos"; `useTasksQuery.ts` → `useTodosQuery.ts`. Rationale: same.
+- `CLAUDE.md` (root): the first line says "create, list, complete, filter and delete todos"; the Domain glossary gets the spec's two rows as they are, `Todo` (business term `Todo`: a task the person wants to remember, completed or not) and `Tag` (business term `Tag`: a free label put on a todo to group it with others on the same subject), replacing the empty row. Rationale: the spec's glossary, shared by every future plan.
+
+## Tests
+
+### api
+
+Through the `write-api-tests` stack skill, on `createTestContext()` (in-memory PGlite), factories from `test/factories.ts`.
+
+- `test/todos/todos.service.test.ts` (unit, the service over `createTodoRepository(ctx.db)` and the test clock):
+  - it creates the todo not completed, at the clock's time
+  - it reuses the casing of an existing tag typed with another casing (BR-03)
+  - it keeps the typed casing when no todo carries the tag
+  - it stores no tag when the tag is empty, absent or `null` (BR-04)
+  - it trims the tag before comparing and storing it
+  - it throws NotFoundError when marking an unknown todo completed
+  - it throws NotFoundError when deleting an unknown todo
+- `test/todos/todos.routes.test.ts` (Supertest, bodies parsed with the zod schemas, every write read back through `db`):
+  - `GET /v1/todos` returns an empty list when there is no todo
+  - `GET /v1/todos` returns the newest first (different clock times)
+  - `GET /v1/todos` breaks ties on the same instant by the latest created first
+  - `POST /v1/todos` returns 201 with the trimmed name, no tag, not completed
+  - `POST /v1/todos` accepts a 200-character name and a 30-character tag
+  - `POST /v1/todos` returns 400 with a `body.name` error when the name is missing, blank, or 201 characters long
+  - `POST /v1/todos` returns 400 with a `body.tag` error when the tag is 31 characters long
+  - `POST /v1/todos` stores no tag when the tag is only spaces
+  - `POST /v1/todos` reuses the existing tag's casing
+  - `PATCH /v1/todos/{id}` marks a todo completed, then back to not completed
+  - `PATCH /v1/todos/{id}` returns 404 when the todo does not exist
+  - `PATCH /v1/todos/{id}` returns 400 when the id is not a positive integer or `isCompleted` is missing
+  - `DELETE /v1/todos/{id}` returns 204 and the todo is gone
+  - `DELETE /v1/todos/{id}` returns 404 when the todo does not exist
+- Integration tests: none (the component declares no `integration_tests`; the route tests above run in `test`).
+
+### web
+
+None: `web/CLAUDE.md` forbids front tests. The browser test of the Validation covers the page:
+
+1. Empty list: the invitation message shows (FR-10).
+2. Add "Acheter du pain" with tag "Courses", then "Appeler Paul" without tag: both listed, newest first, not completed, the tag badge shown (FR-01 to FR-03).
+3. Add a todo with tag "courses": the badge reads "Courses" and the dropdown offers it once; the tag field suggests "Courses" (BR-03, FR-11).
+4. Submit a blank name: the required message shows and nothing is added (BR-01).
+5. Tick a todo, untick it; tick it again and switch "Non terminées d'abord" on: it moves to the bottom; off: back to newest first (FR-04, FR-05).
+6. Type "pain" in the search: only the matching todo stays; pick "Courses" with a search matching none: the no-match message shows (FR-06 to FR-08, FR-10).
+7. Delete a todo: the dialog names it; cancel keeps it; confirm removes it (FR-09).
+8. Delete the last todo of the selected tag: the dropdown falls back to every todo.
+
+## Progress
+
+### Stage 1 — api
+Commit: `feat(home): api — todos list, create, complete and delete`
+- [ ] db: `todos` table, schema re-export, migration `create_todos`
+- [ ] services: `todoSchema`, repository, service (BR-03, BR-04), `buildTodo` and `seed.todos`, service tests
+- [ ] routes: contracts and OpenAPI registration, router, wiring in `createApp`, export script import, route tests
+- [ ] Conventions: `api/CLAUDE.md` and root `CLAUDE.md` updated
+- [ ] Handoff: `api/openapi.json` exported, `Todo` and `ProblemDetails` referenced as components
+
+### Stage 2 — web
+Commit: `feat(home): web — home page with todos, filters and delete confirmation`
+- [ ] Prepare: client regenerated from `api/openapi.json`
+- [ ] data: query keys, query and mutation hooks, `selectTodos`
+- [ ] pages: `HomePage`, lazy `/` route
+- [ ] ui: `TodoForm`, `TodoFilters`, `TodoList`, `TodoItem`, `ConfirmDialog`, `i18n.ts`
+- [ ] Conventions: `web/CLAUDE.md` updated
+
+## Validation
+
+- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [ ] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web
