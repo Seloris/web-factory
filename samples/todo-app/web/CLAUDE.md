@@ -27,7 +27,8 @@ src/
     pages/                  routed pages (`{Name}Page.tsx`)
     ui/                     presentational components (props in, callbacks out), forms (`{Name}Form.tsx`)
   shared/
-    ui/                     shared components
+    ui/                     shared components: one per element of the skin's recipes (`Panel`, `PageTitle`, `Field`, `TextInput`, `SearchInput`, `Select`, `Button`, `Switch`, `Checkbox`, `List`, `Badge`, `EmptyState`, `LoadingState`, `ErrorMessage`, `ConfirmDialog`, `icons.tsx`)
+      theme/                skin.css (the skin's tokens, copied by factory-init: never edited), base.css (the page), overrides.css (this application's values)
     lib/                    utils, i18n
 ```
 
@@ -46,7 +47,7 @@ src/
 - **Pages** are routed, thin, and compose UI components; **UI** components receive props and emit callbacks: no data hook, no client call inside them.
 - **Forms:** one `{Name}Form.tsx` per form, holding its fields, validation and the mapping of the API's problem details (`400` field errors) to field messages.
 - **i18n:** every user-facing string goes through the translation layer; keys live in `src/shared/lib/i18n.ts`, named `{feature}.{element}.{text}`; a missing key is a review finding. The application's UI language is French.
-- **Styling:** CSS Modules (styles scoped to their component; no global overrides outside the theme).
+- **Styling:** CSS Modules (styles scoped to their component; no global style outside `src/shared/ui/theme/`). Styles read the skin's variables only: no literal color, radius, shadow, font family or control height (see Design).
 - **Loading and errors:** every page that reads data shows a loading state and an error state; a failed mutation shows a French message from the translation layer: a `400` field error under its field, any other failure `common.error.generic`. The API's `detail` is English and is never shown.
 - **No sign-in:** the application has no accounts; the client sends no auth header and no page is guarded.
 - File naming: `PascalCase.tsx` for components and pages, `camelCase.ts` for hooks and utils (`useTodosQuery.ts`).
@@ -57,6 +58,8 @@ The skin named in the `component` block above: its tokens in `src/shared/ui/them
 
 - Variables this application changes: in `src/shared/ui/theme/overrides.css`, never in `skin.css`.
 - Rules this application adds or replaces: here, one line each.
+- Fonts: self-hosted, pinned `@fontsource/*` packages imported by `main.tsx` before `skin.css`, only the weights `SKIN.md` names.
+- Form and filter rows wrap with `flex-wrap` and flex-basis minimums: no media query.
 
 ## Testing
 

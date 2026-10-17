@@ -22,6 +22,7 @@ const fr = {
   "home.delete.confirm": "Supprimer",
   "home.delete.cancel": "Annuler",
   "common.error.generic": "Une erreur est survenue. Réessayez.",
+  "common.action.retry": "Réessayer",
 } as const;
 
 export type TranslationKey = keyof typeof fr;

@@ -1,6 +1,10 @@
 import { useState, type FormEvent } from "react";
 import type { ProblemDetails } from "../../../api/client.ts";
 import { t } from "../../../shared/lib/i18n.ts";
+import { Button } from "../../../shared/ui/Button.tsx";
+import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
+import { Field } from "../../../shared/ui/Field.tsx";
+import { TextInput } from "../../../shared/ui/TextInput.tsx";
 import styles from "./TodoForm.module.css";
 
 export function TodoForm({
@@ -47,52 +51,48 @@ export function TodoForm({
 
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate>
-      <label className={styles.field}>
-        <span>{t("home.form.name")}</span>
-        <input
-          name="name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          required
-          maxLength={200}
-          aria-invalid={nameError !== null}
-          aria-describedby={nameError ? "todo-form-name-error" : undefined}
-        />
-        {nameError && (
-          <span id="todo-form-name-error" className={styles.error}>
-            {nameError}
-          </span>
-        )}
-      </label>
-      <label className={styles.field}>
-        <span>{t("home.form.tag")}</span>
-        <input
-          name="tag"
-          value={tag}
-          onChange={(event) => setTag(event.target.value)}
-          maxLength={30}
-          list="todo-form-tags"
-          aria-invalid={tagError !== null}
-          aria-describedby={tagError ? "todo-form-tag-error" : undefined}
-        />
-        <datalist id="todo-form-tags">
-          {tags.map((existing) => (
-            <option key={existing} value={existing} />
-          ))}
-        </datalist>
-        {tagError && (
-          <span id="todo-form-tag-error" className={styles.error}>
-            {tagError}
-          </span>
-        )}
-      </label>
-      <button type="submit" className={styles.submit} disabled={isPending}>
+      <div className={styles.name}>
+        <Field label={t("home.form.name")} error={nameError}>
+          {(control) => (
+            <TextInput
+              {...control}
+              name="name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              required
+              maxLength={200}
+            />
+          )}
+        </Field>
+      </div>
+      <div className={styles.tag}>
+        <Field label={t("home.form.tag")} error={tagError}>
+          {(control) => (
+            <>
+              <TextInput
+                {...control}
+                name="tag"
+                value={tag}
+                onChange={(event) => setTag(event.target.value)}
+                maxLength={30}
+                list="todo-form-tags"
+              />
+              <datalist id="todo-form-tags">
+                {tags.map((existing) => (
+                  <option key={existing} value={existing} />
+                ))}
+              </datalist>
+            </>
+          )}
+        </Field>
+      </div>
+      <Button variant="primary" type="submit" disabled={isPending}>
         {t("home.form.submit")}
-      </button>
+      </Button>
       {otherError && (
-        <p role="alert" className={styles.error}>
-          {otherError}
-        </p>
+        <div className={styles.formError}>
+          <ErrorMessage>{otherError}</ErrorMessage>
+        </div>
       )}
     </form>
   );

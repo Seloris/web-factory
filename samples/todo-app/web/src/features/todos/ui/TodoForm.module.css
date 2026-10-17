@@ -1,23 +1,20 @@
 .form {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.75rem;
+  align-items: flex-end;
+  gap: 12px;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.name {
+  flex: 3 1 220px;
+  min-width: 0;
 }
 
-.submit {
-  align-self: flex-end;
+.tag {
+  flex: 1 1 160px;
+  min-width: 0;
 }
 
-.error {
-  width: 100%;
-  margin: 0;
-  color: #b00020;
-  font-size: 0.875rem;
+.formError {
+  flex-basis: 100%;
 }

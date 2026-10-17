@@ -1,32 +1,51 @@
 .dialog {
-  max-width: 28rem;
-  padding: 1.5rem;
-  border: 1px solid #d0d0d0;
-  border-radius: 0.5rem;
+  width: min(400px, calc(100% - 32px));
+  padding: 24px;
+  color: var(--text);
+  background: var(--pop-bg);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-pop);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
 }
 
 .dialog::backdrop {
-  background: rgb(0 0 0 / 40%);
+  background: var(--scrim);
 }
 
-.title {
-  margin: 0 0 0.75rem;
-  font-size: 1.25rem;
+/* Qualified by [open]: a closed dialog stays hidden. */
+.dialog[open] {
+  display: grid;
+  gap: 8px;
+  animation: fade 0.15s ease-out;
 }
 
-.error {
-  color: #b00020;
+.dialog h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.3em;
+  font-weight: var(--title-weight);
+  line-height: 1.2;
+  text-transform: var(--title-transform);
+}
+
+/* The error paragraph keeps ErrorMessage's colour. */
+.dialog > p:not([role="alert"]) {
+  margin: 0;
+  color: var(--text-muted);
 }
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.confirm {
-  color: #fff;
-  background: #b00020;
-  border: 1px solid #b00020;
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
 }

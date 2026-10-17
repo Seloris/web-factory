@@ -1,6 +1,10 @@
 import { t } from "../../../shared/lib/i18n.ts";
+import { Badge } from "../../../shared/ui/Badge.tsx";
+import { Button } from "../../../shared/ui/Button.tsx";
+import { Checkbox } from "../../../shared/ui/Checkbox.tsx";
+import { TrashIcon } from "../../../shared/ui/icons.tsx";
+import { ListItem, ListItemText } from "../../../shared/ui/List.tsx";
 import type { Todo } from "../data/useTodosQuery.ts";
-import styles from "./TodoItem.module.css";
 
 export function TodoItem({
   todo,
@@ -14,19 +18,19 @@ export function TodoItem({
   onDelete(): void;
 }) {
   return (
-    <li className={styles.item}>
-      <input
-        type="checkbox"
+    <ListItem isDone={todo.isCompleted}>
+      <Checkbox
         checked={todo.isCompleted}
         disabled={isPending}
         aria-label={t("home.item.toggle", { name: todo.name })}
         onChange={(event) => onToggleCompleted(event.target.checked)}
       />
-      <span className={todo.isCompleted ? `${styles.name} ${styles.completed}` : styles.name}>{todo.name}</span>
-      {todo.tag !== null && <span className={styles.tag}>{todo.tag}</span>}
-      <button type="button" className={styles.delete} onClick={onDelete}>
+      <ListItemText>{todo.name}</ListItemText>
+      {todo.tag !== null && <Badge>{todo.tag}</Badge>}
+      <Button variant="ghost" onClick={onDelete}>
+        <TrashIcon />
         {t("home.item.delete")}
-      </button>
-    </li>
+      </Button>
+    </ListItem>
   );
 }

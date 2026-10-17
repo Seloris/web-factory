@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
+import { Button } from "./Button.tsx";
 import styles from "./ConfirmDialog.module.css";
+import { ErrorMessage } from "./ErrorMessage.tsx";
 
 export function ConfirmDialog({
   isOpen,
@@ -48,22 +50,16 @@ export function ConfirmDialog({
         if (isOpen) onCancel();
       }}
     >
-      <h2 id="confirm-dialog-title" className={styles.title}>
-        {title}
-      </h2>
+      <h2 id="confirm-dialog-title">{title}</h2>
       <p>{message}</p>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      )}
+      {error && <ErrorMessage>{error}</ErrorMessage>}
       <div className={styles.actions}>
-        <button type="button" onClick={onCancel} disabled={isPending}>
+        <Button variant="quiet" onClick={onCancel} disabled={isPending}>
           {cancelLabel}
-        </button>
-        <button type="button" className={styles.confirm} onClick={onConfirm} disabled={isPending}>
+        </Button>
+        <Button variant="danger" onClick={onConfirm} disabled={isPending}>
           {confirmLabel}
-        </button>
+        </Button>
       </div>
     </dialog>
   );

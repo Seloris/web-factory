@@ -1,7 +1,13 @@
 import { useMutationState } from "@tanstack/react-query";
 import { useState } from "react";
 import { t } from "../../../shared/lib/i18n.ts";
+import { Button } from "../../../shared/ui/Button.tsx";
 import { ConfirmDialog } from "../../../shared/ui/ConfirmDialog.tsx";
+import { EmptyState } from "../../../shared/ui/EmptyState.tsx";
+import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
+import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
+import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
+import { Panel } from "../../../shared/ui/Panel.tsx";
 import { selectTags, selectVisibleTodos } from "../data/selectTodos.ts";
 import { useCreateTodoMutation } from "../data/useCreateTodoMutation.ts";
 import { useDeleteTodoMutation } from "../data/useDeleteTodoMutation.ts";
@@ -52,54 +58,55 @@ function HomePage() {
 
   return (
     <main className={styles.page}>
-      <h1>{t("home.title")}</h1>
-      <TodoForm
-        tags={tags}
-        isPending={createTodo.isPending}
-        problem={createTodo.error}
-        onSubmit={async (values) => {
-          await createTodo.mutateAsync(values);
-        }}
-      />
-      <TodoFilters
-        search={search}
-        tags={tags}
-        tag={activeTag}
-        isSortedByState={isSortedByState}
-        onSearchChange={setSearch}
-        onTagChange={setTag}
-        onSortByStateChange={setIsSortedByState}
-      />
-      {todosQuery.isPending ? (
-        <p>{t("home.list.loading")}</p>
-      ) : todosQuery.isError ? (
-        <p role="alert" className={styles.error}>
-          {t("home.list.error")}
-        </p>
-      ) : (
-        <>
-          {setTodoCompleted.isError && (
-            <p role="alert" className={styles.error}>
-              {t("common.error.generic")}
-            </p>
-          )}
-          {todos.length === 0 ? (
-            <p>{t("home.list.empty")}</p>
-          ) : visible.length === 0 ? (
-            <p>{t("home.list.noMatch")}</p>
-          ) : (
-            <TodoList
-              todos={visible}
-              pendingIds={pendingIds}
-              onToggleCompleted={(todo, isCompleted) => setTodoCompleted.mutate({ id: todo.id, isCompleted })}
-              onDelete={(todo) => {
-                deleteTodo.reset();
-                setTodoToDelete(todo);
-              }}
-            />
-          )}
-        </>
-      )}
+      <Panel>
+        <PageTitle>{t("home.title")}</PageTitle>
+        <TodoForm
+          tags={tags}
+          isPending={createTodo.isPending}
+          problem={createTodo.error}
+          onSubmit={async (values) => {
+            await createTodo.mutateAsync(values);
+          }}
+        />
+        <TodoFilters
+          search={search}
+          tags={tags}
+          tag={activeTag}
+          isSortedByState={isSortedByState}
+          onSearchChange={setSearch}
+          onTagChange={setTag}
+          onSortByStateChange={setIsSortedByState}
+        />
+        {todosQuery.isPending ? (
+          <LoadingState>{t("home.list.loading")}</LoadingState>
+        ) : todosQuery.isError ? (
+          <div className={styles.listError}>
+            <ErrorMessage>{t("home.list.error")}</ErrorMessage>
+            <Button variant="quiet" onClick={() => void todosQuery.refetch()} disabled={todosQuery.isFetching}>
+              {t("common.action.retry")}
+            </Button>
+          </div>
+        ) : (
+          <>
+            {setTodoCompleted.isError && <ErrorMessage>{t("common.error.generic")}</ErrorMessage>}
+            {todos.length === 0 ? (
+              <EmptyState>{t("home.list.empty")}</EmptyState>
+            ) : visible.length === 0 ? (
+              <EmptyState>{t("home.list.noMatch")}</EmptyState>
+            ) : (
+              <TodoList
+                todos={visible}
+                pendingIds={pendingIds}
+                onToggleCompleted={(todo, isCompleted) => setTodoCompleted.mutate({ id: todo.id, isCompleted })}
+                onDelete={(todo) => {
+                  deleteTodo.reset();
+                  setTodoToDelete(todo);
+                }}
+              />
+            )}
+          </>
+        )}
+      </Panel>
       <ConfirmDialog
         isOpen={todoToDelete !== null}
         title={t("home.delete.title")}

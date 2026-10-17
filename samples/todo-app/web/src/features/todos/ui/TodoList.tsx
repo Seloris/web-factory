@@ -1,6 +1,6 @@
+import { List } from "../../../shared/ui/List.tsx";
 import type { Todo } from "../data/useTodosQuery.ts";
 import { TodoItem } from "./TodoItem.tsx";
-import styles from "./TodoList.module.css";
 
 export function TodoList({
   todos,
@@ -14,7 +14,7 @@ export function TodoList({
   onDelete(todo: Todo): void;
 }) {
   return (
-    <ul className={styles.list}>
+    <List>
       {todos.map((todo) => (
         <TodoItem
           key={todo.id}
@@ -24,6 +24,6 @@ export function TodoList({
           onDelete={() => onDelete(todo)}
         />
       ))}
-    </ul>
+    </List>
   );
 }

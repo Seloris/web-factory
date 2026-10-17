@@ -201,16 +201,23 @@ Unit and integration tests: none, because `web/CLAUDE.md` forbids front tests. T
 6. At 360px wide, the form and the filters stack. The page keeps a 16px gutter and does not scroll horizontally. A 200-character name without spaces wraps.
 7. Keyboard: Tab shows the focus ring on every control (inputs, select, switch, checkboxes, buttons, dialog buttons). Escape closes the dialog, except while a delete is pending.
 
+## Deviations
+
+- `Button.module.css` ports the `.btn` recipe → it also has `.btn:focus-visible { box-shadow: 0 0 0 3px var(--focus); }`. `.btn`'s own `box-shadow` has the same specificity as `base.css`'s `:focus-visible` and loads after it (the route's CSS chunk), so buttons had no focus ring (review finding; Tests › web 7).
+- `List.module.css` ports `.item` and `.item-text` → `.item` also wraps (`flex-wrap: wrap`) and `.itemText` is `flex: 1 1 120px`. At 360px a 30-character tag pushed the list past the panel and the page scrolled sideways, and a long name narrowed to a column a few characters wide (review finding; Tests › web 6).
+- `ConfirmDialog.module.css` ports `.dialog h2` → it also has `text-transform: var(--title-transform)`, since `SKIN.md` sets the dialog headings in uppercase (review finding).
+- `ListItem`'s `flex-wrap` and the `.btn:focus-visible` ring are also missing from the plugin's `recipes.css`, and so are the quiet button's hover and the switch's disabled state: plugin follow-up.
+
 ## Progress
 
 ### Stage 1 — web
 Commit: `refactor(shared): web — brutalist skin on shared/ui components`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] pages: `HomePage` on `Panel`, `PageTitle` and the list states, retry on a failed load
-- [ ] ui: fonts installed, `base.css`, theme imports in `main.tsx`
-- [ ] ui: shared components (`Panel` to `icons.tsx`), `ConfirmDialog` restyled
-- [ ] ui: `TodoForm`, `TodoFilters`, `TodoList`, `TodoItem` on the shared components, `common.action.retry`
-- [ ] Conventions: `web/CLAUDE.md` updated
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] pages: `HomePage` on `Panel`, `PageTitle` and the list states, retry on a failed load
+- [x] ui: fonts installed, `base.css`, theme imports in `main.tsx`
+- [x] ui: shared components (`Panel` to `icons.tsx`), `ConfirmDialog` restyled
+- [x] ui: `TodoForm`, `TodoFilters`, `TodoList`, `TodoItem` on the shared components, `common.action.retry`
+- [x] Conventions: `web/CLAUDE.md` updated
 
 ## Validation
 
