@@ -2,6 +2,11 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — The prompt names the stage
+
+- **`implement` reads the stage from the prompt.** The board and `write-plan` prepared a bare `/factory:implement {plan folder}`, so nothing in the prompt said which stage a session was about to run, and chaining the stages, which the skill already allowed when the prompt asks for it, had no prompt of its own. The next prompts now name it: `— stage {N} ({component})` for one stage, `— stages {N}-{M} ({components}), chained` for every remaining one in one session, still one commit per stage. A named stage must be the one Progress picks; otherwise the skill stops and says where Progress is.
+- **The board's band names the run's own stage.** While stage 1's session was finishing (its boxes ticked, its commit not made yet) the band and the live sessions read `Stage 2 — web en cours`: the label was the plan's next stage, recomputed at each scan. It is now the step the run was started on; a chained run moves to its next stage at each stage commit.
+
 ## 2026-10-17 — A stack pack ships its code skeleton
 
 - **`factory-init` applies the pack's skeleton to an empty component.** Running `factory-init` on `samples/todo-app` with the `react-express` pack left `api/` and `web/` holding nothing but a `CLAUDE.md`, so the first `implement` stage would have had to invent the whole technical foundation the component's `CLAUDE.md` already describes (structure, package scripts, test setup). The mechanism the stacks README reserved is now real: a pack may ship `skeleton/{kind}/`, the minimum for which the template's commands pass with zero features, and `factory-init` copies it when the component's path holds nothing but its `CLAUDE.md`, fills the placeholders, runs the install command the pack's README names, and checks that `build` and `test` are green before the init commit. The skill still writes no application code of its own; a folder that already holds code is left alone.

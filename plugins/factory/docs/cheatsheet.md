@@ -30,7 +30,7 @@ One stage per session, in the manifest's component order. Each stage: tests firs
 2. `/factory:write-plan {slug}` → `.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/plan.md`
 3. Read the summary and the commit messages it proposes (the plan's and each stage's), say **yes** to commit it (silence is not approval)
 4. Optional: `/factory:review plan {plan folder}`
-5. New session per stage: `/factory:implement {plan folder}`
+5. New session per stage: `/factory:implement {plan folder} — stage {N} ({component})`, or all the remaining ones in one session: `/factory:implement {plan folder} — stages {N}-{M} ({components}), chained`
 6. `/factory:implement {plan folder} — close the branch`
 
 Each step ends with the next prompt ready to copy.

@@ -20,7 +20,7 @@ A development request (feature, change, bug fix) goes straight to `implement` wi
 ## Rules that hold everywhere
 
 - **Never push.** Agents create branches and commits locally; a human pushes. `factory-init` writes the deny rule in the project's `.claude/settings.json`.
-- **One stage per session.** A new session starts with a clean context; the plan's Progress checklist and the branch's commits say where to resume.
+- **One stage per session.** A new session starts with a clean context; the plan's Progress checklist and the branch's commits say where to resume. The prompt names the stage (`/factory:implement {plan folder} — stage 2 (web)`); chaining the remaining stages in one session is asked in the prompt (`— stages 2-3 (web, e2e), chained`), still one commit per stage.
 - **Review before every stage commit.** The `reviewer` agent, read-only, with no stake in the code.
 - **Silence is not approval.** A spec or a plan is drafted in its file, summarised in chat in a few lines, and committed only after an explicit yes. That yes approves it: a spec is `Draft` until its first commit and `Approved` from then on.
 - **Spec changes go through `write-spec`**, even from a plan or from code, and ship in the plan's or the stage's commit: a delta that restates the person's own request is applied without asking; a business change they did not ask for is proposed first.

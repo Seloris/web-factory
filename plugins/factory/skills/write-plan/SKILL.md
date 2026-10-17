@@ -32,6 +32,6 @@ Given an uncommitted plan folder that the person says is validated (`/factory:wr
    - on the base branch, create the branch the person validated (the uncommitted draft follows); on another branch, stay on it;
    - if the spec's `Status` is still `Draft` (a spec this plan drafted in called mode, or one committed before specs were approved at their commit), have `write-spec` mark it `Approved` (status only: no extra confirmation, the plan confirmation covers it);
    - commit the plan folder, with the `00_spec.md` delta or status change if any, and nothing else from the working tree: `docs({slug}): plan {type}-{name}`. Never push.
-6. **Stop.** End with the branch and the path of the new plan folder, then the next prompts: `/factory:implement {plan folder}` in a new session.
+6. **Stop.** End with the branch and the path of the new plan folder, then the next prompts: `/factory:implement {plan folder} — stage 1 ({component})` in a new session, and when the plan has several stages `/factory:implement {plan folder} — stages 1-{M} ({components}), chained` to run them all in one session.
 
 Save any image the person shares as soon as it is shared, following the Images rule.
