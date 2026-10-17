@@ -20,7 +20,8 @@
     }
   },
   "enabledPlugins": {
-    "factory@webapp-factory": true
+    "factory@webapp-factory": true,
+    "factory-board@webapp-factory": true
   },
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
