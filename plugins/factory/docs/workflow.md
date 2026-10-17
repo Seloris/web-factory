@@ -11,7 +11,7 @@ Four phases, each a skill, chained as needed and usable in any session opened at
 | Code | `implement` | `senior-dev` | from a plan or straight from a request: code + tests, verified, reviewed, one stage per session, one commit per stage |
 | Review | `review` | `reviewer` (always a subagent) | ranked findings on code or on a plan, no edits |
 
-`grill-me` sits before a spec or a plan: an interview that settles every open decision, offered by `write-spec` and `write-plan`, never started on its own. The skills are invoked under the plugin's prefix: `/factory:write-spec`, `/factory:implement`…
+`factory-init` comes first, once per project: it writes the manifest and the instruction files and, for a component whose stack pack ships a code skeleton, copies that skeleton into the empty folder so the first stage starts on green `build` and `test` commands. `grill-me` sits before a spec or a plan: an interview that settles every open decision, offered by `write-spec` and `write-plan`, never started on its own. The skills are invoked under the plugin's prefix: `/factory:write-spec`, `/factory:implement`…
 
 ## Default path
 

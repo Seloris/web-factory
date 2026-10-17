@@ -1,1 +1,4 @@
 .claude/local/
+node_modules/
+dist/
+.data/pglite/

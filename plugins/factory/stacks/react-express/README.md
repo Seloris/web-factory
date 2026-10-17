@@ -12,6 +12,14 @@ Two component templates and three skills, TypeScript end to end, Node 22 or late
 | `skills/drizzle-migrations` | generate, check, apply and reset Drizzle migrations, from the `## Database` table of the api component's `CLAUDE.md`. |
 | `skills/openapi-client` | export the OpenAPI document from the zod contracts without running a server (`handoff`) and regenerate the front's types (`prepare`). |
 | `skills/write-api-tests` | derive a route's test matrix from its contract, guard, zod schemas and service, and write it with Vitest + Supertest, from the `## API tests` table of the api component's `CLAUDE.md`. |
+| `skeleton/api`, `skeleton/front` | the code each component starts from, copied by `factory-init` into an empty component folder (see below). |
+
+## Skeleton
+
+The minimum for which every command the templates declare passes with zero features. `factory-init` copies `skeleton/{kind}/` into the component's path when that path holds nothing but its `CLAUDE.md`, fills the placeholders (`{{name}}`, `{{node_version}}`, `{{api_url}}`), then runs **`npm install`** from the component's path, and checks that the component's `build` and `test` commands are green before committing. Dependency versions are pinned; `npm install` writes the lock file the project commits, and `npm ci` is the setup from then on.
+
+- **api**: `src/app.ts`, `server.ts`, `config.ts`; `db/schema.ts` and `db/client.ts` on PGlite; `shared/errors.ts` (the `AppError`s and the problem-details middleware), `validate.ts`, `clock.ts`, `openapi.ts` (the registry); `scripts/export-openapi.ts`; `test/setup.ts` and `test/factories.ts`; `drizzle.config.ts`, an empty migrations journal, `.data/.gitkeep` (PGlite needs the parent folder); Vitest, eslint flat config, strict tsconfig. One route, `GET /health`, in `features/health/` with its Supertest test: it proves the chain (app, clock, test context, OpenAPI registration) and is the first reference test.
+- **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (QueryClientProvider, RouterProvider), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; eslint flat config with the React hooks rules, strict tsconfig.
 
 ## The database
 
@@ -39,7 +47,7 @@ The templates' `{{placeholders}}` are asked by `factory-init` (round 2, after th
 | `{{api_handoff}}` | front | `../api/openapi.json` | the same file seen from the front component |
 | `{{api_url}}` | api, front | `http://localhost:3000` | where the API listens locally (the front's `/api` proxy target) |
 | `{{node_version}}` | api, front | `22` | the Node major version |
-| `{{reference_tests}}` | api | `none yet` | the test files `write-api-tests` imitates, once some exist |
+| `{{reference_tests}}` | api | `test/health/health.routes.test.ts` | the test files `write-api-tests` imitates: the skeleton's health route test until the project has richer ones |
 | `{{authenticated_calls}}` | api | `` `seed.user({ roles })` then `.set(authHeader(user))` `` when the application has a sign-in; empty otherwise (optional) | how a route test authenticates |
 | `{{i18n_file}}` | front | `src/shared/lib/i18n/{lang}.json` | where the translation keys live |
 | `{{styling}}` | front | `CSS Modules` | the styling approach |

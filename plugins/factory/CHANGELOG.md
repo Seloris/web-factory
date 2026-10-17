@@ -2,6 +2,11 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — A stack pack ships its code skeleton
+
+- **`factory-init` applies the pack's skeleton to an empty component.** Running `factory-init` on `samples/todo-app` with the `react-express` pack left `api/` and `web/` holding nothing but a `CLAUDE.md`, so the first `implement` stage would have had to invent the whole technical foundation the component's `CLAUDE.md` already describes (structure, package scripts, test setup). The mechanism the stacks README reserved is now real: a pack may ship `skeleton/{kind}/`, the minimum for which the template's commands pass with zero features, and `factory-init` copies it when the component's path holds nothing but its `CLAUDE.md`, fills the placeholders, runs the install command the pack's README names, and checks that `build` and `test` are green before the init commit. The skill still writes no application code of its own; a folder that already holds code is left alone.
+- **`react-express` ships `skeleton/api` and `skeleton/front`**, each with one proof that the chain works: `GET /health` with its Supertest route test, which becomes the recommended `{{reference_tests}}` in place of `none yet`; the front ships an empty but valid `src/api/schema.d.ts` so `build` passes before the first `handoff` / `prepare`.
+
 ## 2026-10-17 — A committed spec is approved
 
 - **The spec's commit approves it.** The `home` spec of the sample was committed after the person's explicit yes and still read `Draft`, waiting for a plan to approve it, and the board showed the `write-spec` session as still waiting for an answer. The yes to the commit is the approval: `write-spec` switches `Status` to `Approved` just before the spec's first commit, and an approved spec stays so; plans and stages update it through called mode, in their own commit. `write-plan` still approves a spec it drafted in called mode, or one committed before this rule.

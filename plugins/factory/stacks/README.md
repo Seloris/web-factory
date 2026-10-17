@@ -8,11 +8,13 @@ stacks/{stack}/
   templates/{kind}.CLAUDE.md  component CLAUDE.md pre-filled for that kind (api, front, db, worker, lib)
   skills/{name}/SKILL.md      stack-specific skills, read in place when a component's CLAUDE.md names them
   gitignore                   optional: lines factory-init appends to the project's .gitignore
+  skeleton/{kind}/            optional: the code a component of that kind starts from, copied by factory-init
+                              into the component's path when it holds nothing but its CLAUDE.md
 ```
 
 A pack never changes the workflow: the plugin's `skills/` know no stack. A pack's skill reads what it needs from the component's `CLAUDE.md` (project names, folders, fixtures), which the pack's template declares in named sections, so the skill works in every project that uses the pack.
 
-To make a pack: copy a project's component `CLAUDE.md` that has grown good conventions, replace the project-specific values with `{{placeholders}}` that `factory-init` asks for, move its stack-specific skills next to it, and add a `README.md`. A pack may ship a code skeleton too (`skeleton/{kind}/`), copied to the component's path when the folder is empty; none does yet.
+To make a pack: copy a project's component `CLAUDE.md` that has grown good conventions, replace the project-specific values with `{{placeholders}}` that `factory-init` asks for, move its stack-specific skills next to it, and add a `README.md`. A pack may ship a code skeleton too (`skeleton/{kind}/`): the smallest project for which the template's commands pass with zero features, with the same `{{placeholders}}` as the templates, and a `## Skeleton` section in the README naming the install command to run after the copy.
 
 | Pack | Description |
 |---|---|

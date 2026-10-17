@@ -97,7 +97,7 @@ The `drizzle-migrations` skill reads this table.
 | Factories | `test/factories.ts`, `build{Entity}(overrides)` |
 | Database assertion | read back through `db` (Drizzle) after every write |
 | Problem details type | `ProblemDetails` from `src/shared/errors.ts` |
-| Reference tests | none yet: the first route tests written become the reference |
+| Reference tests | `test/health/health.routes.test.ts` (the skeleton's health route test) until the project has richer ones |
 
 The `write-api-tests` skill reads this table.
 

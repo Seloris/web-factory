@@ -1,21 +1,21 @@
 ---
 name: factory-init
-description: "Set up the current repository as a factory project: interview the person (name, base branch, language, model preset, sign-in, then each component: name, path, kind, description, stack, commands, url, the stack pack's placeholders), write its factory.yaml manifest and CLAUDE.md, one autonomous CLAUDE.md per component (from the stack pack when one exists), .planning/, .claude/settings.json (the plugin enabled, push denied), the planning and memory rules and docs/CONTRIBUTING.md. Also adds a component (factory-init component {component}), switches the model preset (factory-init models {preset}) or re-applies a stack pack (factory-init stack {component} {stack}). Writes the instruction layer only, never application code."
+description: "Set up the current repository as a factory project: interview the person (name, base branch, language, model preset, sign-in, then each component: name, path, kind, description, stack, commands, url, the stack pack's placeholders), write its factory.yaml manifest and CLAUDE.md, one autonomous CLAUDE.md per component (from the stack pack when one exists), .planning/, .claude/settings.json (the plugin enabled, push denied), the planning and memory rules and docs/CONTRIBUTING.md. Also adds a component (factory-init component {component}), switches the model preset (factory-init models {preset}) or re-applies a stack pack (factory-init stack {component} {stack}). Writes no application code of its own: a component whose stack pack ships a code skeleton gets it copied, installed and checked (build and test green) when its folder is empty."
 ---
 
 # Init a project
 
-Turns the repository the session opened into a project the factory workflow can run on. It writes instructions, never application code: the code skeleton is the person's, or a future stack pack's.
+Turns the repository the session opened into a project the factory workflow can run on. It writes instructions and, for a component whose stack pack ships a code skeleton, copies that skeleton into its empty folder so the first stage starts on green commands; it writes no application code of its own.
 
 Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, language, hard rules, commits). Talk to the person in their language from the first message (ask in the language they used).
 
 ## Modes
 
-- `/factory:factory-init` with no `factory.yaml` at the root: full setup (below). An empty folder is fine: `git init` with the base branch when there is no repository yet, and the person brings the code, or a stack pack's skeleton does later.
+- `/factory:factory-init` with no `factory.yaml` at the root: full setup (below). An empty folder is fine: `git init` with the base branch when there is no repository yet; the person brings the code, or the stack pack's skeleton does.
 - `/factory:factory-init` with a manifest: say what exists and offer the three partial modes.
 - `/factory:factory-init component {component}`: interview for one component, write its `CLAUDE.md`, add it to the manifest's `components`.
 - `/factory:factory-init models {preset|role=model …}`: change the manifest's `models` and the `env.CLAUDE_CODE_SUBAGENT_MODEL` of `.claude/settings.json` (the `runner` model).
-- `/factory:factory-init stack {component} {stack}`: re-apply a stack pack's template to an existing component (its `CLAUDE.md` is rewritten: ask first, and keep its Conventions section).
+- `/factory:factory-init stack {component} {stack}`: re-apply a stack pack's template to an existing component (its `CLAUDE.md` is rewritten: ask first, and keep its Conventions section); when the component's path holds no code (nothing but its `CLAUDE.md`), its skeleton is copied, installed and verified as in the full setup.
 
 ## Full setup
 
@@ -61,16 +61,17 @@ Into the project, from the plugin's `${CLAUDE_PLUGIN_ROOT}/templates/`, filling 
 | `docs/CONTRIBUTING.md` | `templates/docs/CONTRIBUTING.md` | base branch filled in. An existing one is kept and shown for the person to reconcile. |
 | `.claude/local/test-logins.example.md` | `templates/test-logins.example.md` | only when a component has `logins`. |
 | `.gitignore` | the used packs' `gitignore` files | adds `.claude/local/` and the lines of each used pack's `gitignore` file (when the pack has one), each line when missing. |
+| `{path}/**` per component | the pack's `skeleton/{kind}/` when the pack has one for that kind | only when the component's path holds nothing but its `CLAUDE.md`: every file copied as is, placeholders filled, then the install command the pack's `README.md` names under `## Skeleton`, run from the component's path. A folder that already holds code is left alone, and the person is told so. |
 
 A pack's skills are not copied: they stay in `${CLAUDE_PLUGIN_ROOT}/stacks/{stack}/skills/` and the skills read them from there (see the workflow rules). Write each file with its exact content: no shell expansion of `$`, backticks or `{{…}}` on the way (the Write tool, or a quoted heredoc).
 
 ### 4. Verify
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` and show the resolved manifest's summary (name, base branch, preset, stages with their commands). Fix whatever it reports.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` and show the resolved manifest's summary (name, base branch, preset, stages with their commands). Fix whatever it reports. Then, for each component that received a skeleton, run its `build` and `test` commands as the resolved manifest gives them, from the component's path: both must pass with the skeleton alone. A failure is a defect of the pack, not of the project: report it with the output and stop short of patching the skeleton in the project.
 
 ### 5. Commit
 
-Propose one commit of the files written, with its message in a code block (`tools(tooling): factory init`, and a body listing the files), and make it on the person's yes. Never push. Then the next prompts:
+Propose one commit of the files written, the copied skeletons and their lock files included (never the installed dependencies: the pack's `gitignore` covers them), with its message in a code block (`tools(tooling): factory init`, and a body listing the files), and make it on the person's yes. Never push. Then the next prompts:
 
 ```
 /factory:write-spec {first feature}
