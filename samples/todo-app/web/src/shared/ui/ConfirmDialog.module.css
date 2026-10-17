@@ -1,0 +1,32 @@
+.dialog {
+  max-width: 28rem;
+  padding: 1.5rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 0.5rem;
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.error {
+  color: #b00020;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.confirm {
+  color: #fff;
+  background: #b00020;
+  border: 1px solid #b00020;
+}

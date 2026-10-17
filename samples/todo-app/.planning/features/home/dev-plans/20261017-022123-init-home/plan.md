@@ -165,6 +165,10 @@ None: `web/CLAUDE.md` forbids front tests. The browser test of the Validation co
 
 - `todoIdParamsSchema = z.object({ id: z.coerce.number().int().positive() })` → `.max(2_147_483_647)` added, with a `400` route test for an id beyond it (the `integer` column's bound: a larger id passed validation and failed in Postgres as a `500`).
 - `registry.register("Todo", todoSchema)` and the `ProblemDetails` registration → `.meta({ id: "Todo" })` on `todoSchema`, and `.meta({ id: "ProblemDetails" })` on `problemDetailsSchema` in `src/shared/errors.ts`, so every feature shares the one component (`registry.register` needs `extendZodWithOpenApi`, which the skeleton does not call; zod-to-openapi reads zod v4's `meta` id the same way: the document holds both components and the responses `$ref` them).
+- Conventions: `web/CLAUDE.md` only renamed → its "Loading and errors" bullet also says a failed mutation shows a French message from the translation layer, never the API's `detail` (the bullet said the opposite of the plan's error-message Decision; review finding).
+- `ConfirmDialog` props → an `isPending` prop added: while the delete runs, both buttons are disabled and Escape is ignored, and the page ignores a cancel (a cancel could not stop the running delete, against FR-09's "cancelling keeps it unchanged"; review finding).
+- The active tag falls back to every todo → the `tag` state is also reset to `null` then, and the active tag is the matching entry of `tags` (a stale selection came back silently when a todo with that tag in another casing was added; review finding).
+- `web/index.html` untouched → `lang="fr"` and the title "Mes tâches" (the skeleton's `en` and "web" on a French UI; review finding).
 
 ## Progress
 
@@ -178,13 +182,13 @@ Commit: `feat(home): api — todos list, create, complete and delete`
 
 ### Stage 2 — web
 Commit: `feat(home): web — home page with todos, filters and delete confirmation`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: query keys, query and mutation hooks, `selectTodos`
-- [ ] pages: `HomePage`, lazy `/` route
-- [ ] ui: `TodoForm`, `TodoFilters`, `TodoList`, `TodoItem`, `ConfirmDialog`, `i18n.ts`
-- [ ] Conventions: `web/CLAUDE.md` updated
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: query keys, query and mutation hooks, `selectTodos`
+- [x] pages: `HomePage`, lazy `/` route
+- [x] ui: `TodoForm`, `TodoFilters`, `TodoList`, `TodoItem`, `ConfirmDialog`, `i18n.ts`
+- [x] Conventions: `web/CLAUDE.md` updated
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web
