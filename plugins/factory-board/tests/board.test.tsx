@@ -85,6 +85,8 @@ function mockProject(on: On, options: { log?: string; files?: Record<string, str
     return { value: path in files || isDir(path) }
   })
   on('fs.read', ($, e) => {
+    // The mod's own manifest, wherever the plugin sits on this machine.
+    if (norm(e.path).endsWith('/.claude-plugin/plugin.json')) return { value: '{ "name": "factory-board", "version": "9.9.9" }' }
     const text = files[norm(e.path)]
     if (text === undefined) throw new Error(`ENOENT ${e.path}`)
     return { value: text }
@@ -267,6 +269,7 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('repo · feat/demo')
+    expect(await ui.find({ type: 'Text', text: /^ v9\.9\.9/ })).toBeDefined()
     expect((await ui.find({ key: 'tile:features' }))?.text).toContain('2')
     expect((await ui.find({ key: 'tile:no-plan' }))?.text).toContain('1')
     expect((await ui.find({ key: 'tile:stages-left' }))?.text).toContain('1')

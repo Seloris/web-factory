@@ -234,7 +234,14 @@ const MARKER_COLOR: Record<Marker, string> = { done: 'success', running: 'claude
 const MARKER_ALT: Record<Marker, string> = { done: 'fait', running: 'en cours', next: 'à faire', pending: 'plus tard' }
 
 export const register: Register = on => {
+  /** The loaded plugin.json's version, in the pane's header: tells which build the session runs. */
+  let version = ''
+
   on('session.start', async ($, e, next) => {
+    version = await $.fs
+      .read(`${$.plugin.root}/.claude-plugin/plugin.json`)
+      .then(text => String(JSON.parse(text).version ?? ''))
+      .catch(() => '')
     await $.command.register({
       name: COMMAND,
       description: 'Ouvre le tableau des features du projet, leurs plans et les stages en cours',
@@ -420,6 +427,7 @@ export const register: Register = on => {
           <Text wrap="truncate-end">
             <Text weight="semibold">Factory</Text>
             <Text dimColor>
+              {version ? ` v${version}` : ''}
               {'  '}
               {project}
               {b.branch ? ` · ${b.branch}` : ''}

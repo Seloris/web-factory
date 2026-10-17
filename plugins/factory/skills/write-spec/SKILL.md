@@ -1,6 +1,6 @@
 ---
 name: write-spec
-description: "Draft or update a feature's business spec (.planning/features/{slug}/00_spec.md) with the person: problem, non-goals, functional requirements, business rules, plus the user stories and the glossary when they add something. The only way 00_spec.md is ever written. Use for a new business idea, to update the spec of an existing feature, when a plan needs a spec that does not exist yet, or when planning or implementing reveals a business behaviour change."
+description: "Draft or update a feature's business spec (.planning/features/{slug}/00_spec.md) with the person: problem, non-goals, functional requirements, business rules, plus the user stories and the glossary when they add something. The only way 00_spec.md is ever written. Use for a new business idea, to update the spec of an existing feature, when a feature is planned or coded without a spec (derived from the plan or the code), or when planning or implementing reveals a business behaviour change."
 ---
 
 # Write or update a feature spec
@@ -28,7 +28,11 @@ The prompt names the feature: `/factory:write-spec {feature}`. The spec lives un
 
 ## Called mode
 
-When `write-plan` or `implement` calls this skill for a business behaviour change found while planning or coding:
+When `write-plan` or `implement` calls this skill for a business behaviour change found while planning or coding, or for a feature that has no spec yet (the workflow rules' **The spec stays in sync**):
+
+**No spec yet.** Propose in one line to create it from the plan (or from the code and the request), and wait for the person's yes, unless the caller already got it; a no goes back to the caller, which records it. On yes, draft the whole spec into `00_spec.md` following the Template and the Rules: only the business behaviour the plan or the code carries (who, what, which rule), never how. The slug is the caller's: no slug question, no grill offer. Post the message of Procedure step 4 and iterate as it says; the spec stays `Draft` until the caller's commit switches it to `Approved`. Then skip to step 3.
+
+**A spec exists:**
 
 1. Write the delta: `+ US-NN` / `+ BR-NN` for additions, `~ FR-NN: before → after` for revisions, `Q-NN resolved → BR-NN`.
 2. **Delta that only restates what the person explicitly asked for** (the request, or a choice they already made in the conversation): no extra confirmation. Edit the spec in place following the Rules, and show the delta in the calling skill's report.

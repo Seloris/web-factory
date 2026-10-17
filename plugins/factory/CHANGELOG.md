@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — The spec stays in sync
+
+- **A feature planned or coded without a spec gets one offered, derived from the plan or the code.** The person asked that specs never drift from what is planned and built. `write-plan` sent a feature with no spec to a full `write-spec` first, and `implement`, with or without a plan, never looked: a feature coded straight from requests ended with no spec at all. The workflow rules now hold **The spec stays in sync**: every plan and stage on a feature (not `tooling` or `shared`) leaves its `00_spec.md` matching what it ships; a missing spec is proposed, drafted by `write-spec` in called mode from the plan or the code (business behaviour only), and shipped in the plan's or the stage's commit. A no is recorded once, in the plan's Decisions or as `Spec: declined by the person` in the stage commit's body, so later sessions do not ask again; the reviewer flags a feature with no spec and no recorded no.
+
 ## 2026-10-17 — The board follows a new plan
 
 - **A plan being written takes its feature's card; the plan that appears is followed.** On the sample's `home`, `Nouveau plan` started a `write-plan` session while the card stayed on the finished plan: its `Plan` row turned running and `Fermer la branche` was still offered, and once the new folder existed the card kept the plan picked before. While a live `write-plan {slug}` run writes a plan whose folder is not there yet, the card now shows that plan on its way (`nouveau plan en cours`, no picker, no prompt); a plan folder that appears between two scans is followed at once.

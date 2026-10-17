@@ -10,7 +10,7 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | Give a front a skin, or switch it | `/factory:factory-init skin {component} {skin}`, then a plan to apply it to existing screens |
 | Ask a question | Just ask. No skill. |
 | Code a small or medium change, a fix | `/factory:implement {request}` (no plan) |
-| Design a new feature or a big change | `/factory:write-spec {feature}` if business behaviour is new, then `/factory:write-plan {slug}` |
+| Design a new feature or a big change | `/factory:write-spec {feature}` if business behaviour is new, then `/factory:write-plan {slug}` (a feature with no spec gets one offered from the plan) |
 | Implement an existing plan | `/factory:implement {plan folder}` |
 | Review the branch | `/factory:review` |
 | Review a plan before coding | `/factory:review plan {plan folder}` |
@@ -27,7 +27,7 @@ One stage per session, in the manifest's component order. Each stage: tests firs
 
 ## With a plan
 
-1. `/factory:write-spec {feature}` → `.planning/features/{slug}/00_spec.md` (optional, business only)
+1. `/factory:write-spec {feature}` → `.planning/features/{slug}/00_spec.md` (optional, business only: else offered from the plan or the code)
 2. `/factory:write-plan {slug}` → `.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/plan.md`
 3. Read the summary and the commit messages it proposes (the plan's and each stage's), say **yes** to commit it (silence is not approval)
 4. Optional: `/factory:review plan {plan folder}`

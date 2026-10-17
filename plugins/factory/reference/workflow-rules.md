@@ -43,6 +43,13 @@ Messages between agents use the caveman voice (`${CLAUDE_PLUGIN_ROOT}/reference/
 - **Never run `integration_tests`** or any suite calling real external systems unless the person explicitly asked, in this session, naming them. "Check", "debug" or "why does this test fail" is not such a request: diagnose from the test and the code, give the likely cause and the command, let the person run it.
 - **Silence is not approval.** A spec or a plan is committed only after an explicit yes.
 
+## The spec stays in sync
+
+Every plan and every stage on a feature (any slug but `tooling` and `shared`) leaves the feature's `00_spec.md` matching the behaviour it plans or ships. Only `write-spec` writes it, in called mode, and the spec ships in the plan's or the stage's commit.
+
+- **No spec yet:** propose to create it, derived from the plan or from the code and the request, and draft it only on the person's yes. A no is recorded once and not asked again on the branch: in the plan's Decisions, or without a plan as a `Spec: declined by the person` line in the stage commit's body.
+- **A spec:** a change of business behaviour (a user story, a functional requirement, a business rule) updates it. A change with no business effect (a refactor, a fix restoring the specified behaviour, a look) leaves it as it is.
+
 ## Commits
 
 Conventional-style, in `language.repo`: `{type}({slug}): {summary}`, with `{type}` in `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `tools`, `ops`, `chore`. A stage commit names its stage: `{type}({slug}): {stage} — {summary}`. The project's `docs/CONTRIBUTING.md` may refine this; it wins.
