@@ -11,8 +11,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
-import type { FactoryBoard, FactoryBoardFeature, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, runLastStep, runStep, sessionRequest, stamp, stepTitle, steps } from './planning'
+import type { FactoryBoard, FactoryBoardFeature, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStep } from '../types'
+import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, nextAction, parseFactoryCommand, runLastStep, runStep, sessionRequest, stamp, stepTitle, steps, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -27,6 +27,7 @@ const POLL_MS = 10_000
 const board = atom({ plugin: 'factory-board', key: 'board' } as const, null)
 const expanded = atom({ plugin: 'factory-board', key: 'expanded' } as const, null)
 const isPaneOpen = atom({ plugin: 'factory-board', key: 'isPaneOpen' } as const, false)
+const pickedPlans = atom({ plugin: 'factory-board', key: 'pickedPlans' } as const, {})
 
 const isLive = (run: FactoryBoardRun): boolean => run.status === 'running' || run.status === 'waiting'
 
@@ -102,7 +103,8 @@ async function commitRun($: EngineInterface, b: FactoryBoard | null): Promise<vo
   if (latest === undefined) return
   const [key, run] = latest
   if (!isLive(run)) return
-  const moved = afterCommit(run, b?.features.find(f => f.slug === run.feature))
+  const feature = b?.features.find(f => f.slug === run.feature)
+  const moved = afterCommit(run, feature && withPlan(feature, run.folder))
   await $.store.set(key, { ...run, ...moved, updatedAt: await $.clock.now() })
 }
 
@@ -172,6 +174,9 @@ function age(now: number, since: number): string {
   const hours = Math.floor(minutes / 60)
   return `${hours} h ${String(minutes % 60).padStart(2, '0')}`
 }
+
+/** A plan in the picker: its folder name (timestamp first), a draft said so. */
+const planLabel = (plan: FactoryBoardPlan): string => `${plan.folder.split('/').at(-1) ?? plan.folder}${plan.isDraft ? ' (brouillon)' : ''}`
 
 const isStageDone = (stage: { done: number; total: number }): boolean => stage.total > 0 && stage.done === stage.total
 
@@ -253,7 +258,7 @@ export const register: Register = on => {
     const command = parseFactoryCommand(e.text)
     if (command !== null && command.feature !== null) {
       const feature = (await read($, board))?.features.find(f => f.slug === command.feature)
-      await startRun($, { feature: command.feature, folder: command.folder, command: command.skill, step: runStep(command, feature), lastStep: runLastStep(command) })
+      await startRun($, { feature: command.feature, folder: command.folder, command: command.skill, step: runStep(command, feature && withPlan(feature, command.folder)), lastStep: runLastStep(command) })
       refreshQuietly($)
     }
     return next(e)
@@ -299,7 +304,8 @@ export const register: Register = on => {
     const isOpen = await read($, isPaneOpen)
     const sessionId = await $.session.id()
     const run = b.runs.filter(r => r.sessionId === sessionId).at(-1)
-    const feature = run ? b.features.find(f => f.slug === run.feature) : undefined
+    const found = run ? b.features.find(f => f.slug === run.feature) : undefined
+    const feature = found && run ? withPlan(found, run.folder) : undefined
     const others = b.runs.filter(r => r.sessionId !== sessionId && isLive(r)).length
 
     return (
@@ -332,8 +338,11 @@ export const register: Register = on => {
     const { Box, Text, Button } = elements
     /** The graphical surfaces draw the timeline's markers and rail as vectors; the terminal, as glyphs. */
     const Svg = 'Svg' in elements ? elements.Svg : undefined
+    /** The mobile app draws no Select: there the card keeps the latest plan. */
+    const Select = 'Select' in elements ? elements.Select : undefined
     const b = await read($, board)
     const open = await read($, expanded)
+    const picked = await read($, pickedPlans)
     const sessionId = await $.session.id()
     const now = b?.scannedAt ?? 0
 
@@ -375,13 +384,14 @@ export const register: Register = on => {
       )
     }
 
+    const features = b.features.map(f => withPlan(f, picked[f.slug]))
     const project = b.root.split(/[\\/]/).filter(Boolean).at(-1) ?? b.root
     const live = b.runs.filter(isLive).sort((a, b2) => b2.since - a.since)
     const running = live.filter(r => r.status === 'running').length
     const waiting = live.length - running
-    const noPlan = b.features.filter(f => f.plan === null).length
-    const inProgress = b.features.filter(f => f.state === 'running' || f.state === 'review').length
-    const stagesLeft = b.features.reduce((n, f) => n + (f.plan?.stages.filter(s => !isStageDone(s)).length ?? 0), 0)
+    const noPlan = features.filter(f => f.plan === null).length
+    const inProgress = features.filter(f => f.state === 'running' || f.state === 'review').length
+    const stagesLeft = features.reduce((n, f) => n + (f.plan?.stages.filter(s => !isStageDone(s)).length ?? 0), 0)
     const sessions = [running > 0 ? `${running} en cours` : null, waiting > 0 ? `${waiting} en attente` : null].filter(Boolean)
 
     const tile = (key: string, label: string, value: number, color?: string) => (
@@ -424,7 +434,8 @@ export const register: Register = on => {
             </Text>
             <Box gap={1} flexWrap="wrap" marginTop={1}>
               {live.map(run => {
-                const feature = b.features.find(f => f.slug === run.feature)
+                const found = b.features.find(f => f.slug === run.feature)
+                const feature = found && withPlan(found, run.folder)
                 return (
                   <Box
                     key={`card:${run.sessionId}:${run.since}`}
@@ -453,7 +464,7 @@ export const register: Register = on => {
           </Box>
         )}
 
-        {b.features.length === 0 && (
+        {features.length === 0 && (
           <Box flexDirection="column" marginTop={1} paddingX={1}>
             <Text dimColor>Aucune feature sous .planning/features.</Text>
             <Text dimColor>
@@ -462,7 +473,7 @@ export const register: Register = on => {
           </Box>
         )}
 
-        {b.features.map(feature => {
+        {features.map(feature => {
           const plan = feature.plan
           const runs = b.runs.filter(r => r.feature === feature.slug)
           const action = nextAction(feature)
@@ -471,8 +482,77 @@ export const register: Register = on => {
           const stagesTotal = plan ? plan.stages.length : 0
           const isComplete = stagesTotal > 0 && stagesDone === stagesTotal
           const active = activeStep(feature)
-          const timeline = steps(feature)
+          // One spec, several plans: the spec stands alone, the timeline under it is the picked plan's.
+          const [, ...planSteps] = steps(feature)
           const specLine = feature.specStatus ? `spec ${SPEC_STATUS_LABEL[feature.specStatus] ?? feature.specStatus}` : feature.hasSpec ? 'spec présente' : 'pas de spec'
+
+          const row = (step: FactoryBoardStep, isLast: boolean) => {
+            const isDone = isStepDone(feature, step)
+            const isActive = step === active
+            const history = runs.filter(r => r.step === step && isRunOfPlan(r, feature)).sort((a, b2) => b2.since - a.since)
+            const marker: Marker = history.some(isLive) ? 'running' : isDone ? 'done' : isActive ? 'next' : 'pending'
+            const detail = stepDetail(feature, step)
+            const lines = history.map(run => (
+              <Box key={`run:${run.sessionId}:${run.since}`}>
+                <Text wrap="truncate-end">
+                  <Text color={RUN_COLOR[run.status]}>{RUN_LABEL[run.status].slice(0, 1)}</Text>
+                  <Text dimColor>
+                    {' '}
+                    {stamp(run.since)} · {SKILL_LABEL[run.command] ?? run.command} · {age(isLive(run) ? now : run.updatedAt, run.since)}
+                    {' · '}
+                    {who(run)}
+                  </Text>
+                  {run.status !== 'done' && <Text color={RUN_COLOR[run.status]}>{`  ${RUN_LABEL[run.status].slice(2)}`}</Text>}
+                </Text>
+              </Box>
+            ))
+
+            // The rail: an absolute Box spanning the step under its marker, clipped to it, so it
+            // stretches with whatever the step holds; the step's spacing is padding, inside the rail.
+            return (
+              <Box key={`step:${feature.slug}:${step}`} flexDirection="column" paddingLeft={3} paddingBottom={isLast ? 0 : 1}>
+                {!isLast && (
+                  <Box position="absolute" left={0} top={1} bottom={0} width={Svg ? 3 : 1} overflow="hidden">
+                    {Svg ? (
+                      <Svg source={railSvg(isDone ? GREEN : GREY)} alt="rail" width={18} height={RAIL_HEIGHT} />
+                    ) : (
+                      <Text color={isDone ? 'success' : 'inactive'}>{'│\n'.repeat(80)}</Text>
+                    )}
+                  </Box>
+                )}
+                <Box position="absolute" left={0} top={0}>
+                  {Svg ? (
+                    <Svg source={markerSvg(marker)} alt={MARKER_ALT[marker]} width={18} height={18} />
+                  ) : (
+                    <Text color={MARKER_COLOR[marker]}>{MARKER_GLYPH[marker]}</Text>
+                  )}
+                </Box>
+                <Box justifyContent="space-between" gap={1}>
+                  <Text weight={isActive || marker === 'running' ? 'semibold' : 'regular'} dimColor={marker === 'pending'} wrap="truncate-end">
+                    {stepTitle(feature, step)}
+                  </Text>
+                  <Text color={isDone ? 'success' : undefined} dimColor={!isDone} mono tabular>
+                    {detail}
+                  </Text>
+                </Box>
+                {lines}
+                {isActive && action && (
+                  <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="claude" paddingX={1}>
+                    <Box gap={1} flexWrap="wrap">
+                      <Button key={`prepare:${feature.slug}`} variant="primary" label={action.label} onPress={prepare(action.prompt)} />
+                      {action.all && <Button key={`all:${feature.slug}`} label={action.all.label} onPress={prepare(action.all.prompt)} />}
+                      <Button key={`copy:${feature.slug}`} label="Copier" onPress={copy(action.prompt)} />
+                      <Button key={`session:${feature.slug}`} label="Nouvelle session" onPress={startSession(action.prompt)} />
+                      {plan && <Button key={`review:${feature.slug}`} label="Revue du plan" onPress={prepare(`/factory:review plan ${plan.folder}`)} />}
+                    </Box>
+                    <Text size="caption" dimColor mono wrap="wrap">
+                      {action.prompt}
+                    </Text>
+                  </Box>
+                )}
+              </Box>
+            )
+          }
 
           return (
             <Box
@@ -514,6 +594,31 @@ export const register: Register = on => {
 
               {isOpen && (
                 <Box flexDirection="column" marginTop={1} paddingLeft={1}>
+                  <Text size="caption" dimColor>
+                    Spec
+                  </Text>
+                  <Box flexDirection="column" marginTop={1}>
+                    {row('spec', true)}
+                  </Box>
+
+                  <Box marginTop={1} gap={1} flexWrap="wrap" alignItems="center" justifyContent="space-between">
+                    <Text size="caption" dimColor>
+                      {feature.plans.length > 1 ? `Plans (${feature.plans.length})` : 'Plan'}
+                    </Text>
+                    <Box gap={1} flexWrap="wrap" alignItems="center">
+                      {Select && plan && feature.plans.length > 1 && (
+                        <Select
+                          key={`plan:${feature.slug}`}
+                          options={feature.plans.map(p => ({ value: p.folder, label: planLabel(p) }))}
+                          value={plan.folder}
+                          onSelect={folder => void update($, pickedPlans, m => ({ ...m, [feature.slug]: folder }))}
+                        />
+                      )}
+                      {feature.hasSpec && feature.plans.length > 0 && (
+                        <Button key={`new-plan:${feature.slug}`} label="Nouveau plan" onPress={prepare(`/factory:write-plan ${feature.slug}`)} />
+                      )}
+                    </Box>
+                  </Box>
                   {plan ? (
                     <Text size="caption" dimColor mono wrap="truncate-start">
                       {plan.folder}
@@ -523,76 +628,8 @@ export const register: Register = on => {
                       {feature.hasSpec ? 'Pas encore de plan : la spec attend son plan.' : 'Ni spec ni plan : tout commence par la spec.'}
                     </Text>
                   )}
-
                   <Box flexDirection="column" marginTop={1}>
-                    {timeline.map((step, index) => {
-                      const isDone = isStepDone(feature, step)
-                      const isActive = step === active
-                      const history = runs.filter(r => r.step === step).sort((a, b2) => b2.since - a.since)
-                      const marker: Marker = history.some(isLive) ? 'running' : isDone ? 'done' : isActive ? 'next' : 'pending'
-                      const isLast = index === timeline.length - 1
-                      const detail = stepDetail(feature, step)
-                      const lines = history.map(run => (
-                        <Box key={`run:${run.sessionId}:${run.since}`}>
-                          <Text wrap="truncate-end">
-                            <Text color={RUN_COLOR[run.status]}>{RUN_LABEL[run.status].slice(0, 1)}</Text>
-                            <Text dimColor>
-                              {' '}
-                              {stamp(run.since)} · {SKILL_LABEL[run.command] ?? run.command} · {age(isLive(run) ? now : run.updatedAt, run.since)}
-                              {' · '}
-                              {who(run)}
-                            </Text>
-                            {run.status !== 'done' && <Text color={RUN_COLOR[run.status]}>{`  ${RUN_LABEL[run.status].slice(2)}`}</Text>}
-                          </Text>
-                        </Box>
-                      ))
-
-                      // The rail: an absolute Box spanning the step under its marker, clipped to it, so it
-                      // stretches with whatever the step holds; the step's spacing is padding, inside the rail.
-                      return (
-                        <Box key={`step:${feature.slug}:${step}`} flexDirection="column" paddingLeft={3} paddingBottom={isLast ? 0 : 1}>
-                          {!isLast && (
-                            <Box position="absolute" left={0} top={1} bottom={0} width={Svg ? 3 : 1} overflow="hidden">
-                              {Svg ? (
-                                <Svg source={railSvg(isDone ? GREEN : GREY)} alt="rail" width={18} height={RAIL_HEIGHT} />
-                              ) : (
-                                <Text color={isDone ? 'success' : 'inactive'}>{'│\n'.repeat(80)}</Text>
-                              )}
-                            </Box>
-                          )}
-                          <Box position="absolute" left={0} top={0}>
-                            {Svg ? (
-                              <Svg source={markerSvg(marker)} alt={MARKER_ALT[marker]} width={18} height={18} />
-                            ) : (
-                              <Text color={MARKER_COLOR[marker]}>{MARKER_GLYPH[marker]}</Text>
-                            )}
-                          </Box>
-                          <Box justifyContent="space-between" gap={1}>
-                            <Text weight={isActive || marker === 'running' ? 'semibold' : 'regular'} dimColor={marker === 'pending'} wrap="truncate-end">
-                              {stepTitle(feature, step)}
-                            </Text>
-                            <Text color={isDone ? 'success' : undefined} dimColor={!isDone} mono tabular>
-                              {detail}
-                            </Text>
-                          </Box>
-                          {lines}
-                          {isActive && action && (
-                            <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="claude" paddingX={1}>
-                              <Box gap={1} flexWrap="wrap">
-                                <Button key={`prepare:${feature.slug}`} variant="primary" label={action.label} onPress={prepare(action.prompt)} />
-                                {action.all && <Button key={`all:${feature.slug}`} label={action.all.label} onPress={prepare(action.all.prompt)} />}
-                                <Button key={`copy:${feature.slug}`} label="Copier" onPress={copy(action.prompt)} />
-                                <Button key={`session:${feature.slug}`} label="Nouvelle session" onPress={startSession(action.prompt)} />
-                                {plan && <Button key={`review:${feature.slug}`} label="Revue du plan" onPress={prepare(`/factory:review plan ${plan.folder}`)} />}
-                              </Box>
-                              <Text size="caption" dimColor mono wrap="wrap">
-                                {action.prompt}
-                              </Text>
-                            </Box>
-                          )}
-                        </Box>
-                      )
-                    })}
+                    {planSteps.map((step, index) => row(step, index === planSteps.length - 1))}
                   </Box>
                 </Box>
               )}

@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, sessionRequest, stamp } from '../hooks/planning'
+import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, nextAction, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, sessionRequest, stamp, withPlan } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -40,6 +40,21 @@ Commit: \`feat(demo): web — counter page\`
 - [ ] Browser test: the change tested in \`web\`
 `
 
+/** An older plan of the same spec, finished: every stage and every validation item ticked. */
+const OLD_PLAN_FOLDER = '.planning/features/demo/dev-plans/20261001-090000-init-demo'
+const OLD_PLAN = `# Demo init
+
+## Progress
+
+### Stage 1 — api
+Commit: \`feat(demo): api — init\`
+- [x] Domain: init
+
+## Validation
+
+- [x] Review: done
+`
+
 const TAGS_SPEC = `# Tags — PRD
 
 > **Status**: Approved
@@ -48,6 +63,7 @@ const TAGS_SPEC = `# Tags — PRD
 const FILES: Record<string, string> = {
   [`${ROOT}/.planning/features/demo/00_spec.md`]: SPEC,
   [`${ROOT}/${PLAN_FOLDER}/plan.md`]: PLAN,
+  [`${ROOT}/${OLD_PLAN_FOLDER}/plan.md`]: OLD_PLAN,
   [`${ROOT}/.planning/features/tags/00_spec.md`]: TAGS_SPEC,
 }
 
@@ -188,6 +204,7 @@ test('nextAction follows the feature state', () => {
     title: 'Demo',
     hasSpec: true,
     specStatus: null,
+    plans: p ? [p] : [],
     plan: p,
     state,
   })
@@ -220,7 +237,8 @@ test('committed names a stage whose commit reached the branch', () => {
         hasSpec: true,
         specStatus: null,
         state: 'running',
-        plan: { ...plan, stages: plan.stages.map((s, i) => (i === 0 ? { ...s, sha } : s)) },
+        plans: [{ ...plan, stages: plan.stages.map((s, i) => (i === 0 ? { ...s, sha } : s)) }],
+        plan: null,
       },
     ],
   })
@@ -272,6 +290,16 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
 
     await ui.press({ key: 'prepare:demo' })
     expect(filled.at(-1)).toBe(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`)
+
+    expect((await ui.find({ type: 'Text', text: /^Plans \(2\)$/ }))?.text).toBe('Plans (2)')
+    await ui.press({ key: 'new-plan:demo' })
+    expect(filled.at(-1)).toBe('/factory:write-plan demo')
+    await ui.select({ key: 'plan:demo', value: OLD_PLAN_FOLDER })
+    expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Fermer la branche')
+    expect((await ui.find({ key: 'step:demo:stage:1' }))?.text).toContain('non committé')
+    expect(await ui.find({ key: 'step:demo:stage:2' })).toBeUndefined()
+    expect((await ui.find({ key: 'step:demo:spec' }))?.text).toContain('brouillon')
+    await ui.select({ key: 'plan:demo', value: PLAN_FOLDER })
 
     await ui.press({ key: 'session:demo' })
     expect(submitted.at(-1)).toBe(sessionRequest(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`))
@@ -350,8 +378,8 @@ test('a plain prompt records nothing', async ($, on) => {
 test('the timeline steps follow the feature: active step, done steps, the step a prompt lands on', () => {
   const parsed = parsePlan(PLAN)
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
-  const demo: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: 'Draft', plan, state: 'running' }
-  const empty: FactoryBoardFeature = { slug: 'new', title: 'new', hasSpec: false, specStatus: null, plan: null, state: 'empty' }
+  const demo: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: 'Draft', plans: [plan], plan, state: 'running' }
+  const empty: FactoryBoardFeature = { slug: 'new', title: 'new', hasSpec: false, specStatus: null, plans: [], plan: null, state: 'empty' }
   expect(activeStep(demo)).toBe('stage:2')
   expect(activeStep(empty)).toBe('spec')
   expect(activeStep({ ...demo, plan: { ...plan, isDraft: true } })).toBe('plan')
@@ -375,10 +403,32 @@ test('the timeline steps follow the feature: active step, done steps, the step a
   expect(stamp(Date.now())).toMatch(/^\d\d\/\d\d \d\d:\d\d$/)
 })
 
+test('withPlan follows a feature on one of its plans, and its runs with it', () => {
+  const parse = (text: string, folder: string) => {
+    const parsed = parsePlan(text)
+    return { ...parsed, title: parsed.title ?? 'Demo', folder, isDraft: false }
+  }
+  const latest = parse(PLAN, PLAN_FOLDER)
+  const old = parse(OLD_PLAN, OLD_PLAN_FOLDER)
+  const demo: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [latest, old], plan: latest, state: 'running' }
+  expect(withPlan(demo, undefined)).toBe(demo)
+  expect(withPlan(demo, '.planning/features/demo/dev-plans/gone')).toBe(demo)
+  const onOld = withPlan(demo, OLD_PLAN_FOLDER)
+  expect(onOld.plan?.folder).toBe(OLD_PLAN_FOLDER)
+  expect(onOld.state).toBe('done')
+
+  const run = (step: string, folder: string | null) => ({ sessionId: 's', root: ROOT, feature: 'demo', folder, command: 'implement', step, status: 'done' as const, since: 0, updatedAt: 0 })
+  expect(isRunOfPlan(run('spec', null), onOld)).toBe(true)
+  expect(isRunOfPlan(run('stage:1', OLD_PLAN_FOLDER), onOld)).toBe(true)
+  expect(isRunOfPlan(run('stage:1', PLAN_FOLDER), onOld)).toBe(false)
+  expect(isRunOfPlan(run('plan', null), onOld)).toBe(false)
+  expect(isRunOfPlan(run('plan', null), demo)).toBe(true)
+})
+
 test('describeRun names the skill, the feature and the stage at hand', () => {
   const parsed = parsePlan(PLAN)
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
-  const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plan, state: 'running' }
+  const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [plan], plan, state: 'running' }
   const run = (command: string, step = 'stage:2') => ({
     sessionId: 's',
     root: ROOT,

@@ -149,6 +149,26 @@ export function featureState(hasSpec: boolean, plan: FactoryBoardPlan | null): F
   return 'done'
 }
 
+/**
+ * The feature followed on the plan in `folder`, its state recomputed on it;
+ * the latest plan when `folder` names none of its plans (absent, or a plan gone).
+ */
+export function withPlan(feature: FactoryBoardFeature, folder: string | null | undefined): FactoryBoardFeature {
+  const plan = feature.plans.find(p => p.folder === folder) ?? feature.plans[0] ?? null
+  return plan === feature.plan ? feature : { ...feature, plan, state: featureState(feature.hasSpec, plan) }
+}
+
+/**
+ * True when a run shows on the timeline of the plan the feature is followed on:
+ * a spec run always; a run that named a plan folder, on that plan; one that named
+ * none (`write-plan {slug}`), on the latest plan.
+ */
+export function isRunOfPlan(run: FactoryBoardRun, feature: FactoryBoardFeature): boolean {
+  if (run.step === 'spec') return true
+  if (run.folder !== null) return run.folder === feature.plan?.folder
+  return feature.plan === (feature.plans[0] ?? null)
+}
+
 export type NextAction = {
   /** What the button says. */
   label: string
@@ -294,20 +314,20 @@ export function stamp(ms: number): string {
 export function committed(before: FactoryBoard | null, after: FactoryBoard): string[] {
   const lines: string[] = []
   for (const feature of after.features) {
-    const plan = feature.plan
-    if (plan === null) continue
-    const previous = before?.features.find(f => f.slug === feature.slug)?.plan ?? null
-    for (const stage of plan.stages) {
-      const was = previous?.stages.find(s => s.number === stage.number)
-      if (stage.sha !== null && (was === undefined || was.sha === null)) {
-        lines.push(`${feature.slug} · stage ${stage.number} committé (${stage.sha})`)
+    for (const plan of feature.plans) {
+      const previous = before?.features.find(f => f.slug === feature.slug)?.plans.find(p => p.folder === plan.folder) ?? null
+      for (const stage of plan.stages) {
+        const was = previous?.stages.find(s => s.number === stage.number)
+        if (stage.sha !== null && (was === undefined || was.sha === null)) {
+          lines.push(`${feature.slug} · stage ${stage.number} committé (${stage.sha})`)
+        }
       }
-    }
-    const complete = plan.validationTotal > 0 && plan.validationDone === plan.validationTotal
-    const wasComplete =
-      previous !== null && previous.validationTotal > 0 && previous.validationDone === previous.validationTotal
-    if (complete && !wasComplete) {
-      lines.push(`${feature.slug} · validation complète, la branche peut être fermée`)
+      const complete = plan.validationTotal > 0 && plan.validationDone === plan.validationTotal
+      const wasComplete =
+        previous !== null && previous.validationTotal > 0 && previous.validationDone === previous.validationTotal
+      if (complete && !wasComplete) {
+        lines.push(`${feature.slug} · validation complète, la branche peut être fermée`)
+      }
     }
   }
   return lines

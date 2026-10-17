@@ -54,8 +54,11 @@ export type FactoryBoardFeature = {
   hasSpec: boolean
   /** The spec header's status (`Draft`, `Approved`…), when there is a spec. */
   specStatus: string | null
-  /** The latest plan of the feature (highest timestamp), when there is one. */
+  /** Every plan of the feature, newest first (highest timestamp): one spec, several plans. */
+  plans: FactoryBoardPlan[]
+  /** The plan the feature is followed on: the latest from the scan, the one picked in the pane once `withPlan` swapped it. */
   plan: FactoryBoardPlan | null
+  /** The state on `plan`. */
   state: FactoryBoardFeatureState
 }
 
@@ -109,6 +112,8 @@ declare module 'claude-code' {
       board: FactoryBoard | null
       /** The slug of the feature whose stages are unfolded in the pane. */
       expanded: string | null
+      /** The plan folder picked in each feature's card, by slug; a feature absent here shows its latest plan. */
+      pickedPlans: Record<string, string>
       /** True while the pane is open, so the band's button says which way it toggles. */
       isPaneOpen: boolean
     }

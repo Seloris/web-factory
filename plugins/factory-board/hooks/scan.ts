@@ -46,19 +46,16 @@ async function readGit($: EngineInterface, root: string): Promise<Git> {
   return { branch, untracked, shaBySubject }
 }
 
-async function readLatestPlan(
-  $: EngineInterface,
-  featureDir: string,
-  relFeatureDir: string,
-  state: Git,
-): Promise<FactoryBoardPlan | null> {
+/** Every plan of a feature, newest first: the folder names start with their timestamp. */
+async function readPlans($: EngineInterface, featureDir: string, relFeatureDir: string, state: Git): Promise<FactoryBoardPlan[]> {
   const plansDir = join(featureDir, 'dev-plans')
-  if (!(await $.fs.exists(plansDir))) return null
+  if (!(await $.fs.exists(plansDir))) return []
   const folders = (await $.fs.list(plansDir))
     .filter(entry => entry.kind === 'dir')
     .map(entry => entry.name)
     .sort()
     .reverse()
+  const plans: FactoryBoardPlan[] = []
   for (const name of folders) {
     const file = join(plansDir, name, 'plan.md')
     if (!(await $.fs.exists(file))) continue
@@ -69,19 +66,19 @@ async function readLatestPlan(
     for (const stage of parsed.stages) {
       if (stage.commit !== null) stage.sha = state.shaBySubject.get(stage.commit) ?? null
     }
-    return {
+    plans.push({
       folder,
       title: parsed.title ?? name,
       stages: parsed.stages,
       validationDone: parsed.validationDone,
       validationTotal: parsed.validationTotal,
       isDraft: state.untracked.has(`${folder}/plan.md`),
-    }
+    })
   }
-  return null
+  return plans
 }
 
-/** Reads every feature under `{root}/.planning/features`, the latest plan of each, and git. */
+/** Reads every feature under `{root}/.planning/features`, its plans, and git. */
 export async function scanBoard($: EngineInterface, root: string, now: number): Promise<FactoryBoard> {
   const base: FactoryBoard = { root, branch: null, features: [], runs: [], scannedAt: now, error: null }
   const featuresDir = join(root, '.planning', 'features')
@@ -103,12 +100,14 @@ export async function scanBoard($: EngineInterface, root: string, now: number): 
         const text = await $.fs.read(specFile)
         if (typeof text === 'string') spec = parseSpec(text)
       }
-      const plan = await readLatestPlan($, dir, `.planning/features/${slug}`, state)
+      const plans = await readPlans($, dir, `.planning/features/${slug}`, state)
+      const plan = plans[0] ?? null
       features.push({
         slug,
         title: spec?.title ?? plan?.title ?? slug,
         hasSpec: spec !== null,
         specStatus: spec?.status ?? null,
+        plans,
         plan,
         state: featureState(spec !== null, plan),
       })
