@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, parsePlan, parseSpec, runStep, stamp } from '../hooks/planning'
+import { activeStep, afterCommit, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, stamp } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -186,7 +186,13 @@ test('nextAction follows the feature state', () => {
     state,
   })
   expect(nextAction(feature('spec', null as never))?.prompt).toBe('/factory:write-plan demo')
-  expect(nextAction(feature('running'))).toEqual({ label: 'Stage 2 — web', prompt: `/factory:implement ${PLAN_FOLDER}` })
+  expect(nextAction(feature('running'))).toEqual({ label: 'Stage 2 — web', prompt: `/factory:implement ${PLAN_FOLDER} — stage 2 (web)` })
+  const untouched = { ...plan, stages: plan.stages.map(s => ({ ...s, done: 0 })) }
+  expect(nextAction(feature('plan', untouched))).toEqual({
+    label: 'Stage 1 — api',
+    prompt: `/factory:implement ${PLAN_FOLDER} — stage 1 (api)`,
+    all: { label: "Tout d'un coup (stages 1–2)", prompt: `/factory:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained` },
+  })
   expect(nextAction(feature('running', { ...plan, isDraft: true }))?.prompt).toBe('/factory:write-plan demo')
   expect(nextAction(feature('review'))?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — final review`)
   expect(nextAction(feature('done'))?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — close the branch`)
@@ -254,7 +260,7 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(await ui.find({ key: 'review:demo' })).toBeDefined()
 
     await ui.press({ key: 'prepare:demo' })
-    expect(filled.at(-1)).toBe(`/factory:implement ${PLAN_FOLDER}`)
+    expect(filled.at(-1)).toBe(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`)
 
     await ui.press({ key: 'row:demo' })
     expect(await ui.find({ key: 'step:demo:stage:1' })).toBeUndefined()
@@ -280,7 +286,8 @@ test('a /factory: prompt records the run, the turn end marks it waiting, a commi
   expect(ended.status).toBe('waiting')
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect(await ui.find({ key: 'live:session-aaaa-1111:1000000', text: /Stage 2 — web · demo · cette session/ })).toBeDefined()
+  expect(await ui.find({ key: 'live:session-aaaa-1111:1000000', text: /Stage 2 — web · demo/ })).toBeDefined()
+  expect((await ui.find({ key: 'card:session-aaaa-1111:1000000' }))?.text).toMatch(/attend une réponse.*cette session · Implémentation/)
   await ui.press({ key: 'live:session-aaaa-1111:1000000' })
   expect(await ui.find({ key: 'run:session-aaaa-1111:1000000', text: /Implémentation.*attend une réponse/ })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('1 en attente')
@@ -340,6 +347,15 @@ test('the timeline steps follow the feature: active step, done steps, the step a
   expect(runStep(command(`/factory:implement ${PLAN_FOLDER} — final review`), demo)).toBe('review')
   expect(runStep(command(`/factory:implement ${PLAN_FOLDER} — close the branch`), demo)).toBe('close')
   expect(runStep(command(`/factory:review plan ${PLAN_FOLDER}`), demo)).toBe('plan')
+  expect(runStep(command(`/factory:implement ${PLAN_FOLDER} — stage 1 (api)`), demo)).toBe('stage:1')
+  const chained = command(`/factory:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained`)
+  expect(runStep(chained, demo)).toBe('stage:1')
+  expect(runLastStep(chained)).toBe('stage:2')
+  expect(runLastStep(command(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`))).toBeNull()
+  const run = { sessionId: 's', root: ROOT, feature: 'demo', folder: PLAN_FOLDER, command: 'implement', status: 'running' as const, since: 0, updatedAt: 0 }
+  expect(afterCommit({ ...run, step: 'stage:1', lastStep: 'stage:2' }, demo)).toEqual({ step: 'stage:2', status: 'running' })
+  expect(afterCommit({ ...run, step: 'stage:2', lastStep: 'stage:2' }, demo)).toEqual({ step: 'stage:2', status: 'done' })
+  expect(afterCommit({ ...run, step: 'stage:2', lastStep: null }, demo)).toEqual({ step: 'stage:2', status: 'done' })
   expect(runStep(command('/factory:write-spec new'), undefined)).toBe('spec')
   expect(stamp(Date.now())).toMatch(/^\d\d\/\d\d \d\d:\d\d$/)
 })
@@ -348,13 +364,13 @@ test('describeRun names the skill, the feature and the stage at hand', () => {
   const parsed = parsePlan(PLAN)
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
   const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plan, state: 'running' }
-  const run = (command: string) => ({
+  const run = (command: string, step = 'stage:2') => ({
     sessionId: 's',
     root: ROOT,
     feature: 'demo',
     folder: null,
     command,
-    step: 'stage:2',
+    step,
     status: 'running' as const,
     since: 0,
     updatedAt: 0,
@@ -362,9 +378,11 @@ test('describeRun names the skill, the feature and the stage at hand', () => {
   expect(describeRun(run('implement'), feature)).toBe('Stage 2 — web · demo')
   expect(describeRun(run('write-plan'), feature)).toBe('Plan · demo')
   expect(describeRun(run('write-spec'), undefined)).toBe('Spec · demo')
-  expect(describeRun(run('implement'), { ...feature, state: 'done', plan: { ...plan, stages: plan.stages.map(s => ({ ...s, done: s.total })) } })).toBe(
-    'Fermeture de la branche · demo',
-  )
+  expect(describeRun(run('implement', 'close'), feature)).toBe('Clôture de la branche · demo')
+  expect(describeRun(run('implement', 'review'), feature)).toBe('Revue finale · demo')
+  expect(describeRun(run('review', 'plan'), feature)).toBe('Revue du plan · demo')
+  // Stage 1 fully ticked, its commit not made yet: its session still finishes stage 1, not the plan's next stage.
+  expect(describeRun(run('implement', 'stage:1'), feature)).toBe('Stage 1 — api · demo')
 })
 
 test('the band shows this session’s step and toggles the pane', async ($, on) => {

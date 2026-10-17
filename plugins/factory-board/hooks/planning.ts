@@ -153,7 +153,11 @@ export type NextAction = {
   label: string
   /** The prompt the button prepares. */
   prompt: string
+  /** When several stages remain: the prompt that chains them all in one session. */
+  all?: { label: string; prompt: string }
 }
+
+const stageName = (stage: FactoryBoardStage): string => `Stage ${stage.number}${stage.title ? ` — ${stage.title}` : ''}`
 
 /** The one thing to do next on a feature, and the prompt that does it. */
 export function nextAction(feature: FactoryBoardFeature): NextAction | null {
@@ -168,8 +172,21 @@ export function nextAction(feature: FactoryBoardFeature): NextAction | null {
       if (plan === null) return null
       if (plan.isDraft) return { label: 'Reprendre le plan (brouillon)', prompt: `/factory:write-plan ${slug}` }
       const stage = nextStage(plan)
-      const which = stage ? `Stage ${stage.number}${stage.title ? ` — ${stage.title}` : ''}` : 'Implémenter'
-      return { label: which, prompt: `/factory:implement ${plan.folder}` }
+      if (stage === null) return { label: 'Implémenter', prompt: `/factory:implement ${plan.folder}` }
+      const action: NextAction = {
+        label: stageName(stage),
+        prompt: `/factory:implement ${plan.folder} — stage ${stage.number}${stage.title ? ` (${stage.title})` : ''}`,
+      }
+      const remaining = plan.stages.filter(s => s.number >= stage.number)
+      const last = remaining.at(-1)
+      if (remaining.length > 1 && last !== undefined) {
+        const titles = remaining.map(s => s.title).filter(Boolean)
+        action.all = {
+          label: `Tout d'un coup (stages ${stage.number}–${last.number})`,
+          prompt: `/factory:implement ${plan.folder} — stages ${stage.number}-${last.number}${titles.length > 0 ? ` (${titles.join(', ')})` : ''}, chained`,
+        }
+      }
+      return action
     }
     case 'review':
       return plan ? { label: 'Revue finale', prompt: `/factory:implement ${plan.folder} — final review` } : null
@@ -226,9 +243,31 @@ export function runStep(command: FactoryCommand, feature: FactoryBoardFeature | 
     default:
       if (/final review\s*$/i.test(command.args)) return 'review'
       if (/close the branch\s*$/i.test(command.args)) return 'close'
+      // `— stage 2 (web)`, or the first of `— stages 2-3 (web, e2e), chained`.
+      if (/\bstages?\s+\d+/i.test(command.args)) return `stage:${/\bstages?\s+(\d+)/i.exec(command.args)?.[1]}`
       // An implement on a feature the board does not know lands on no row: listed with the sessions only.
       return feature ? activeStep(feature) : command.skill
   }
+}
+
+/** The last stage of a chained run (`— stages 2-3 (…), chained`), when the prompt asks for one. */
+export function runLastStep(command: FactoryCommand): FactoryBoardStep | null {
+  if (command.skill !== 'implement') return null
+  const last = /\bstages\s+\d+\s*[-–]\s*(\d+)/i.exec(command.args)?.[1]
+  return last === undefined ? null : `stage:${last}`
+}
+
+/**
+ * Where a run stands once its session committed: a chained run moves to its
+ * next stage and keeps running; any other run, or a chain's last stage, is done.
+ */
+export function afterCommit(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): Pick<FactoryBoardRun, 'step' | 'status'> {
+  const current = /^stage:(\d+)$/.exec(run.step)?.[1]
+  if (run.lastStep === undefined || run.lastStep === null || current === undefined || run.step === run.lastStep) {
+    return { step: run.step, status: 'done' }
+  }
+  const next = feature?.plan?.stages.find(s => s.number > Number(current))?.number ?? Number(current) + 1
+  return { step: `stage:${next}`, status: 'running' }
 }
 
 /** `16/10 00:21`, local time. */
@@ -265,25 +304,34 @@ export function committed(before: FactoryBoard | null, after: FactoryBoard): str
   return lines
 }
 
+/** The name of a timeline step: `Spec`, `Plan`, `Stage 2 — web`, `Revue finale`, `Clôture de la branche`. */
+export function stepTitle(feature: FactoryBoardFeature | undefined, step: FactoryBoardStep): string {
+  if (step === 'spec') return 'Spec'
+  if (step === 'plan') return 'Plan'
+  if (step === 'review') return 'Revue finale'
+  if (step === 'close') return 'Clôture de la branche'
+  const number = /^stage:(\d+)$/.exec(step)?.[1]
+  if (number === undefined) return step
+  const stage = feature?.plan?.stages.find(s => String(s.number) === number)
+  return `Stage ${number}${stage?.title ? ` — ${stage.title}` : ''}`
+}
+
 /**
- * What a session does, for the band above the prompt: the skill it runs, on
- * which feature, and the stage at hand when it implements a plan.
+ * What a session does, for the band above the prompt and the session cards:
+ * the step it was started on, frozen, and the feature. Never the plan's next
+ * stage: once a stage's boxes are ticked, its session is still finishing it.
  */
 export function describeRun(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): string {
-  const plan = feature?.plan ?? null
   switch (run.command) {
     case 'write-spec':
       return `Spec · ${run.feature}`
     case 'write-plan':
       return `Plan · ${run.feature}`
     case 'review':
-      return `Revue · ${run.feature}`
+      return `${run.step === 'plan' ? 'Revue du plan' : 'Revue'} · ${run.feature}`
     case 'implement': {
-      const stage = plan ? nextStage(plan) : null
-      if (stage) return `Stage ${stage.number}${stage.title ? ` — ${stage.title}` : ''} · ${run.feature}`
-      if (plan && feature?.state === 'done') return `Fermeture de la branche · ${run.feature}`
-      if (plan && feature?.state === 'review') return `Revue finale · ${run.feature}`
-      return `Implémentation · ${run.feature}`
+      const isStep = /^stage:\d+$/.test(run.step) || run.step === 'review' || run.step === 'close'
+      return `${isStep ? stepTitle(feature, run.step) : 'Implémentation'} · ${run.feature}`
     }
     default:
       return `${run.command} · ${run.feature}`

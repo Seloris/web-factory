@@ -77,8 +77,10 @@ export type FactoryBoardRun = {
   folder: string | null
   /** The factory skill the session was started with (`implement`, `write-plan`…). */
   command: string
-  /** The timeline step the run was started on, frozen at its start. */
+  /** The timeline step the run works on: frozen at its start, moved only by a chained run's stage commits. */
   step: FactoryBoardStep
+  /** The last stage of a chained run (`— stages 2-3 (…), chained`); absent otherwise. */
+  lastStep?: FactoryBoardStep | null
   /**
    * `running` while a turn runs, `waiting` once it ended and the person is asked,
    * `done` once the session's main loop committed: the skill's job is over,
