@@ -114,6 +114,8 @@ declare module 'claude-code' {
       expanded: string | null
       /** The plan folder picked in each feature's card, by slug; a feature absent here shows its latest plan. */
       pickedPlans: Record<string, string>
+      /** The pane's review checkbox: when on, the stage prompts carry `— with review` and the reviewer runs after each stage. */
+      reviewStage: boolean
       /** True while the pane is open, so the band's button says which way it toggles. */
       isPaneOpen: boolean
     }

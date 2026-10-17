@@ -28,6 +28,7 @@ const board = atom({ plugin: 'factory-board', key: 'board' } as const, null)
 const expanded = atom({ plugin: 'factory-board', key: 'expanded' } as const, null)
 const isPaneOpen = atom({ plugin: 'factory-board', key: 'isPaneOpen' } as const, false)
 const pickedPlans = atom({ plugin: 'factory-board', key: 'pickedPlans' } as const, {})
+const reviewStage = atom({ plugin: 'factory-board', key: 'reviewStage' } as const, false)
 
 const isLive = (run: FactoryBoardRun): boolean => run.status === 'running' || run.status === 'waiting'
 
@@ -358,6 +359,8 @@ export const register: Register = on => {
     const b = await read($, board)
     const open = await read($, expanded)
     const picked = await read($, pickedPlans)
+    const reviewOn = await read($, reviewStage)
+    const toggleReview = async () => void update($, reviewStage, ticked => !ticked)
     const sessionId = await $.session.id()
     const now = b?.scannedAt ?? 0
 
@@ -495,7 +498,9 @@ export const register: Register = on => {
           const runs = b.runs.filter(r => r.feature === feature.slug)
           const isNewPlan = plan === null && feature.plans.length > 0
           // Its session writes it: no prompt to prepare until its folder is there.
-          const action = isNewPlan ? null : nextAction(feature)
+          const action = isNewPlan ? null : nextAction(feature, { review: reviewOn })
+          // The review checkbox only means something on a stage prompt (`— stage N`, `— stages N-M`).
+          const isStageAction = action !== null && /^\/factory:implement .* — stages? \d/.test(action.prompt)
           const isOpen = open === feature.slug
           const stagesDone = plan ? plan.stages.filter(isStageDone).length : 0
           const stagesTotal = plan ? plan.stages.length : 0
@@ -563,6 +568,9 @@ export const register: Register = on => {
                       <Button key={`copy:${feature.slug}`} label="Copier" onPress={copy(action.prompt)} />
                       <Button key={`session:${feature.slug}`} label="Nouvelle session" onPress={startSession(action.prompt)} />
                       {plan && <Button key={`review:${feature.slug}`} label="Revue du plan" onPress={prepare(`/factory:review plan ${plan.folder}`)} />}
+                      {isStageAction && (
+                        <Button key={`review-stage:${feature.slug}`} label={`${reviewOn ? '☑' : '☐'} Revue après chaque stage`} onPress={toggleReview} />
+                      )}
                     </Box>
                     <Text size="caption" dimColor mono wrap="wrap">
                       {action.prompt}

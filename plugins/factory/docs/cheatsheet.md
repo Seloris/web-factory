@@ -23,7 +23,7 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 /factory:implement Add a cutoff time on order publication
 ```
 
-One stage per session, in the manifest's component order. Each stage: tests first, build + tests + lint, reviewer, one commit. Done: `/factory:implement close the branch {branch}`.
+One stage per session, in the manifest's component order. Each stage: tests first, build + tests + lint, one commit. Add ` — with review` to a stage prompt to run the reviewer after it (the pane's review checkbox). Done: `/factory:implement close the branch {branch}`.
 
 ## With a plan
 

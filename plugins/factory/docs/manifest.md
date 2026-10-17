@@ -79,7 +79,7 @@ One stage per component, in the manifest's order, honouring `needs`. A stage:
 1. starts with its `commands.prepare` when it has one (the front regenerates its client from the API's handoff);
 2. implements the component's layers in order, tests first;
 3. verifies: `build`, `test` in full, `lint` on the changed files;
-4. is reviewed by the `reviewer` agent;
+4. is reviewed by the `reviewer` agent when asked (` — with review` in its prompt);
 5. ends with `commands.handoff` when it has one, and one commit.
 
 A project with one component has one stage; nothing in the plugin's skills knows the words "API" or "front".

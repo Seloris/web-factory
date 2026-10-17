@@ -225,6 +225,25 @@ test('nextAction follows the feature state', () => {
   expect(nextAction(feature('done'))?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — close the branch`)
 })
 
+test('the review checkbox adds its marker to the stage prompts only', () => {
+  const parsed = parsePlan(PLAN)
+  const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
+  const untouched = { ...plan, stages: plan.stages.map(s => ({ ...s, done: 0 })) }
+  const demo: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [untouched], plan: untouched, state: 'plan' }
+  const reviewed = nextAction(demo, { review: true })
+  expect(reviewed).toEqual({
+    label: 'Stage 1 — api',
+    prompt: `/factory:implement ${PLAN_FOLDER} — stage 1 (api) — with review`,
+    all: { label: "Tout d'un coup (stages 1–2)", prompt: `/factory:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained — with review` },
+  })
+  expect(runStep(parseFactoryCommand(reviewed!.prompt)!, demo)).toBe('stage:1')
+  expect(runLastStep(parseFactoryCommand(reviewed!.all!.prompt)!)).toBe('stage:2')
+  const finalReview = { ...plan, stages: plan.stages.map(s => ({ ...s, done: s.total })), validationDone: 0 }
+  const review: FactoryBoardFeature = { ...demo, plans: [finalReview], plan: finalReview, state: 'review' }
+  expect(nextAction(review, { review: true })?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — final review`)
+  expect(nextAction(demo)?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — stage 1 (api)`)
+})
+
 test('committed names a stage whose commit reached the branch', () => {
   const parsed = parsePlan(PLAN)
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }

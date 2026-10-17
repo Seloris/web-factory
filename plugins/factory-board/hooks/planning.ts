@@ -213,9 +213,16 @@ export function sessionRequest(prompt: string): string {
   return `Start a new session for this factory step with the start_session tool (initiation "offer", context "fresh", use_worktree false), its prompt exactly the line below. Do nothing else in this session.\n\n${prompt}`
 }
 
-/** The one thing to do next on a feature, and the prompt that does it. */
-export function nextAction(feature: FactoryBoardFeature): NextAction | null {
+/** The marker a stage prompt carries when the person asked for the reviewer after the stage (the pane's checkbox). */
+export const REVIEW_MARKER = ' — with review'
+
+/**
+ * The one thing to do next on a feature, and the prompt that does it.
+ * `review`: the stage prompts ask for the reviewer after each stage (`REVIEW_MARKER`); off by default.
+ */
+export function nextAction(feature: FactoryBoardFeature, options: { review?: boolean } = {}): NextAction | null {
   const { slug, plan } = feature
+  const marker = options.review ? REVIEW_MARKER : ''
   switch (feature.state) {
     case 'empty':
       return { label: 'Écrire la spec', prompt: `/factory:write-spec ${slug}` }
@@ -226,10 +233,10 @@ export function nextAction(feature: FactoryBoardFeature): NextAction | null {
       if (plan === null) return null
       if (plan.isDraft) return { label: 'Reprendre le plan (brouillon)', prompt: `/factory:write-plan ${slug}` }
       const stage = nextStage(plan)
-      if (stage === null) return { label: 'Implémenter', prompt: `/factory:implement ${plan.folder}` }
+      if (stage === null) return { label: 'Implémenter', prompt: `/factory:implement ${plan.folder}${marker}` }
       const action: NextAction = {
         label: stageName(stage),
-        prompt: `/factory:implement ${plan.folder} — stage ${stage.number}${stage.title ? ` (${stage.title})` : ''}`,
+        prompt: `/factory:implement ${plan.folder} — stage ${stage.number}${stage.title ? ` (${stage.title})` : ''}${marker}`,
       }
       const remaining = plan.stages.filter(s => s.number >= stage.number)
       const last = remaining.at(-1)
@@ -237,7 +244,7 @@ export function nextAction(feature: FactoryBoardFeature): NextAction | null {
         const titles = remaining.map(s => s.title).filter(Boolean)
         action.all = {
           label: `Tout d'un coup (stages ${stage.number}–${last.number})`,
-          prompt: `/factory:implement ${plan.folder} — stages ${stage.number}-${last.number}${titles.length > 0 ? ` (${titles.join(', ')})` : ''}, chained`,
+          prompt: `/factory:implement ${plan.folder} — stages ${stage.number}-${last.number}${titles.length > 0 ? ` (${titles.join(', ')})` : ''}, chained${marker}`,
         }
       }
       return action

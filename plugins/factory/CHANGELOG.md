@@ -2,6 +2,11 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — The stage review is asked, not run
+
+- **The reviewer after a stage runs on request, not on every stage.** Every stage ended with a `reviewer` pass, whatever its size: a one-file stage paid the same review as a layered one, and the person wanted to choose per stage. A stage prompt now carries ` — with review` when the review is wanted (the factory board's checkbox adds it; a person can type it); without it the stage commits unreviewed and its plan's `Review` item stays `[ ]` until the final review settles it. The final review and the branch close are unchanged: nothing is closed unreviewed.
+- **Without a plan, the approach asks the review question.** An unplanned change has no final review to fall back on, so the choice is made up front, like the browser-test question, instead of left to the default.
+
 ## 2026-10-17 — The spec stays in sync
 
 - **A feature planned or coded without a spec gets one offered, derived from the plan or the code.** The person asked that specs never drift from what is planned and built. `write-plan` sent a feature with no spec to a full `write-spec` first, and `implement`, with or without a plan, never looked: a feature coded straight from requests ended with no spec at all. The workflow rules now hold **The spec stays in sync**: every plan and stage on a feature (not `tooling` or `shared`) leaves its `00_spec.md` matching what it ships; a missing spec is proposed, drafted by `write-spec` in called mode from the plan or the code (business behaviour only), and shipped in the plan's or the stage's commit. A no is recorded once, in the plan's Decisions or as `Spec: declined by the person` in the stage commit's body, so later sessions do not ask again; the reviewer flags a feature with no spec and no recorded no.
