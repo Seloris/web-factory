@@ -24,7 +24,7 @@ The runs live in the mod's own store (`$.store`, a JSON file under the user's Cl
 
 - The feature row unfolds its timeline; a line of the live sessions block unfolds the feature it works on.
 - The row's primary button fills the prompt box with the next command: `write-spec` for an empty feature, `write-plan` for a spec alone or a draft plan, `implement {plan folder} — stage {N} ({title})` for the next stage, `… — final review` once every stage is ticked, `… — close the branch` once the Validation is complete. Enter sends it. Where no prompt box takes it, the prompt is copied instead.
-- In the framed step: `Tout d'un coup (stages N–M)`, when several stages remain, prepares `implement {plan folder} — stages N-M (…), chained`, every remaining stage in one session, one commit each; `Copier` copies the step's prompt; `Revue du plan` prepares `/factory:review plan {plan folder}`.
+- In the framed step: `Tout d'un coup (stages N–M)`, when several stages remain, prepares `implement {plan folder} — stages N-M (…), chained`, every remaining stage in one session, one commit each; `Copier` copies the step's prompt; `Nouvelle session` submits a request in this session asking the model to start a new desktop session (the `start_session` tool, same folder, no worktree) whose prompt is the step's, and the app asks "New session" or "Do it here" before anything starts (desktop app only); `Revue du plan` prepares `/factory:review plan {plan folder}`.
 - `⟳` rescans now.
 - The band’s `Ouvrir le tableau` / `Fermer le tableau` toggles the pane; closing it from the engine’s own mark flips the button too.
 

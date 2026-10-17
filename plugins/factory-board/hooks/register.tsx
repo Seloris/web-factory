@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, runLastStep, runStep, stamp, stepTitle, steps } from './planning'
+import { activeStep, afterCommit, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, runLastStep, runStep, sessionRequest, stamp, stepTitle, steps } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -350,6 +350,11 @@ export const register: Register = on => {
       const copied = await $.ui.copy({ text: prompt, surface: press.surface })
       $.ui.toast(copied.isCopied ? 'Prompt copié dans le presse-papiers.' : 'Pas de presse-papiers sur cette surface.')
     }
+    // asUser: the click is the person's own request; the desktop app then asks them "New session" or "Do it here".
+    const startSession = (prompt: string) => async () => {
+      const sent = await $.prompt.submit({ text: sessionRequest(prompt), asUser: true })
+      $.ui.toast(sent.drop === undefined ? 'Demande envoyée : accepte la nouvelle session.' : "Impossible d'envoyer la demande ici.")
+    }
     const who = (run: FactoryBoardRun) => (run.sessionId === sessionId ? 'cette session' : `session ${run.sessionId.slice(0, 8)}`)
 
     if (b === null) {
@@ -577,6 +582,7 @@ export const register: Register = on => {
                                 <Button key={`prepare:${feature.slug}`} variant="primary" label={action.label} onPress={prepare(action.prompt)} />
                                 {action.all && <Button key={`all:${feature.slug}`} label={action.all.label} onPress={prepare(action.all.prompt)} />}
                                 <Button key={`copy:${feature.slug}`} label="Copier" onPress={copy(action.prompt)} />
+                                <Button key={`session:${feature.slug}`} label="Nouvelle session" onPress={startSession(action.prompt)} />
                                 {plan && <Button key={`review:${feature.slug}`} label="Revue du plan" onPress={prepare(`/factory:review plan ${plan.folder}`)} />}
                               </Box>
                               <Text size="caption" dimColor mono wrap="wrap">

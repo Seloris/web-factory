@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, stamp } from '../hooks/planning'
+import { activeStep, afterCommit, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, sessionRequest, stamp } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -236,6 +236,11 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     filled.push(e.text)
     return { isFilled: true }
   })
+  const submitted: string[] = []
+  on('prompt.submit', ($, e) => {
+    submitted.push(e.text)
+    return { text: e.text }
+  })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
 
@@ -267,6 +272,10 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
 
     await ui.press({ key: 'prepare:demo' })
     expect(filled.at(-1)).toBe(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`)
+
+    await ui.press({ key: 'session:demo' })
+    expect(submitted.at(-1)).toBe(sessionRequest(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`))
+    expect(submitted.at(-1)).toContain('start_session')
 
     await ui.press({ key: 'row:demo' })
     expect(await ui.find({ key: 'step:demo:stage:1' })).toBeUndefined()

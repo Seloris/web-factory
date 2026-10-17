@@ -160,6 +160,14 @@ export type NextAction = {
 
 const stageName = (stage: FactoryBoardStage): string => `Stage ${stage.number}${stage.title ? ` — ${stage.title}` : ''}`
 
+/**
+ * The request that has this session start a new desktop session running `prompt`.
+ * Same folder, no worktree: the board reads this checkout's branch.
+ */
+export function sessionRequest(prompt: string): string {
+  return `Start a new session for this factory step with the start_session tool (initiation "offer", context "fresh", use_worktree false), its prompt exactly the line below. Do nothing else in this session.\n\n${prompt}`
+}
+
 /** The one thing to do next on a feature, and the prompt that does it. */
 export function nextAction(feature: FactoryBoardFeature): NextAction | null {
   const { slug, plan } = feature
