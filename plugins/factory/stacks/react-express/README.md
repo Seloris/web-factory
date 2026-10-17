@@ -16,14 +16,56 @@ Two component templates and three skills, TypeScript end to end, Node 22 or late
 
 ## Skeleton
 
-The minimum for which every command the templates declare passes with zero features. `factory-init` copies `skeleton/{kind}/` into the component's path when that path holds nothing but its `CLAUDE.md`, fills the placeholders (`{{name}}`, `{{node_version}}`, `{{api_url}}`), then runs **`npm install`** from the component's path, and checks that the component's `build` and `test` commands are green before committing. Dependency versions are pinned; `npm install` writes the lock file the project commits, and `npm ci` is the setup from then on.
+The minimum for which every command the templates declare passes with zero features. `factory-init` copies `skeleton/{kind}/` into the component's path when that path holds nothing but its `CLAUDE.md`, fills the placeholders (`{{name}}`, `{{node_version}}`, `{{api_url}}`), then runs **`npm install`** from the component's path (a front then gets its skin's tokens and fonts, see Skin below), and checks that the component's `build` and `test` commands are green before committing. Dependency versions are pinned; `npm install` writes the lock file the project commits, and `npm ci` is the setup from then on.
 
 - **api**: `src/app.ts`, `server.ts`, `config.ts`; `db/schema.ts` and `db/client.ts` on PGlite; `shared/errors.ts` (the `AppError`s and the problem-details middleware), `validate.ts`, `clock.ts`, `openapi.ts` (the registry); `scripts/export-openapi.ts`; `test/setup.ts` and `test/factories.ts`; `drizzle.config.ts`, an empty migrations journal, `.data/.gitkeep` (PGlite needs the parent folder); Vitest, eslint flat config, strict tsconfig. One route, `GET /health`, in `features/health/` with its Supertest test: it proves the chain (app, clock, test context, OpenAPI registration) and is the first reference test.
-- **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (QueryClientProvider, RouterProvider, the theme imports), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; `src/shared/ui/theme/base.css` and an empty `overrides.css` (the skin's `skin.css` comes from the skin, below); eslint flat config with the React hooks rules, strict tsconfig.
+- **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (the theme imports first, then QueryClientProvider, RouterProvider), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; `src/shared/ui/theme/base.css`, an empty `overrides.css` and an empty `fonts.ts` (the skin's `skin.css` and its font imports come from the skin, below); the shared components of `src/shared/ui/` (below); eslint flat config with the React hooks rules, strict tsconfig.
 
 ## Skin
 
-A front component of this pack has a `skin` (the factory plugin's `skins/`). `factory-init` copies the skin's `tokens.css` to **`src/shared/ui/theme/skin.css`**, and creates `src/shared/ui/theme/overrides.css` when absent (an existing one is never touched). `src/main.tsx` imports `skin.css`, then `base.css`, then `overrides.css`, before any component style. The shared components (`src/shared/ui/`) port the plugin's `skins/recipes.css`, one component and its CSS Module per element; the features compose them. How the skin's fonts load is decided by the project's first design plan.
+A front component of this pack has a `skin` (the factory plugin's `skins/`). `factory-init` copies the skin's `tokens.css` to **`src/shared/ui/theme/skin.css`**, and creates `src/shared/ui/theme/overrides.css` when absent (an existing one is never touched). `src/main.tsx` imports, before anything else, `fonts.ts`, then `skin.css`, then `base.css`, then `overrides.css`, so every component style comes after them.
+
+### Shared components
+
+The skeleton ports the plugin's `skins/recipes.css` into `src/shared/ui/`: one `{Name}.tsx` per element, a named export with its `{Name}.module.css`, reading the token contract only, the recipe's class names in camelCase (`select-wrap` is `selectWrap`). No user-facing string of their own (every label is a prop, for the i18n layer), no feature word, and no `className` prop: a feature lays them out through a wrapper of its own and styles only that layout.
+
+| Component | Recipe | Notes |
+|---|---|---|
+| `Panel.tsx` | panel | `Panel({ children })`: the page's surface, 680px at most, centred |
+| `PageTitle.tsx` | headings | `PageTitle({ children })`: the page's `h1` |
+| `Field.tsx` | field | `Field({ label, error, children })`, `error: string \| null`, `children(control: FieldControl)`: the control is a render prop that spreads `control` (`id`, `aria-invalid`, `aria-describedby`); the label's `htmlFor` and the error's id come from `useId` |
+| `TextInput.tsx` | input | the input's props, `className` aside |
+| `SearchInput.tsx` | search | `type="search"` with the `SearchIcon`; the native clear button hidden |
+| `Select.tsx` | select | the native select, its chevron drawn by the wrapper |
+| `Button.tsx` | buttons | `variant`: `primary`, `danger`, `quiet` (default) or `ghost` (a row action, an icon before its text); `type="button"` unless given |
+| `Switch.tsx` | switch | `Switch({ label, checked, disabled, onChange(checked) })`: a checkbox with `role="switch"` |
+| `Checkbox.tsx` | checkbox | the input's props, `type` and `className` aside; a disabled look the recipe lacks |
+| `List.tsx` | list | `List`, `ListItem({ isDone })` and `ListItemText`, the part `isDone` strikes through, in one module |
+| `Badge.tsx` | badge | |
+| `EmptyState.tsx` | empty | a list with no row: empty, or filtered to nothing |
+| `LoadingState.tsx` | | `role="status"`: the empty state's box without its border, while a list loads |
+| `ErrorMessage.tsx` | error | `role="alert"`; a failed load composes it with a retry `Button` |
+| `ConfirmDialog.tsx` | dialog | a native `<dialog>` opened with `showModal()`: `isOpen`, `title`, `message`, both labels, `isPending`, `error`, `onConfirm`, `onCancel` (also on Escape, never while pending) |
+| `icons.tsx` | | `SearchIcon`, `TrashIcon`: 16px, strokes in `currentColor`, `aria-hidden`, always beside text |
+
+A project adds a shared component the same way (a recipe the skeleton lacks, a component two features need), and changes one in place: they are the project's code from the first commit.
+
+### Fonts
+
+Self-hosted from npm with [Fontsource](https://fontsource.org): no request to a font CDN, versions pinned with the rest. `factory-init` takes the skin's row below, writes its import lines into **`src/shared/ui/theme/fonts.ts`** (which it owns: never edited by hand, rewritten when the skin changes), and runs `npm install --save-exact {packages}` from the component's path after the skeleton's `npm install`. Switching skins runs `npm uninstall` on the previous row's packages first. Static packages only: the variable ones register `'{Face} Variable'`, which the tokens' `font-family` does not name. The weights are those of the skin's `SKIN.md`, a range taken as every hundred in it; each import ships its own `@font-face` with `font-display: swap`.
+
+| Skin | Packages (pinned) | `fonts.ts` imports |
+|---|---|---|
+| `modern` | `@fontsource/geist@5.3.0` | `geist/400.css`, `geist/500.css`, `geist/600.css`, `geist/700.css` |
+| `editorial` | `@fontsource/fraunces@5.3.0`, `@fontsource/newsreader@5.3.0` | `fraunces/400.css`, `fraunces/500.css`, `fraunces/600.css`, `fraunces/400-italic.css`, `fraunces/500-italic.css`, `fraunces/600-italic.css`, `newsreader/400.css`, `newsreader/500.css` |
+| `brutalist` | `@fontsource/archivo-black@5.3.0`, `@fontsource/ibm-plex-mono@5.3.0` | `archivo-black/400.css`, `ibm-plex-mono/400.css`, `ibm-plex-mono/600.css` |
+| `aurora` | `@fontsource/outfit@5.3.0` | `outfit/400.css`, `outfit/500.css`, `outfit/600.css` |
+| `swiss` | `@fontsource/schibsted-grotesk@5.3.0` | `schibsted-grotesk/400.css`, `schibsted-grotesk/500.css`, `schibsted-grotesk/700.css`, `schibsted-grotesk/800.css` |
+| `soft` | `@fontsource/nunito@5.3.0` | `nunito/400.css`, `nunito/600.css`, `nunito/700.css`, `nunito/800.css` |
+| `pro` | `@fontsource/ibm-plex-sans@5.3.0` | `ibm-plex-sans/400.css`, `ibm-plex-sans/500.css`, `ibm-plex-sans/600.css` |
+| a skin on system fonts | none | none: `fonts.ts` keeps its comment and `export {};` |
+
+Each import is written `import "@fontsource/{path}";`, in the table's order, under a first comment line naming the skin. Editorial's Fraunces loses its optical sizes in the static files; a project that wants them installs `@fontsource-variable/fraunces` and sets `--font-display: 'Fraunces Variable', …` in its `overrides.css`. A new skin adds its row here in the same change.
 
 ## The database
 

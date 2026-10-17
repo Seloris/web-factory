@@ -32,4 +32,4 @@ What makes a front look designed, whatever its skin. Read when planning, impleme
 
 ## Fonts
 
-The skin's `SKIN.md` names its faces and weights. Load only those weights, keep the fallback stack of the tokens, and use `font-display: swap`. How they load (a stylesheet link, self-hosted files, a package) is the stack's choice, decided in the plan.
+The skin's `SKIN.md` names its faces and weights. Load only those weights, keep the fallback stack of the tokens, and use `font-display: swap`. How they load (a stylesheet link, self-hosted files, a package) is the stack's choice: the stack pack's font table when it has one (`factory-init` installs the skin's row and switches it with the skin), else decided in the plan.

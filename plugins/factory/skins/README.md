@@ -24,7 +24,7 @@ skins/
 ## How a project uses a skin
 
 1. The front component's ```` ```component ```` block names it: `skin: brutalist`. `factory-init` asks for it (recommended: `modern`) and `/factory:factory-init skin {component} {skin}` switches it.
-2. `factory-init` copies `{skin}/tokens.css` into the component, at the path its stack pack names (react-express: `src/shared/ui/theme/skin.css`), and creates the component's `overrides.css` beside it when absent. The application imports the skin first, then its overrides. The copied file is never edited: switching skins rewrites it.
+2. `factory-init` copies `{skin}/tokens.css` into the component, at the path its stack pack names (react-express: `src/shared/ui/theme/skin.css`), and creates the component's `overrides.css` beside it when absent. The application imports the skin first, then its overrides. The copied file is never edited: switching skins rewrites it. When the stack pack self-hosts fonts, it maps each skin to its font packages and imports (react-express: a font table, written into `src/shared/ui/theme/fonts.ts`), and `factory-init` installs the skin's fonts with its tokens; otherwise the project's first design plan decides how they load.
 3. The project overrides at two levels, both its own: **variables** in `overrides.css` (`:root { --accent: #e5484d; }`, and a `prefers-color-scheme: dark` block for a dark-only value), and **rules** in the `## Design` section of the component's `CLAUDE.md`, which wins over the skin's `SKIN.md` and over `reference/ui-design.md`.
 4. Planning, implementing and reviewing the component's UI read `reference/ui-design.md`, this file, `recipes.css` and `{skin}/SKIN.md` from the plugin (as a pack's stack skills are read in place), then the component's `## Design` section.
 
