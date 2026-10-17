@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — The PGlite folder ignored wherever the api lives
+
+- **`react-express`'s `gitignore` matches `**/.data/pglite/`.** On the sample, the first `npm run db:migrate` left some 900 PGlite files untracked under `api/.data/pglite/`: the pack's line `.data/pglite/` has a slash inside it, so git anchors it to the `.gitignore` that holds it, the project's root, never the api component's folder. The line is now unanchored; `.data/.gitkeep` stays tracked. Projects initialised earlier replace the old line in their `.gitignore`.
+
 ## 2026-10-17 — The Validation records the tests
 
 - **A `Tests` item in the plan's Validation.** On the sample's `init-home` plan the board showed the review to do, but nothing said whether the tests had run: every stage runs its component's full suite, and no line of the plan recorded it. Whenever a touched component declares `commands.test`, the Validation now holds `Tests: the full test command of {components} green on the plan's final code`; the last stage runs the other listed suites beside its own and ticks it.
