@@ -97,6 +97,8 @@ declare module 'claude-code' {
       board: FactoryBoard | null
       /** The slug of the feature whose stages are unfolded in the pane. */
       expanded: string | null
+      /** True while the pane is open, so the band's button says which way it toggles. */
+      isPaneOpen: boolean
     }
   }
 }

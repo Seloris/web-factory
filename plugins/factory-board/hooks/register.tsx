@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardRun, FactoryBoardRunStatus } from '../types'
-import { committed, nextAction, parseFactoryCommand } from './planning'
+import { committed, describeRun, nextAction, parseFactoryCommand } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -24,6 +24,17 @@ const POLL_MS = 10_000
 
 const board = atom({ plugin: 'factory-board', key: 'board' } as const, null)
 const expanded = atom({ plugin: 'factory-board', key: 'expanded' } as const, null)
+const isPaneOpen = atom({ plugin: 'factory-board', key: 'isPaneOpen' } as const, false)
+
+async function openPane($: EngineInterface, focus = false): Promise<void> {
+  await $.ui.open(focus ? { id: PANE, title: 'Factory', focus: true } : { id: PANE, title: 'Factory' })
+  await update($, isPaneOpen, () => true)
+}
+
+async function closePane($: EngineInterface): Promise<void> {
+  await $.ui.close({ id: PANE })
+  await update($, isPaneOpen, () => false)
+}
 
 async function readRuns($: EngineInterface, root: string, now: number): Promise<FactoryBoardRun[]> {
   const runs: FactoryBoardRun[] = []
@@ -138,7 +149,7 @@ export const register: Register = on => {
     const root = await $.session.root()
     const hasPlanning = await $.fs.exists(`${root}/.planning/features`)
     if (hasPlanning && e.surface !== null && e.surface !== 'terminal') {
-      void $.ui.open({ id: PANE, title: 'Factory' })
+      void openPane($)
     }
     if (hasPlanning) {
       await refresh($)
@@ -148,9 +159,14 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: COMMAND }, async $ => {
-    await $.ui.open({ id: PANE, title: 'Factory', focus: true })
+    await openPane($, true)
     const b = await refresh($)
     return { text: b.error ?? `Tableau factory ouvert : ${b.features.length} feature(s).` }
+  })
+
+  on('ui.close', { id: PANE }, async ($, e, next) => {
+    await update($, isPaneOpen, () => false)
+    return next(e)
   })
 
   on('prompt.submit', async ($, e, next) => {
@@ -193,10 +209,46 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const b = await read($, board)
+    if (e.props.hasSurvey || b === null || b.error !== null) return next(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const isOpen = await read($, isPaneOpen)
+    const sessionId = await $.session.id()
+    const run = b.runs.find(r => r.sessionId === sessionId)
+    const feature = run ? b.features.find(f => f.slug === run.feature) : undefined
+    const others = b.runs.filter(r => r.sessionId !== sessionId && r.status !== 'done').length
+
+    return (
+      <Box justifyContent="space-between" alignItems="center" gap={1}>
+        <Text wrap="truncate-end">
+          <Text weight="semibold" color="claude">
+            Factory
+          </Text>
+          {run ? (
+            <Text>
+              {'  '}
+              <Text weight="semibold">{describeRun(run, feature)}</Text>
+              <Text color={RUN_COLOR[run.status]}>
+                {'  '}
+                {RUN_LABEL[run.status]}
+              </Text>
+            </Text>
+          ) : (
+            <Text dimColor>{'  aucune étape factory dans cette session'}</Text>
+          )}
+          {others > 0 && <Text dimColor>{` · ${others} autre(s) session(s)`}</Text>}
+        </Text>
+        <Button key="toggle-pane" label={isOpen ? 'Fermer le tableau' : 'Ouvrir le tableau'} onPress={() => (isOpen ? closePane($) : openPane($, true))} />
+      </Box>
+    )
+  })
+
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const b = await read($, board)
     const open = await read($, expanded)
+    const sessionId = await $.session.id()
     const columns = Math.max(30, e.props.bodyColumns)
     /** Under 72 cells the row's columns wrap under the feature and the column header is dropped. */
     const isWide = columns >= 72
@@ -285,7 +337,7 @@ export const register: Register = on => {
         )}
 
         {isWide && b.features.length > 0 && (
-          <Box gap={1} marginTop={1} paddingX={1}>
+          <Box gap={1} marginTop={1} paddingX={2}>
             <Box flexGrow={1}>
               <Text size="caption" dimColor>
                 Feature
@@ -321,7 +373,15 @@ export const register: Register = on => {
           const specLine = feature.specStatus ? `spec ${SPEC_STATUS_LABEL[feature.specStatus] ?? feature.specStatus}` : 'pas de spec'
 
           return (
-            <Box key={`feature:${feature.slug}`} flexDirection="column" marginTop={1} paddingX={1}>
+            <Box
+              key={`feature:${feature.slug}`}
+              flexDirection="column"
+              marginTop={1}
+              paddingX={1}
+              borderStyle="round"
+              borderColor={STATE_COLOR[feature.state]}
+              borderDimColor={!isOpen && runs.every(r => r.status === 'done')}
+            >
               <Box gap={1} flexWrap="wrap" alignItems="center">
                 <Box flexGrow={1} minWidth={24}>
                   <Button key={`row:${feature.slug}`} plain onPress={() => update($, expanded, () => (isOpen ? null : feature.slug))}>
@@ -361,7 +421,7 @@ export const register: Register = on => {
                   <Text color={RUN_COLOR[run.status]}>{RUN_LABEL[run.status]}</Text>
                   <Text dimColor>
                     {' · '}
-                    {run.command} · session {run.sessionId.slice(0, 8)} · {age(now, run.since)}
+                    {run.command} · {run.sessionId === sessionId ? 'cette session' : `session ${run.sessionId.slice(0, 8)}`} · {age(now, run.since)}
                   </Text>
                 </Box>
               ))}

@@ -1,6 +1,6 @@
 # factory-board
 
-A Claude Code mod (function hooks) for projects that use the factory. It opens a pane headed by the project, its branch and the live sessions, four tiles (features, without a plan, in progress, stages left), then one row per feature: its state, its stage bar and the button that prepares the next `/factory:` prompt. A row unfolds into its stages and the prompt itself.
+A Claude Code mod (function hooks) for projects that use the factory. It opens a pane headed by the project, its branch and the live sessions, four tiles (features, without a plan, in progress, stages left), then one row per feature: its state, its stage bar and the button that prepares the next `/factory:` prompt. Each feature is a card, framed in the colour of its state; a card unfolds into its stages and the prompt itself. A band above the prompt names what this session does (`Stage 2 — web · demo`, `Plan · tags`, `Spec · tags`, `Revue · …`, `Revue finale`, `Fermeture de la branche`) with its run status, counts the other live sessions, and carries the button that opens or closes the pane.
 
 ## What it shows
 
@@ -25,6 +25,7 @@ The runs live in the mod's own store (`$.store`, a JSON file under the user's Cl
 - The row's primary button fills the prompt box with the next command: `write-spec` for an empty feature, `write-plan` for a spec alone or a draft plan, `implement {plan folder}` for the next stage, `… — final review` once every stage is ticked, `… — close the branch` once the Validation is complete. Enter sends it. Where no prompt box takes it, the prompt is copied instead.
 - `Copier` copies that prompt; `Revue du plan` prepares `/factory:review plan {plan folder}`.
 - `⟳` rescans now.
+- The band’s `Ouvrir le tableau` / `Fermer le tableau` toggles the pane; closing it from the engine’s own mark flips the button too.
 - Under 72 cells the row's columns wrap under the feature name and the column header is dropped.
 
 ## Running it

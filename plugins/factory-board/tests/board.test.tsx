@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { committed, nextAction, parseFactoryCommand, parsePlan, parseSpec } from '../hooks/planning'
+import { committed, describeRun, nextAction, parseFactoryCommand, parsePlan, parseSpec } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -120,6 +120,19 @@ const PANE = {
     bodyColumns: 90,
     placement: 'dock',
     scroll: { offset: 0, bodyRows: 40 },
+    view: {},
+  },
+} as const
+
+const BAND = {
+  plugin: 'factory-board',
+  component: 'AbovePrompt',
+  props: {
+    hasSurvey: false,
+    isWorking: false,
+    maxRows: 10,
+    bodyColumns: 90,
+    scroll: { offset: 0, bodyRows: 9 },
     view: {},
   },
 } as const
@@ -283,4 +296,51 @@ test('a plain prompt records nothing', async ($, on) => {
   await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
   await $.prompt.submit({ text: 'explique-moi ce fichier', wait: false, origin: { kind: 'composer' } })
   expect([...store.keys()]).toEqual([])
+})
+
+test('describeRun names the skill, the feature and the stage at hand', () => {
+  const parsed = parsePlan(PLAN)
+  const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
+  const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', specStatus: null, plan, state: 'running' }
+  const run = (command: string) => ({
+    sessionId: 's',
+    root: ROOT,
+    feature: 'demo',
+    folder: null,
+    command,
+    status: 'running' as const,
+    since: 0,
+    updatedAt: 0,
+  })
+  expect(describeRun(run('implement'), feature)).toBe('Stage 2 — web · demo')
+  expect(describeRun(run('write-plan'), feature)).toBe('Plan · demo')
+  expect(describeRun(run('write-spec'), undefined)).toBe('Spec · demo')
+  expect(describeRun(run('implement'), { ...feature, state: 'done', plan: { ...plan, stages: plan.stages.map(s => ({ ...s, done: s.total })) } })).toBe(
+    'Fermeture de la branche · demo',
+  )
+})
+
+test('the band shows this session’s step and toggles the pane', async ($, on) => {
+  mockProject(on)
+  const closed: string[] = []
+  on('ui.close', ($, e) => {
+    closed.push(e.id)
+    return { value: undefined }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: /aucune étape factory/ })).toBeDefined()
+  expect((await ui.find({ key: 'toggle-pane' }))?.text).toBe('Fermer le tableau')
+
+  await ui.press({ key: 'toggle-pane' })
+  expect(closed).toEqual(['factory-board'])
+  expect((await ui.find({ key: 'toggle-pane' }))?.text).toBe('Ouvrir le tableau')
+
+  await $.prompt.submit({ text: `/factory:implement ${PLAN_FOLDER}`, wait: false, origin: { kind: 'composer' } })
+  expect(await ui.find({ type: 'Text', text: /Stage 2 — web · demo/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /● en cours/ })).toBeDefined()
+  await ui.unmount()
 })

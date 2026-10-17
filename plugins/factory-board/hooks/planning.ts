@@ -8,6 +8,7 @@ import type {
   FactoryBoardFeature,
   FactoryBoardFeatureState,
   FactoryBoardPlan,
+  FactoryBoardRun,
   FactoryBoardStage,
 } from '../types'
 
@@ -201,4 +202,29 @@ export function committed(before: FactoryBoard | null, after: FactoryBoard): str
     }
   }
   return lines
+}
+
+/**
+ * What a session does, for the band above the prompt: the skill it runs, on
+ * which feature, and the stage at hand when it implements a plan.
+ */
+export function describeRun(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): string {
+  const plan = feature?.plan ?? null
+  switch (run.command) {
+    case 'write-spec':
+      return `Spec · ${run.feature}`
+    case 'write-plan':
+      return `Plan · ${run.feature}`
+    case 'review':
+      return `Revue · ${run.feature}`
+    case 'implement': {
+      const stage = plan ? nextStage(plan) : null
+      if (stage) return `Stage ${stage.number}${stage.title ? ` — ${stage.title}` : ''} · ${run.feature}`
+      if (plan && feature?.state === 'done') return `Fermeture de la branche · ${run.feature}`
+      if (plan && feature?.state === 'review') return `Revue finale · ${run.feature}`
+      return `Implémentation · ${run.feature}`
+    }
+    default:
+      return `${run.command} · ${run.feature}`
+  }
 }
