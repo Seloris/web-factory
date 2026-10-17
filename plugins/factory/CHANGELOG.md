@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — The commit message comes with the question
+
+- **The code block is written in the asking turn, before the question.** Every commit of the session took two rounds: the question sat in the app's next-step box, which holds one short line, the message was in no text of that turn, so the person's first yes only made the agent show it and ask again. The rule now says where the message goes: in the reply text of the same turn, just before a question shown apart from it. In the workflow rules, the template of a project's `CLAUDE.md`, the sample's and this repository's.
+
 ## 2026-10-17 — The PGlite folder ignored wherever the api lives
 
 - **`react-express`'s `gitignore` matches `**/.data/pglite/`.** On the sample, the first `npm run db:migrate` left some 900 PGlite files untracked under `api/.data/pglite/`: the pack's line `.data/pglite/` has a slash inside it, so git anchors it to the `.gitignore` that holds it, the project's root, never the api component's folder. The line is now unanchored; `.data/.gitkeep` stays tracked. Projects initialised earlier replace the old line in their `.gitignore`.
