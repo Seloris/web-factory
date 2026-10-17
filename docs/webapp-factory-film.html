@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Film webapp-factory</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600;700&display=swap">
+<style>
+*{box-sizing:border-box} body{margin:0}
+/* Layout: one 1600×900 stage scaled to fit, a brutalist control deck below.
+   Palette and faces = the todo-app's own "brutalist" skin (paper, ink, yellow, pink, Archivo Black, IBM Plex Mono).
+   Deliberately single-theme: the skin's light look. */
+:root{
+  --paper:#f2f0e8; --ink:#111111; --white:#ffffff; --yellow:#ffd60a; --pink:#ff90e8;
+  --red:#ff4a2e; --muted:#55524a; --sand:#e9e6da;
+  --display:'Archivo Black', Impact, 'Arial Black', sans-serif;
+  --mono:'IBM Plex Mono', ui-monospace, Consolas, 'Courier New', monospace;
+  color-scheme: light;
+}
+html,body{background:var(--paper); color:var(--ink)}
+body{font-family:var(--mono); padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); padding-block:24px 48px}
+.wrap{max-width:min(1360px, calc((100vh - 230px) * 16 / 9)); min-width:0; margin:0 auto; display:flex; flex-direction:column; gap:22px}
+@media (max-height:600px){.wrap{max-width:1360px}}
+.top{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:10px 24px}
+.top h1{margin:0; font-family:var(--display); font-weight:400; font-size:clamp(26px,4vw,40px); line-height:1; text-transform:uppercase; letter-spacing:-.01em}
+.top h1 span{background:var(--yellow); padding:0 .12em; box-shadow:4px 4px 0 var(--ink); border:2px solid var(--ink)}
+.top p{margin:0; max-width:56ch; font-size:14px; line-height:1.5; color:var(--muted)}
+
+.screen{position:relative; width:100%; aspect-ratio:16/9; max-width:100%; border:3px solid var(--ink); box-shadow:10px 10px 0 var(--ink); background:var(--paper); overflow:hidden}
+.screen:fullscreen{border:0; box-shadow:none; background:var(--ink)}
+#stage{position:absolute; left:0; top:0; width:1600px; height:900px; transform-origin:0 0; background:var(--paper); overflow:hidden; font-family:var(--mono); color:var(--ink); font-size:20px; line-height:1.35}
+#stage *{box-sizing:border-box}
+.scene{position:absolute; inset:0; opacity:0}
+.abs{position:absolute}
+.eb{position:absolute; left:70px; top:42px; display:flex; gap:12px; align-items:center; font:600 17px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase}
+.eb b{background:var(--ink); color:var(--paper); padding:7px 10px; letter-spacing:.04em}
+.h{position:absolute; left:70px; top:98px; font-family:var(--display); font-size:56px; line-height:1; text-transform:uppercase; letter-spacing:-.01em; white-space:nowrap}
+.tw{display:inline-block; overflow:hidden; white-space:pre; vertical-align:bottom}
+#stage .tw{box-sizing:content-box}
+.pill{position:absolute; left:70px; top:182px; height:54px; display:flex; align-items:center; gap:12px; padding:0 20px; background:var(--ink); color:var(--paper); font:600 22px/1 var(--mono); box-shadow:6px 6px 0 var(--yellow); white-space:nowrap}
+.pill em{font-style:normal; color:var(--yellow)}
+.card{position:absolute; background:var(--white); border:3px solid var(--ink); box-shadow:8px 8px 0 var(--ink)}
+.lbl{font:700 15px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase}
+.belt{position:absolute; left:0; width:100%; height:24px; border-block:3px solid var(--ink);
+  background-image:repeating-linear-gradient(-45deg, var(--ink) 0 14px, var(--yellow) 14px 28px); background-size:39.598px 39.598px}
+
+/* rail */
+.rail{position:absolute; right:70px; top:36px; display:flex; background:var(--white); border:3px solid var(--ink); box-shadow:4px 4px 0 var(--ink); font:600 15px/1 var(--mono); text-transform:uppercase; letter-spacing:.06em; opacity:0}
+.rail span{padding:10px 13px; border-left:3px solid var(--ink)}
+.rail span:first-child{border-left:0}
+
+/* intro */
+.big{font-family:var(--display); text-transform:uppercase; line-height:.9; letter-spacing:-.02em; white-space:nowrap}
+.big .hl{background:var(--yellow); padding:0 .06em; border:4px solid var(--ink); box-shadow:12px 12px 0 var(--ink); display:inline-block}
+.intro-sub{font-size:27px; line-height:1.45; margin:0}
+.flow{display:flex; gap:14px; align-items:center; font:700 24px/1 var(--mono); text-transform:uppercase}
+.flow span{border:3px solid var(--ink); background:var(--white); padding:12px 16px; box-shadow:5px 5px 0 var(--ink)}
+.flow span.y{background:var(--yellow)}
+.flow i{font-style:normal; font-family:var(--display)}
+.gear{position:absolute; border-radius:50%; border-style:dashed; border-color:var(--ink)}
+.gear::after{content:""; position:absolute; inset:32%; border-radius:50%; background:var(--paper); border:6px solid var(--ink)}
+
+/* plugin */
+.collab{position:absolute; font:700 16px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; display:flex; align-items:center; gap:10px}
+.collab b{font-family:var(--display); font-weight:400; font-size:34px; letter-spacing:0}
+.stack{position:absolute; display:flex; flex-direction:column; gap:10px}
+.srow{height:54px; display:flex; align-items:center; gap:16px; padding:0 16px; background:var(--white); border:3px solid var(--ink); box-shadow:4px 4px 0 var(--ink); font-size:18px; white-space:nowrap}
+.srow code{font:700 18px/1 var(--mono)}
+.srow span{color:var(--muted)}
+.acard{height:102px; padding:14px 18px; background:var(--pink); border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); display:flex; flex-direction:column; justify-content:center; gap:6px}
+.acard b{font-family:var(--display); font-weight:400; font-size:26px; line-height:1}
+.acard span{font-size:17px}
+.acard small{font-size:14px; letter-spacing:.06em; text-transform:uppercase; color:#3a2a37}
+.ecard{padding:14px 18px; background:var(--white); border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); display:flex; flex-direction:column; gap:6px}
+.ecard b{font-family:var(--display); font-weight:400; font-size:24px; line-height:1.05}
+.ecard span{font-size:16px; line-height:1.35; color:var(--muted)}
+.ecard.y{background:var(--yellow)} .ecard.y span{color:var(--ink)}
+.sw{display:flex; gap:6px; margin-top:4px}
+.sw i{width:30px; height:30px; border:3px solid var(--ink)}
+.band{position:absolute; background:var(--ink); color:var(--paper); padding:16px 24px; font-size:23px; white-space:nowrap}
+.band mark{background:var(--yellow); color:var(--ink); padding:0 6px}
+
+/* terminal */
+.term{position:absolute; background:var(--ink); color:var(--paper); border:3px solid var(--ink); box-shadow:10px 10px 0 var(--yellow); overflow:hidden}
+.term .bar{height:44px; background:var(--sand); color:var(--ink); border-bottom:3px solid var(--ink); display:flex; align-items:center; gap:9px; padding:0 14px; font:600 15px/1 var(--mono)}
+.term .bar i{width:15px; height:15px; border:3px solid var(--ink); background:var(--white)}
+.term .bar i:nth-child(1){background:var(--red)} .term .bar i:nth-child(2){background:var(--yellow)}
+.term .bar span{margin-left:10px}
+.term .body{padding:20px 24px; display:flex; flex-direction:column; gap:3px; font-size:20px; line-height:31px; white-space:pre}
+.term .ok{color:#b8f5a0}
+.term .cmd{color:var(--white)}
+.term .cmd em{font-style:normal; color:var(--yellow)}
+.term .q{color:#bdbab0}
+.term .q b{color:var(--yellow); font-weight:600}
+.term .hlc{background:var(--yellow); color:var(--ink); padding:0 6px}
+.tree{padding:20px 24px}
+.tree .lbl{margin-bottom:12px; display:block}
+.trow{display:flex; justify-content:space-between; gap:16px; font-size:19px; line-height:33px; white-space:nowrap}
+.trow span:last-child{color:var(--muted); font-size:16px}
+.trow.k span:first-child{font-weight:700}
+.yaml{padding:16px 22px; font-size:18px; line-height:28px; white-space:pre; background:var(--yellow)}
+.yaml i{font-style:normal; color:#5a4a00}
+.stamp{position:absolute; font-family:var(--display); text-transform:uppercase; border:4px solid var(--ink); padding:10px 18px; box-shadow:6px 6px 0 var(--ink); white-space:nowrap}
+
+/* fork */
+.fork-q{display:flex; align-items:center; justify-content:center; text-align:center; font:700 16px/1.35 var(--mono)}
+.bbox{padding:22px 26px; display:flex; flex-direction:column; gap:12px}
+.tag{align-self:flex-start; font:700 14px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; border:3px solid var(--ink); padding:7px 10px; background:var(--white)}
+.mini{background:var(--ink); color:var(--paper); font:600 19px/1 var(--mono); padding:12px 14px; white-space:nowrap; align-self:flex-start}
+.mini em{font-style:normal; color:var(--yellow)}
+.note{font-size:17px; color:var(--muted)}
+.blabel{position:absolute; font:700 16px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; background:var(--paper); padding:4px 8px}
+
+/* spec */
+.doc{padding:24px 30px}
+.doc .path{font-size:15px; color:var(--muted)}
+.doc .title{font-family:var(--display); font-size:34px; line-height:1.1; margin-top:8px}
+.frs{margin-top:16px; display:flex; flex-direction:column}
+.fr{font-size:17px; line-height:29px; white-space:nowrap}
+.fr b{display:inline-block; width:74px; font-weight:700}
+.brs{margin-top:14px; padding-top:12px; border-top:3px solid var(--ink); display:grid; grid-template-columns:1fr 1fr; gap:4px 22px; font-size:16px; line-height:25px}
+.brs b{font-weight:700}
+.badge{position:absolute; font:700 16px/1 var(--mono); letter-spacing:.12em; border:3px solid var(--ink); padding:9px 12px; background:var(--white)}
+.bub{position:absolute; border:3px solid var(--ink); padding:16px 20px; box-shadow:5px 5px 0 var(--ink); font-size:18px; line-height:1.45; background:var(--white)}
+.bub.p{background:var(--pink)} .bub.y{background:var(--yellow)}
+.bub code{display:block; margin-top:10px; background:var(--ink); color:var(--paper); padding:10px 12px; font-size:15px; line-height:1.45; white-space:normal}
+.bub .who{display:block; font:700 13px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; margin-bottom:8px}
+.commit{position:absolute; display:flex; align-items:center; gap:12px; font-size:18px; white-space:nowrap}
+.commit .dot{width:20px; height:20px; border-radius:50%; background:var(--ink)}
+.commit b{background:var(--ink); color:var(--yellow); padding:4px 8px; font-weight:600}
+.commit i{font-style:normal; color:var(--muted); font-size:15px; letter-spacing:.06em; text-transform:uppercase; border:2px solid var(--muted); padding:3px 7px}
+.cap{position:absolute; font-family:var(--display); text-transform:uppercase; font-size:24px; line-height:1.15}
+
+/* plan */
+.pgrid{position:absolute; inset:24px 28px; display:grid; grid-template-columns:repeat(6,1fr); grid-auto-rows:min-content; gap:14px}
+.sec{border:3px solid var(--ink); padding:12px 16px; background:var(--white)}
+.sec .lbl{display:block; margin-bottom:8px}
+.sec p{margin:0; font-size:16px; line-height:1.45}
+.sec ul{margin:0; padding:0; list-style:none; font-size:16px; line-height:1.5}
+.sec li::before{content:"■ "; font-size:11px; vertical-align:2px}
+.layers{display:flex; gap:8px}
+.layers span{border:3px solid var(--ink); padding:7px 12px; font:700 16px/1 var(--mono); background:var(--yellow)}
+.layers.p span{background:var(--pink)}
+
+/* implement */
+.station{position:absolute; top:258px; width:300px; height:132px; border:3px solid var(--ink); background:var(--white); box-shadow:6px 6px 0 var(--ink); padding:16px 18px; display:flex; flex-direction:column; gap:8px}
+.station b{font-family:var(--display); font-weight:400; font-size:25px; line-height:1}
+.station span{font-size:15px; line-height:1.4; color:var(--muted)}
+.station.opt{border-style:dashed}
+.station .n{position:absolute; right:12px; top:10px; font:700 14px/1 var(--mono)}
+.pkg{position:absolute; top:404px; left:0; width:240px; height:72px; border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); display:flex; align-items:center; justify-content:center; font-family:var(--display); font-size:22px; text-transform:uppercase}
+.sess{position:absolute; top:104px; right:70px; font-family:var(--display); font-size:22px; text-transform:uppercase; background:var(--yellow); border:3px solid var(--ink); padding:11px 16px; white-space:nowrap}
+.board{position:absolute; left:70px; top:690px; width:1460px; height:140px}
+.board .lbl{position:absolute; left:24px; top:22px}
+.board .lbl2{position:absolute; left:24px; top:48px; font-size:14px; color:var(--muted); width:170px; line-height:1.35}
+.board .line{position:absolute; left:260px; right:60px; top:43px; height:3px; background:var(--ink)}
+.node{position:absolute; top:26px; width:200px; margin-left:-100px; display:flex; flex-direction:column; align-items:center; gap:12px}
+.mk{position:relative; width:38px; height:38px}
+.mk i{position:absolute; inset:0; border-radius:50%; border:3px solid var(--ink); display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:700; font-size:20px}
+.mk .m0{background:var(--white)}
+.mk .m1{background:var(--yellow); opacity:0}
+.mk .m1::after{content:""; position:absolute; inset:-9px; border-radius:50%; border:3px dashed var(--ink)}
+.mk .m2{background:var(--ink); color:var(--yellow); opacity:0}
+.node span{font-size:15px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap}
+
+/* final */
+.vrow{display:flex; gap:16px; align-items:flex-start; font-size:19px; line-height:1.4}
+.vrow .bx{flex:none; position:relative; width:30px; height:30px; border:3px solid var(--ink); background:var(--white); margin-top:1px}
+.vrow .bx i{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:700; background:var(--yellow); opacity:0}
+.vrow b{font-weight:700}
+.vrow span{display:block; font-size:16px; color:var(--muted)}
+.gdot{position:absolute; width:30px; height:30px; margin:-15px 0 0 -15px; border-radius:50%; border:3px solid var(--ink); background:var(--yellow)}
+.glab{position:absolute; font-size:14px; line-height:1.3; text-align:center; width:110px; margin-left:-55px; white-space:nowrap}
+.glab b{display:block; font-weight:700}
+
+/* app */
+.browser{position:absolute; left:70px; top:110px; width:1000px; height:730px; background:var(--paper); border:3px solid var(--ink); box-shadow:10px 10px 0 var(--ink); overflow:hidden}
+.browser .bar{position:absolute; left:0; right:0; top:0; height:46px; background:var(--sand); border-bottom:3px solid var(--ink); display:flex; align-items:center; gap:9px; padding:0 14px}
+.browser .bar i{width:15px; height:15px; border:3px solid var(--ink); background:var(--white)}
+.browser .bar span{margin-left:14px; flex:1; height:28px; border:3px solid var(--ink); background:var(--white); font:600 14px/22px var(--mono); padding:0 10px}
+.apanel{position:absolute; left:26px; top:72px; width:948px; height:632px; background:var(--white); border:2px solid var(--ink); box-shadow:8px 8px 0 var(--ink)}
+/* inside the app, coordinates are relative to .browser */
+.ab{position:absolute}
+.atitle{font-family:var(--display); font-size:44px; line-height:1; text-transform:uppercase; letter-spacing:-.01em}
+.alabel{font:600 12px/1 var(--mono); text-transform:uppercase; letter-spacing:.06em}
+.ainput{height:44px; border:2px solid var(--ink); background:var(--white); box-shadow:3px 3px 0 var(--ink); font:400 15px/40px var(--mono); padding:0 12px; overflow:hidden; white-space:nowrap}
+.ainput .ph{color:#8a877c}
+.abtn{height:44px; border:2px solid var(--ink); background:var(--yellow); box-shadow:3px 3px 0 var(--ink); font:600 14px/40px var(--mono); text-transform:uppercase; letter-spacing:.04em; text-align:center}
+.sel::after{content:"▾"; position:absolute; right:12px; top:0}
+.switch{width:52px; height:28px; border:2px solid var(--ink); background:#e9e6da}
+.switch::after{content:""; position:absolute; left:3px; top:3px; width:18px; height:18px; background:var(--ink)}
+.arow{position:absolute; left:54px; top:342px; width:892px; height:58px; border:2px solid var(--ink); background:var(--white); box-shadow:4px 4px 0 var(--ink); display:flex; align-items:center; gap:16px; padding:0 16px; font-size:16px; white-space:nowrap}
+.arow .ck{flex:none; position:relative; width:26px; height:26px; border:2px solid var(--ink); background:var(--white)}
+.arow .ck i{position:absolute; inset:-2px; background:var(--ink); color:var(--yellow); display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:700; font-size:16px; opacity:0}
+.arow .nm{position:relative}
+.arow .nm s{position:absolute; left:0; right:0; top:50%; height:2px; background:var(--ink); transform:scaleX(0); transform-origin:0 50%}
+.abadge{font:600 12px/1 var(--mono); text-transform:uppercase; border:2px solid var(--ink); background:var(--pink); padding:5px 7px}
+.adel{margin-left:auto; width:118px; height:34px; border:2px solid var(--ink); background:var(--white); box-shadow:2px 2px 0 var(--ink); font:600 12px/30px var(--mono); text-transform:uppercase; text-align:center; letter-spacing:.04em}
+.sugg{border:2px solid var(--ink); background:var(--white); box-shadow:4px 4px 0 var(--ink); font:600 14px/1 var(--mono); padding:10px 12px; text-transform:uppercase}
+.scrim{position:absolute; left:0; top:46px; right:0; bottom:0; background:rgba(17,17,17,.38); opacity:0}
+.dlg{position:absolute; left:240px; top:273px; width:520px; height:232px; background:var(--white); border:2px solid var(--ink); box-shadow:10px 10px 0 var(--ink); padding:24px 28px; opacity:0}
+.dlg b{display:block; font-family:var(--display); font-weight:400; font-size:26px; text-transform:uppercase; line-height:1.1}
+.dlg p{margin:12px 0 0; font-size:16px; line-height:1.45}
+.dlg .acts{position:absolute; right:28px; bottom:26px; display:flex; gap:12px}
+.dlg .acts span{width:150px; height:44px; border:2px solid var(--ink); box-shadow:3px 3px 0 var(--ink); font:600 14px/40px var(--mono); text-transform:uppercase; text-align:center}
+.dlg .acts .dz{background:var(--red)}
+.callh{position:absolute; left:1110px; top:118px; width:430px; font-family:var(--display); font-size:30px; line-height:1.1; text-transform:uppercase}
+.call{position:absolute; left:1110px; width:420px; height:62px; border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); background:var(--yellow); display:flex; align-items:center; gap:14px; padding:0 16px; font-size:17px; white-space:nowrap}
+.call b{font-weight:700; background:var(--ink); color:var(--paper); padding:4px 7px}
+.techs{position:absolute; left:1110px; top:690px; width:420px; display:flex; flex-direction:column; gap:8px; font-size:16px}
+.techs div{border:3px solid var(--ink); background:var(--white); padding:9px 12px}
+.techs b{font-weight:700}
+#cur{position:absolute; left:0; top:0; width:30px; height:38px; z-index:5; filter:drop-shadow(3px 3px 0 rgba(17,17,17,.35))}
+
+/* outro */
+.cmds{display:flex; flex-wrap:wrap; gap:14px 12px; align-items:center; font:700 22px/1 var(--mono)}
+.cmds span{border:3px solid var(--ink); background:var(--white); padding:13px 16px; box-shadow:5px 5px 0 var(--ink)}
+.cmds span.y{background:var(--yellow)} .cmds span.p{background:var(--pink)}
+.cmds i{font-style:normal; font-family:var(--display); font-size:24px}
+
+/* control deck */
+.deck{display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px}
+.btn{font:700 15px/1 var(--mono); text-transform:uppercase; letter-spacing:.04em; color:var(--ink); background:var(--white); border:3px solid var(--ink); box-shadow:4px 4px 0 var(--ink); padding:11px 14px; cursor:pointer; min-height:44px}
+.btn:hover{background:var(--yellow)}
+.btn:active{transform:translate(3px,3px); box-shadow:1px 1px 0 var(--ink)}
+.btn:focus-visible{outline:3px solid var(--pink); outline-offset:3px}
+.btn.main{background:var(--yellow); min-width:120px}
+.time{font:600 15px/1 var(--mono); font-variant-numeric:tabular-nums; min-width:110px}
+.scrub{position:relative; flex:1 1 260px; min-width:0; height:44px; display:flex; align-items:center}
+.scrub input{width:100%; margin:0; appearance:none; -webkit-appearance:none; background:transparent; height:44px; cursor:pointer; position:relative; z-index:2}
+.scrub input::-webkit-slider-runnable-track{height:14px; border:3px solid var(--ink); background:linear-gradient(90deg, var(--yellow) var(--p,0%), var(--white) var(--p,0%))}
+.scrub input::-moz-range-track{height:8px; border:3px solid var(--ink); background:var(--white)}
+.scrub input::-moz-range-progress{height:8px; background:var(--yellow)}
+.scrub input::-webkit-slider-thumb{-webkit-appearance:none; width:16px; height:30px; margin-top:-11px; background:var(--ink); border:0}
+.scrub input::-moz-range-thumb{width:16px; height:30px; background:var(--ink); border:0; border-radius:0}
+.scrub input:focus-visible{outline:3px solid var(--pink); outline-offset:2px}
+.ticks{position:absolute; left:8px; right:8px; top:6px; height:6px; pointer-events:none; z-index:1}
+.ticks i{position:absolute; top:0; width:3px; height:6px; background:var(--ink)}
+.chapters{display:flex; flex-wrap:wrap; gap:10px}
+.chap{font:600 13px/1 var(--mono); text-transform:uppercase; letter-spacing:.05em; color:var(--ink); background:var(--white); border:2px solid var(--ink); padding:9px 11px; cursor:pointer; box-shadow:3px 3px 0 var(--ink)}
+.chap b{font-weight:700; margin-right:6px}
+.chap[aria-current="true"]{background:var(--yellow)}
+.chap:hover{background:var(--pink)}
+.chap:focus-visible{outline:3px solid var(--pink); outline-offset:2px}
+.foot{font-size:13px; color:var(--muted); line-height:1.5}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1><span>webapp</span>-factory</h1>
+    <p>Le plugin, puis le process : init, spec, un ou plusieurs dev-plans, les stages relus, la clôture de branche. Et au bout, l'appli Todo de samples/todo-app.</p>
+  </header>
+
+  <div class="screen" id="screen" aria-label="Animation de présentation de webapp-factory">
+    <div id="stage">
+
+      <!-- persistent belt + rail -->
+      <div class="belt" id="belt0" style="bottom:0"></div>
+      <div class="rail" id="rail">
+        <span id="r1">plugin</span><span id="r2">init</span><span id="r3">spec</span><span id="r4">plan</span><span id="r5">implement</span><span id="r6">revue</span><span id="r7">appli</span>
+      </div>
+
+      <!-- S1 INTRO -->
+      <section class="scene" id="s1" style="opacity:1">
+        <div class="abs big" style="left:70px; top:120px; font-size:178px">
+          <div><span class="hl">Webapp</span></div>
+          <div style="margin-top:22px">Factory</div>
+        </div>
+        <p class="abs intro-sub" style="left:74px; top:520px; width:900px">Un plugin Claude Code qui fait passer chaque appli web par le même process&nbsp;: une spec, un plan, des stages relus, une branche propre.</p>
+        <div class="abs flow" style="left:74px; top:690px">
+          <span id="if1">spec</span><i id="ia1">→</i><span id="if2">plan(s)</span><i id="ia2">→</i><span id="if3">stages</span><i id="ia3">→</i><span id="if4">revue</span><i id="ia4">→</i><span id="if5" class="y">squash</span>
+        </div>
+        <div class="gear" id="g1" style="left:1140px; top:150px; width:330px; height:330px; border-width:36px; background:var(--yellow)"></div>
+        <div class="gear" id="g2" style="left:1300px; top:452px; width:210px; height:210px; border-width:28px; background:var(--pink)"></div>
+      </section>
+
+      <!-- S2 PLUGIN -->
+      <section class="scene" id="s2">
+        <div class="eb"><b>01</b> Le plugin</div>
+        <div class="h" id="s2h">Un plugin, la base commune</div>
+        <div class="abs" id="s2s" style="left:72px; top:166px; font-size:20px; color:var(--muted)">plugins/factory · installé dans chaque projet, piloté par son factory.yaml</div>
+        <div class="collab" id="s2c1" style="left:70px; top:228px"><b>7</b> skills</div>
+        <div class="collab" id="s2c2" style="left:690px; top:228px"><b>4</b> agents</div>
+        <div class="collab" id="s2c3" style="left:1130px; top:228px">et aussi</div>
+        <div class="stack" style="left:70px; top:276px; width:580px">
+          <div class="srow" id="k1"><code>factory-init</code><span>monte le projet</span></div>
+          <div class="srow" id="k2"><code>write-spec</code><span>la spec métier</span></div>
+          <div class="srow" id="k3"><code>write-plan</code><span>le dev-plan</span></div>
+          <div class="srow" id="k4"><code>implement</code><span>code, un stage par session</span></div>
+          <div class="srow" id="k5"><code>review</code><span>relit, ne touche à rien</span></div>
+          <div class="srow" id="k6"><code>grill-me</code><span>tranche les décisions ouvertes</span></div>
+          <div class="srow" id="k7"><code>test-in-browser</code><span>clique dans l'appli</span></div>
+        </div>
+        <div class="stack" style="left:690px; top:276px; width:400px; gap:14px">
+          <div class="acard" id="a1"><b>architect</b><span>écrit la spec et le plan</span><small>modèle planner</small></div>
+          <div class="acard" id="a2"><b>senior-dev</b><span>écrit le code et les tests</span><small>modèle implementer</small></div>
+          <div class="acard" id="a3"><b>reviewer</b><span>relit sans enjeu, en lecture seule</span><small>modèle reviewer</small></div>
+          <div class="acard" id="a4"><b>runner</b><span>builds, tests, lint, recherches</span><small>modèle runner</small></div>
+        </div>
+        <div class="stack" style="left:1130px; top:276px; width:400px; gap:14px">
+          <div class="ecard" id="e1"><b>7 skins</b><span>modern, editorial, brutalist, aurora, swiss, soft, pro</span>
+            <div class="sw"><i style="background:#4f46e5"></i><i style="background:#7a1f3d"></i><i style="background:#ffd60a"></i><i style="background:#5eead4"></i><i style="background:#e10600"></i><i style="background:#f9a8d4"></i><i style="background:#64748b"></i></div></div>
+          <div class="ecard" id="e2"><b>stack pack react-express</b><span>un squelette api + front, build et tests au vert dès le départ</span></div>
+          <div class="ecard" id="e3"><b>templates</b><span>tout ce que factory-init écrit dans le projet</span></div>
+          <div class="ecard y" id="e4"><b>factory-board</b><span>le mod : un tableau des features, plans et stages, le prompt suivant prêt</span></div>
+        </div>
+        <div class="band" id="s2b" style="left:70px; top:780px">Utile à deux projets ou plus <mark>→ le plugin</mark>. Propre à un projet <mark>→ le projet</mark>.</div>
+      </section>
+
+      <!-- S3 INIT -->
+      <section class="scene" id="s3">
+        <div class="eb"><b>02</b> Init</div>
+        <div class="h" id="s3h">Un dossier vide devient un projet</div>
+        <div class="term" id="term" style="left:70px; top:192px; width:830px; height:620px">
+          <div class="bar"><i></i><i></i><i></i><span>claude · samples/todo-app</span></div>
+          <div class="body">
+            <div class="cmd"><em>› </em><span class="tw" id="t1">/plugin marketplace add C:/WS/webapp-factory</span></div>
+            <div class="ok" id="t1o">  ✓ marketplace webapp-factory ajoutée</div>
+            <div class="cmd"><em>› </em><span class="tw" id="t2">/plugin install factory@webapp-factory</span></div>
+            <div class="ok" id="t2o">  ✓ plugin factory installé</div>
+            <div class="cmd"><em>› </em><span class="tw hlc" id="t3">/factory:factory-init</span></div>
+            <div class="q" id="q1">  Nom du projet ?       <b>todo-app</b></div>
+            <div class="q" id="q2">  Branche de base ?     <b>main</b></div>
+            <div class="q" id="q3">  Langues ?             <b>chat fr · repo en</b></div>
+            <div class="q" id="q4">  Preset de modèles ?   <b>standard</b></div>
+            <div class="q" id="q5">  Composants ?          <b>api → web</b></div>
+            <div class="q" id="q6">  Stack ?               <b>react-express</b></div>
+            <div class="q" id="q7">  Skin du front ?       <b>brutalist</b></div>
+          </div>
+        </div>
+        <div class="card tree" id="tree" style="left:940px; top:192px; width:590px; height:378px">
+          <span class="lbl">écrit par factory-init</span>
+          <div class="trow k" id="f1"><span>factory.yaml</span><span>le manifeste</span></div>
+          <div class="trow" id="f2"><span>CLAUDE.md</span><span>règles du projet</span></div>
+          <div class="trow" id="f3"><span>api/CLAUDE.md</span><span>+ squelette express</span></div>
+          <div class="trow" id="f4"><span>web/CLAUDE.md</span><span>+ squelette react, skin</span></div>
+          <div class="trow" id="f5"><span>.planning/features/</span><span>specs et plans</span></div>
+          <div class="trow k" id="f6"><span>.claude/settings.json</span><span>push refusé</span></div>
+          <div class="trow" id="f7"><span>.claude/rules/planning.md</span><span>conventions</span></div>
+          <div class="trow" id="f8"><span>docs/CONTRIBUTING.md</span><span>branches, commits</span></div>
+        </div>
+        <div class="card yaml" id="yaml" style="left:940px; top:604px; width:590px; height:208px">name: todo-app
+models: standard
+components:
+  - name: api   <i>handoff: api/openapi.json</i>
+  - name: web   <i>needs: [api]</i></div>
+        <div class="stamp" id="s3st" style="left:610px; top:742px; background:var(--pink); font-size:26px; transform:rotate(-5deg)">build ✓ test ✓</div>
+      </section>
+
+      <!-- S4 FORK -->
+      <section class="scene" id="s4">
+        <div class="eb"><b>03</b> Deux chemins</div>
+        <div class="card" id="req" style="left:380px; top:136px; width:840px; height:84px; display:flex; align-items:center; justify-content:center; font-size:22px; white-space:nowrap; background:var(--yellow)">Une demande arrive&nbsp;: une feature, un changement, un bug</div>
+        <svg class="abs" style="left:0; top:0" width="1600" height="900" viewBox="0 0 1600 900" aria-hidden="true">
+          <path id="p1" d="M800 220 V239" pathLength="1" stroke="#111111" stroke-width="4" fill="none" stroke-dasharray="1"/>
+          <path id="p2" d="M659 380 H380 V510" pathLength="1" stroke="#111111" stroke-width="4" fill="none" stroke-dasharray="1"/>
+          <path id="p3" d="M941 380 H1220 V510" pathLength="1" stroke="#111111" stroke-width="5" fill="none" stroke-dasharray="1"/>
+        </svg>
+        <div class="abs" id="dia" style="left:700px; top:280px; width:200px; height:200px; background:var(--white); border:4px solid var(--ink); box-shadow:6px 6px 0 var(--ink); transform:rotate(45deg)"></div>
+        <div class="abs fork-q" id="diaq" style="left:660px; top:330px; width:280px; height:100px">Grosse, risquée<br>ou multi-stages ?</div>
+        <div class="blabel" id="bl1" style="left:410px; top:344px">non · par défaut</div>
+        <div class="blabel" id="bl2" style="left:968px; top:344px">oui, et tu demandes un plan</div>
+        <div class="card bbox" id="bx1" style="left:130px; top:520px; width:500px; height:240px">
+          <span class="tag">direct</span>
+          <span class="mini"><em>› </em>/factory:implement {demande}</span>
+          <span class="note">Sans plan. Un stage par session, les tests d'abord, un commit par stage.</span>
+        </div>
+        <div class="card bbox" id="bx2" style="left:970px; top:520px; width:500px; height:240px">
+          <span class="tag" style="background:var(--yellow)">avec un plan</span>
+          <span class="mini" id="m1"><em>› </em>/factory:write-spec {feature}</span>
+          <span class="mini" id="m2"><em>› </em>/factory:write-plan {slug}</span>
+          <span class="mini" id="m3"><em>› </em>/factory:implement {plan}</span>
+        </div>
+        <div class="cap" id="s4c" style="left:970px; top:798px">La Todo app suit ce chemin →</div>
+      </section>
+
+      <!-- S5 SPEC -->
+      <section class="scene" id="s5">
+        <div class="eb"><b>04</b> Spec</div>
+        <div class="h" id="s5h">La spec dit quoi, pas comment</div>
+        <div class="pill" id="s5p"><em>›</em><span class="tw" id="s5t">/factory:write-spec home</span></div>
+        <div class="card doc" id="spec" style="left:70px; top:266px; width:930px; height:580px">
+          <div class="path">.planning/features/home/00_spec.md</div>
+          <div class="title">Home (Accueil) · PRD</div>
+          <div class="frs">
+            <div class="fr" id="fr1"><b>FR-01</b>toutes les tâches, la plus récente en haut</div>
+            <div class="fr" id="fr2"><b>FR-02</b>ajouter une tâche, avec un tag optionnel</div>
+            <div class="fr" id="fr3"><b>FR-03</b>nom, tag et état sur chaque ligne</div>
+            <div class="fr" id="fr4"><b>FR-04</b>cocher ou décocher « terminée »</div>
+            <div class="fr" id="fr5"><b>FR-05</b>trier par état, non terminées d'abord</div>
+            <div class="fr" id="fr6"><b>FR-06</b>rechercher par nom, pendant la frappe</div>
+            <div class="fr" id="fr7"><b>FR-07</b>filtrer par tag</div>
+            <div class="fr" id="fr8"><b>FR-08</b>recherche et tag combinés</div>
+            <div class="fr" id="fr9"><b>FR-09</b>supprimer après une confirmation</div>
+            <div class="fr" id="fr10"><b>FR-10</b>messages liste vide, aucun résultat</div>
+            <div class="fr" id="fr11"><b>FR-11</b>les tags existants sont suggérés</div>
+          </div>
+          <div class="brs" id="brs">
+            <div><b>BR-01</b> nom requis, 1 à 200 car.</div>
+            <div><b>BR-02</b> un tag au plus, 1 à 30 car.</div>
+            <div><b>BR-03</b> Urgent et urgent : un seul tag</div>
+            <div><b>BR-04</b> tag vide : pas de tag</div>
+          </div>
+        </div>
+        <div class="badge" id="draft" style="left:858px; top:290px">DRAFT</div>
+        <div class="stamp" id="appr" style="left:760px; top:280px; background:var(--yellow); font-size:30px; transform:rotate(-6deg)">Approved</div>
+        <div class="bub p" id="b1" style="left:1040px; top:266px; width:490px"><span class="who">/factory:grill-me home</span>Q-01 · Le tri par état, par défaut&nbsp;?<br><b>→ Non : un interrupteur, éteint à l'ouverture.</b></div>
+        <div class="bub" id="b2" style="left:1040px; top:446px; width:490px"><span class="who">Claude</span>Spec rédigée, résumée en cinq lignes. Je la commite avec ce message&nbsp;:<code>docs(home): spec — todo list with tag, state, search and confirmed delete</code></div>
+        <div class="bub y" id="b3" style="left:1410px; top:676px; width:120px; text-align:center; font-weight:700"><span class="who">toi</span>oui</div>
+        <div class="commit" id="c5" style="left:1040px; top:700px"><span class="dot"></span><b>d2e0a20</b><i>non poussé</i></div>
+        <div class="cap" id="s5c" style="left:1040px; top:780px; width:490px">Le silence n'est pas<br>une validation.</div>
+      </section>
+
+      <!-- S6 PLAN -->
+      <section class="scene" id="s6">
+        <div class="eb"><b>05</b> Plan(s)</div>
+        <div class="h" id="s6h">Un plan assez précis pour coder</div>
+        <div class="pill" id="s6p"><em>›</em><span class="tw" id="s6t">/factory:write-plan home</span></div>
+        <div class="abs" style="left:72px; top:256px; font-size:17px; color:var(--muted)"><span class="tw" id="s6path">.planning/features/home/dev-plans/20261017-022123-init-home/plan.md</span></div>
+        <div class="card" id="plan" style="left:70px; top:296px; width:1000px; height:550px">
+          <div class="pgrid">
+            <div class="sec" id="ps1" style="grid-column:span 6"><span class="lbl">## Context</span><p>Premier incrément&nbsp;: la feature todos de bout en bout, une table, quatre routes, la page d'accueil.</p></div>
+            <div class="sec" id="ps2" style="grid-column:span 6"><span class="lbl">## Decisions</span><ul><li>recherche, filtre et tri dans le navigateur, sur un seul GET</li><li>un tag = une colonne nullable, pas de table tags</li><li>GET · POST · PATCH · DELETE /v1/todos, un 404 en problem details</li></ul></div>
+            <div class="sec" id="ps3" style="grid-column:span 3"><span class="lbl">## api</span><div class="layers"><span>db</span><span>services</span><span>routes</span></div></div>
+            <div class="sec" id="ps4" style="grid-column:span 3"><span class="lbl">## web</span><div class="layers p"><span>data</span><span>pages</span><span>ui</span></div></div>
+            <div class="sec" id="ps5" style="grid-column:span 2"><span class="lbl">## Tests</span><p>par composant, écrits avant le code</p></div>
+            <div class="sec" id="ps6" style="grid-column:span 2; background:var(--yellow)"><span class="lbl">## Progress</span><p>Stage 1 · api<br>Stage 2 · web</p></div>
+            <div class="sec" id="ps7" style="grid-column:span 2"><span class="lbl">## Validation</span><p>Review · Tests · Browser · Intégration</p></div>
+          </div>
+        </div>
+        <div class="bub y" id="s6y" style="left:1110px; top:296px; width:120px; text-align:center; font-weight:700"><span class="who">toi</span>oui</div>
+        <div class="commit" id="c6" style="left:1110px; top:390px"><span class="dot"></span><b>3b34bcf</b>docs(home): plan init-home</div>
+        <div class="cap" id="s6c" style="left:1110px; top:452px; width:430px; font-size:32px">Une spec,<br>plusieurs plans</div>
+        <div class="card" id="plan2" style="left:1110px; top:560px; width:420px; height:170px; padding:16px 20px; background:var(--pink); transform:rotate(2deg)">
+          <span class="lbl">shared / dev-plans</span>
+          <div style="font-size:17px; font-weight:700; margin-top:10px; line-height:1.35">20261017-035326-<br>refactor-brutalist-skin</div>
+          <div style="font-size:15px; margin-top:8px">slug réservé, pas de spec · web seul</div>
+        </div>
+        <div class="abs" id="s6r" style="left:1110px; top:762px; display:flex; gap:10px; align-items:center"><span class="mini" style="font-size:16px"><em>› </em>/factory:review plan {dossier}</span><span class="tag">optionnel</span></div>
+      </section>
+
+      <!-- S7 IMPLEMENT -->
+      <section class="scene" id="s7">
+        <div class="eb"><b>06</b> Implement</div>
+        <div class="h" id="s7h">Un stage par session</div>
+        <div class="pill" id="s7p1"><em>›</em><span class="tw" id="s7t1">/factory:implement …/20261017-022123-init-home — stage 1 (api)</span></div>
+        <div class="pill" id="s7p2" style="opacity:0"><em>›</em><span class="tw" id="s7t2">/factory:implement …/20261017-022123-init-home — stage 2 (web)</span></div>
+        <div class="sess" id="sess1">session 1</div>
+        <div class="sess" id="sess2" style="background:var(--pink); opacity:0">session 2 · contexte neuf</div>
+        <div class="station" id="st1" style="left:70px"><span class="n">1</span><b>Tests d'abord</b><span>couche par couche, ils échouent avant le code</span></div>
+        <div class="station" id="st2" style="left:457px"><span class="n">2</span><b>Vérif</b><span>build · test · lint du composant, le bruit via runner</span></div>
+        <div class="station opt" id="st3" style="left:844px"><span class="n">3</span><b>Revue</b><span>reviewer en lecture seule, sur demande (— with review)</span></div>
+        <div class="station" id="st4" style="left:1231px"><span class="n">4</span><b>Commit</b><span>un par stage, message annoncé dans le plan</span></div>
+        <div class="pkg" id="pk1" style="background:var(--yellow)">Stage 1 · api</div>
+        <div class="pkg" id="pk2" style="background:var(--pink)">Stage 2 · web</div>
+        <div class="belt" id="belt7" style="top:478px; height:28px"></div>
+        <div class="commit" id="c71" style="left:70px; top:540px"><span class="dot"></span><b>f293f25</b>feat(home): api — todos list, create, complete and delete<i>non poussé</i></div>
+        <div class="commit" id="c72" style="left:70px; top:596px"><span class="dot"></span><b>a138b4d</b>feat(home): web — home page with todos, filters and delete confirmation<i>non poussé</i></div>
+        <div class="stamp" id="jd" style="left:1270px; top:548px; background:var(--yellow); font-size:24px; transform:rotate(-4deg)">✓ Job done</div>
+        <div class="card board" id="board">
+          <span class="lbl">factory-board</span>
+          <span class="lbl2">le tableau suit la feature et prépare le prompt suivant</span>
+          <div class="line"></div>
+          <div class="node" style="left:300px"><div class="mk"><i class="m0"></i><i class="m2" style="opacity:1">✓</i></div><span>Spec</span></div>
+          <div class="node" style="left:520px"><div class="mk"><i class="m0"></i><i class="m2" style="opacity:1">✓</i></div><span>Plan</span></div>
+          <div class="node" style="left:740px"><div class="mk"><i class="m0"></i><i class="m1" id="n3a"></i><i class="m2" id="n3d">✓</i></div><span>Stage 1 · api</span></div>
+          <div class="node" style="left:960px"><div class="mk"><i class="m0"></i><i class="m1" id="n4a"></i><i class="m2" id="n4d">✓</i></div><span>Stage 2 · web</span></div>
+          <div class="node" style="left:1180px"><div class="mk"><i class="m0"></i><i class="m1" id="n5a"></i></div><span>Revue finale</span></div>
+          <div class="node" style="left:1380px"><div class="mk"><i class="m0"></i></div><span>Clôture</span></div>
+        </div>
+      </section>
+
+      <!-- S8 FINAL REVIEW + CLOSE -->
+      <section class="scene" id="s8">
+        <div class="eb"><b>07</b> Revue finale &amp; clôture</div>
+        <div class="h" id="s8h">On valide, on squashe</div>
+        <div class="pill" id="s8p1"><em>›</em><span class="tw" id="s8t1">/factory:implement …/20261017-022123-init-home — final review</span></div>
+        <div class="pill" id="s8p2" style="opacity:0"><em>›</em><span class="tw" id="s8t2">/factory:implement …/20261017-022123-init-home — close the branch</span></div>
+        <div class="card" id="val" style="left:70px; top:270px; width:640px; height:390px; padding:24px 28px; display:flex; flex-direction:column; gap:20px">
+          <span class="lbl">## Validation</span>
+          <div class="vrow" id="v1"><span class="bx"><i id="v1x">✓</i></span><div><b>Review</b><span>le reviewer sur tout le plan, findings réglés</span></div></div>
+          <div class="vrow" id="v2"><span class="bx"><i id="v2x">✓</i></span><div><b>Tests</b><span>les suites complètes de api et de web</span></div></div>
+          <div class="vrow" id="v3"><span class="bx"><i id="v3x">✓</i></span><div><b>Browser test</b><span>test-in-browser sur web, les scénarios du plan</span></div></div>
+          <div class="vrow" id="v4"><span class="bx"><i id="v4x" style="background:var(--sand)">–</i></span><div><b>Integration tests</b><span>jamais lancés sans ton oui, sinon marqués [-]</span></div></div>
+        </div>
+        <div class="card" id="git" style="left:780px; top:270px; width:750px; height:390px">
+          <span class="lbl" style="position:absolute; left:24px; top:22px">la branche de la feature</span>
+          <svg class="abs" style="left:0; top:0" width="750" height="390" viewBox="0 0 750 390" aria-hidden="true">
+            <path d="M40 310 H710" stroke="#111111" stroke-width="5" fill="none"/>
+            <path id="gbr" d="M120 310 C 170 310, 170 170, 230 170 H640" pathLength="1" stroke="#111111" stroke-width="5" fill="none" stroke-dasharray="1"/>
+            <path id="gpush" d="M402 170 H690" stroke="#111111" stroke-width="4" fill="none" stroke-dasharray="12 9"/>
+          </svg>
+          <span class="abs" style="left:40px; top:326px; font:700 15px/1 var(--mono); text-transform:uppercase; letter-spacing:.1em">main</span>
+          <span class="gdot" id="gd1" style="left:270px; top:170px"></span>
+          <span class="gdot" id="gd2" style="left:370px; top:170px"></span>
+          <span class="gdot" id="gd3" style="left:470px; top:170px"></span>
+          <span class="gdot" id="gd4" style="left:570px; top:170px"></span>
+          <span class="glab" id="gl1" style="left:270px; top:196px"><b>d2e0a20</b>spec</span>
+          <span class="glab" id="gl2" style="left:370px; top:196px"><b>3b34bcf</b>plan</span>
+          <span class="glab" id="gl3" style="left:470px; top:196px"><b>f293f25</b>api</span>
+          <span class="glab" id="gl4" style="left:570px; top:196px"><b>a138b4d</b>web</span>
+          <span class="gdot" id="gbig" style="left:370px; top:170px; width:56px; height:56px; margin:-28px 0 0 -28px; background:var(--pink); border-width:4px"></span>
+          <span class="glab" id="gbl" style="left:370px; top:206px; width:240px; margin-left:-120px; font-size:16px"><b>1 commit</b>squashé, sur ton oui</span>
+          <span class="abs" id="gpl" style="left:500px; top:116px; font:700 15px/1.3 var(--mono); text-transform:uppercase; letter-spacing:.06em">git push → toi</span>
+        </div>
+        <div class="stamp" id="np" style="left:70px; top:700px; background:var(--ink); color:var(--paper); font-size:62px; padding:14px 28px; box-shadow:8px 8px 0 var(--yellow); transform:rotate(-2deg)">Never push</div>
+        <div class="abs" id="npt" style="left:620px; top:716px; width:900px; font-size:25px; line-height:1.45">Les agents créent branches et commits en local.<br>Le push, c'est un humain&nbsp;: toi.</div>
+      </section>
+
+      <!-- S9 APP -->
+      <section class="scene" id="s9">
+        <div class="eb"><b>08</b> L'appli</div>
+        <div class="browser" id="brw">
+          <div class="bar"><i style="background:var(--red)"></i><i style="background:var(--yellow)"></i><i></i><span>localhost:5173</span></div>
+          <div class="apanel"></div>
+          <div class="ab atitle" style="left:54px; top:100px">Mes tâches</div>
+          <div class="ab alabel" style="left:54px; top:168px">Nom</div>
+          <div class="ab ainput" style="left:54px; top:190px; width:440px"><span class="ph" id="phN">Nom de la tâche</span><span class="tw abs" id="inN" style="left:12px; top:0; background:var(--white)">Préparer la démo</span></div>
+          <div class="ab alabel" style="left:514px; top:168px">Tag (optionnel)</div>
+          <div class="ab ainput" style="left:514px; top:190px; width:230px"><span class="tw" id="inT">fa</span><span class="abs" id="inT2" style="left:12px; top:0; background:var(--white); opacity:0">factory</span></div>
+          <div class="ab abtn" id="addb" style="left:764px; top:190px; width:182px">Ajouter</div>
+          <div class="ab alabel" style="left:54px; top:254px">Rechercher</div>
+          <div class="ab ainput" style="left:54px; top:276px; width:360px"><span class="tw" id="inS">pain</span></div>
+          <div class="ab alabel" style="left:434px; top:254px">Tag</div>
+          <div class="ab ainput sel" style="left:434px; top:276px; width:230px">Tous les tags</div>
+          <div class="ab switch" style="left:684px; top:284px"></div>
+          <div class="ab alabel" style="left:746px; top:293px">Non terminées d'abord</div>
+
+          <div class="arow" id="rN"><span class="ck"><i>✓</i></span><span class="nm">Préparer la démo<s></s></span><span class="abadge">factory</span><span class="adel">Supprimer</span></div>
+          <div class="arow" id="rC"><span class="ck"><i>✓</i></span><span class="nm">Relire la spec home<s></s></span><span class="abadge">factory</span><span class="adel">Supprimer</span></div>
+          <div class="arow" id="rB"><span class="ck"><i id="ckB">✓</i></span><span class="nm" id="nmB">Appeler le plombier<s id="skB"></s></span><span class="abadge" style="background:var(--yellow)">maison</span><span class="adel">Supprimer</span></div>
+          <div class="arow" id="rA"><span class="ck"><i>✓</i></span><span class="nm">Acheter du pain<s></s></span><span class="abadge" style="background:var(--white)">courses</span><span class="adel" id="delA">Supprimer</span></div>
+
+          <div class="ab sugg" id="sugg" style="left:514px; top:240px; width:230px; opacity:0">factory</div>
+          <div class="scrim" id="scrim"></div>
+          <div class="dlg" id="dlg"><b>Supprimer la tâche ?</b><p>La tâche « Acheter du pain » sera supprimée définitivement.</p><div class="acts"><span>Annuler</span><span class="dz" id="dz">Supprimer</span></div></div>
+        </div>
+        <div class="callh" id="s9h">Chaque geste vient d'une ligne de la spec</div>
+        <div class="call" id="cl1" style="top:230px"><b>FR-11</b>le tag existant est proposé</div>
+        <div class="call" id="cl2" style="top:306px"><b>FR-02</b>ajouter une tâche</div>
+        <div class="call" id="cl3" style="top:382px"><b>FR-04</b>cocher « terminée »</div>
+        <div class="call" id="cl4" style="top:458px"><b>FR-06</b>rechercher pendant la frappe</div>
+        <div class="call" id="cl5" style="top:534px"><b>FR-09</b>confirmer avant de supprimer</div>
+        <div class="techs" id="techs">
+          <div><b>api</b> · Express 5, Drizzle, PGlite, Zod</div>
+          <div><b>web</b> · React 19, Vite, TanStack Query</div>
+        </div>
+        <svg id="cur" viewBox="0 0 30 38" aria-hidden="true"><path d="M2 2 L2 31 L10 24 L15 36 L21 33 L16 22 L27 22 Z" fill="#ffffff" stroke="#111111" stroke-width="3" stroke-linejoin="round"/></svg>
+      </section>
+
+      <!-- S10 OUTRO -->
+      <section class="scene" id="s10">
+        <div class="abs big" id="o1" style="left:70px; top:110px; font-size:132px">
+          <div><span class="hl">Webapp</span></div>
+          <div style="margin-top:16px">Factory</div>
+        </div>
+        <div class="abs cmds" id="ocmds" style="left:74px; top:470px; width:1460px">
+          <span id="oc1">factory-init</span><i>→</i><span id="oc2">write-spec</span><i>→</i><span id="oc3">write-plan</span><i>→</i><span id="oc4" class="y">implement × N</span><i>→</i><span id="oc5">final review</span><i>→</i><span id="oc6" class="p">close the branch</span>
+        </div>
+        <div class="abs" id="o2" style="left:74px; top:630px; font-family:var(--display); font-size:38px; line-height:1.2; text-transform:uppercase; width:1100px">Tu décris. La factory spécifie, planifie, code et relit. Tu pousses.</div>
+        <div class="abs" id="o3" style="left:74px; top:770px; font-size:18px; color:var(--muted)">C:\WS\webapp-factory · plugins/factory · plugins/factory-board · samples/todo-app</div>
+        <div class="gear" id="g3" style="left:1250px; top:96px; width:250px; height:250px; border-width:30px; background:var(--yellow)"></div>
+        <div class="gear" id="g4" style="left:1404px; top:296px; width:146px; height:146px; border-width:22px; background:var(--pink)"></div>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="deck">
+    <button class="btn main" id="play" type="button">▶ Lecture</button>
+    <button class="btn" id="restart" type="button">↺ Début</button>
+    <span class="time" id="time">00:00 / 02:00</span>
+    <div class="scrub">
+      <div class="ticks" id="ticks"></div>
+      <input type="range" id="scrub" min="0" max="120" step="0.05" value="0" aria-label="Position dans le film">
+    </div>
+    <button class="btn" id="speed" type="button" aria-label="Vitesse">1×</button>
+    <button class="btn" id="fs" type="button">⛶ Plein écran</button>
+  </div>
+  <nav class="chapters" id="chapters" aria-label="Chapitres"></nav>
+  <p class="foot">Espace : lecture / pause · ← → : 5 secondes · les chapitres sautent directement à une étape.</p>
+</div>
+
+<script>
+(() => {
+  const TOTAL = 120;
+  const EASE = 'cubic-bezier(.2,.8,.2,1)';
+  const POP = 'cubic-bezier(.34,1.56,.64,1)';
+  const Y = '#ffd60a', W = '#ffffff', K = '#111111', P = '#ff90e8', R = '#ff4a2e';
+  const $ = s => typeof s === 'string' ? document.getElementById(s) : s;
+
+  const tracks = new Map();
+  const tr = el => { if (!tracks.has(el)) tracks.set(el, { init: {}, steps: [] }); return tracks.get(el); };
+  const init = (el, styles) => { el = $(el); if (!el) return; Object.assign(tr(el).init, styles); };
+  const at = (el, t, styles, d = .45, ease = EASE) => { el = $(el); if (!el) { console.warn('missing', el); return; } tr(el).steps.push({ t, styles, d, ease }); };
+
+  // ---------- helpers ----------
+  const inn = (el, t, { from = 'translateY(22px)', to = 'none', d = .45, ease = EASE } = {}) => { init(el, { opacity: 0, transform: from }); at(el, t, { opacity: 1, transform: to }, d, ease); };
+  const pop = (el, t, to = 'none', from = 'scale(.6)') => inn(el, t, { from: from, to, d: .5, ease: POP });
+  const out = (el, t, d = .35) => at(el, t, { opacity: 0 }, d);
+  const type = (el, t, cps = .035) => { el = $(el); const n = [...el.textContent].length; init(el, { width: '0ch' }); at(el, t, { width: n + 'ch' }, Math.max(.05, n * cps), `steps(${n}, end)`); return t + n * cps; };
+  const scene = (id, a, b) => { init(id, { opacity: 0, transform: 'translateY(16px)' }); at(id, a, { opacity: 1, transform: 'translateY(0px)' }, .5); at(id, b, { opacity: 0, transform: 'translateY(-14px)' }, .4); };
+  const draw = (el, t, d = .6) => { init(el, { strokeDashoffset: '1' }); at(el, t, { strokeDashoffset: '0' }, d, 'cubic-bezier(.6,0,.3,1)'); };
+  const bg = (el, t, color, d = .25) => at(el, t, { backgroundColor: color }, d);
+
+  // ---------- S1 intro (0–7) ----------
+  init('s1', { opacity: 1, transform: 'translateY(0px)' });
+  at('s1', 6.6, { opacity: 0, transform: 'translateY(-14px)' }, .4);
+  ['if1','ia1','if2','ia2','if3','ia3','if4','ia4','if5'].forEach((id, i) => inn(id, 1.0 + i * .22, { from: 'translateY(18px)' }));
+
+  // rail
+  init('rail', { opacity: 0, transform: 'translateY(-10px)' });
+  at('rail', 7.2, { opacity: 1, transform: 'none' });
+  at('rail', 110.6, { opacity: 0 });
+  [['r1',7,19],['r2',19,33],['r3',41,53],['r4',53,66],['r5',66,84],['r6',84,95],['r7',95,111]].forEach(([id,a,b]) => {
+    init(id, { backgroundColor: 'rgba(255,214,10,0)' });
+    at(id, a + .3, { backgroundColor: Y }, .3); at(id, b - .3, { backgroundColor: 'rgba(255,214,10,0)' }, .3);
+  });
+
+  // ---------- S2 plugin (7–19) ----------
+  scene('s2', 7, 18.6);
+  inn('s2h', 7.3); inn('s2s', 7.6);
+  inn('s2c1', 7.9); inn('s2c2', 9.2); inn('s2c3', 10.6);
+  for (let i = 1; i <= 7; i++) inn('k' + i, 8.1 + (i - 1) * .2, { from: 'translateX(-30px)' });
+  for (let i = 1; i <= 4; i++) pop('a' + i, 9.4 + (i - 1) * .32);
+  for (let i = 1; i <= 4; i++) inn('e' + i, 10.8 + (i - 1) * .35, { from: 'translateX(30px)' });
+  inn('s2b', 13.6, { from: 'translateY(30px)' });
+
+  // ---------- S3 init (19–33) ----------
+  scene('s3', 19, 32.6);
+  inn('s3h', 19.2); inn('term', 19.4, { from: 'translateY(30px)' });
+  let e = type('t1', 20.0); inn('t1o', e + .3, { from: 'none' });
+  e = type('t2', e + .6); inn('t2o', e + .3, { from: 'none' });
+  e = type('t3', e + .6);
+  for (let i = 1; i <= 7; i++) inn('q' + i, e + .5 + (i - 1) * .42, { from: 'translateX(-12px)', d: .25 });
+  inn('tree', 26.4, { from: 'translateX(30px)' });
+  for (let i = 1; i <= 8; i++) inn('f' + i, 26.8 + (i - 1) * .22, { from: 'translateX(16px)', d: .3 });
+  pop('yaml', 29.2);
+  pop('s3st', 30.4, 'rotate(-5deg)', 'rotate(-5deg) scale(2)');
+
+  // ---------- S4 fork (33–41) ----------
+  scene('s4', 33, 40.6);
+  pop('req', 33.3);
+  draw('p1', 34.0, .25);
+  pop('dia', 34.2, 'rotate(45deg)', 'rotate(45deg) scale(.4)'); inn('diaq', 34.5);
+  draw('p2', 34.9); draw('p3', 34.9);
+  inn('bl1', 35.3); inn('bl2', 35.5);
+  pop('bx1', 35.7); pop('bx2', 36.1);
+  inn('m1', 36.5, { from: 'translateX(-14px)' }); inn('m2', 36.8, { from: 'translateX(-14px)' }); inn('m3', 37.1, { from: 'translateX(-14px)' });
+  at('bx1', 38.6, { opacity: .3 }, .4); at('bl1', 38.6, { opacity: .3 }, .4); at('p2', 38.6, { opacity: .3 }, .4);
+  bg('bx2', 38.6, P, .3);
+  inn('s4c', 38.9, { from: 'translateX(-20px)' });
+
+  // ---------- S5 spec (41–53) ----------
+  scene('s5', 41, 52.6);
+  inn('s5h', 41.2); inn('s5p', 41.4, { from: 'translateX(-20px)' }); type('s5t', 41.6, .04);
+  inn('spec', 42.2, { from: 'translateY(30px)' }); inn('draft', 42.6);
+  for (let i = 1; i <= 11; i++) inn('fr' + i, 42.8 + (i - 1) * .26, { from: 'translateX(-12px)', d: .3 });
+  inn('brs', 45.9);
+  pop('b1', 46.6);
+  pop('b2', 48.0);
+  pop('b3', 49.4);
+  out('draft', 50.0, .2);
+  pop('appr', 50.0, 'rotate(-6deg)', 'rotate(-6deg) scale(2.2)');
+  inn('c5', 50.5, { from: 'translateX(-14px)' });
+  inn('s5c', 51.0);
+
+  // ---------- S6 plan (53–66) ----------
+  scene('s6', 53, 65.6);
+  inn('s6h', 53.2); inn('s6p', 53.4, { from: 'translateX(-20px)' }); e = type('s6t', 53.6, .04);
+  type('s6path', e + .2, .018);
+  inn('plan', 55.0, { from: 'translateY(30px)' });
+  for (let i = 1; i <= 7; i++) inn('ps' + i, 55.3 + (i - 1) * .3, { from: 'translateY(14px)', d: .35 });
+  pop('s6y', 58.0);
+  inn('c6', 58.6, { from: 'translateX(-14px)' });
+  inn('s6c', 60.0);
+  inn('plan2', 60.7, { from: 'rotate(8deg) translateX(80px)', to: 'rotate(2deg)', d: .55, ease: POP });
+  inn('s6r', 62.2);
+
+  // ---------- S7 implement (66–84) ----------
+  scene('s7', 66, 83.6);
+  inn('s7h', 66.1);
+  inn('s7p1', 66.3, { from: 'translateX(-20px)' }); type('s7t1', 66.4, .025);
+  pop('sess1', 66.6);
+  for (let i = 1; i <= 4; i++) inn('st' + i, 66.3 + i * .12, { from: 'translateY(-16px)' });
+  inn('board', 66.7, { from: 'translateY(30px)' });
+
+  const SX = [70 + 30, 457 + 30, 844 + 30, 1231 + 30];
+  const runPkg = (pk, t0, cmt, node, nodeDone) => {
+    init(pk, { transform: 'translateX(-320px)' });
+    at(pk, t0, { transform: `translateX(${SX[0]}px)` }, .6);
+    const stops = [t0, t0 + 1.8, t0 + 3.6, t0 + 5.0];
+    const lit = [[t0 + .6, t0 + 1.7], [t0 + 2.4, t0 + 3.5], [t0 + 4.2, t0 + 4.9], [t0 + 5.6, t0 + 6.2]];
+    for (let s = 1; s < 4; s++) at(pk, stops[s], { transform: `translateX(${SX[s]}px)` }, .6, 'cubic-bezier(.5,0,.3,1)');
+    lit.forEach(([a, b], s) => { bg('st' + (s + 1), a, Y); bg('st' + (s + 1), b, W); });
+    at(pk, t0 + 6.4, { transform: 'translateX(1700px)' }, .6, 'cubic-bezier(.5,0,.8,.4)');
+    inn(cmt, t0 + 5.7, { from: 'translateX(-20px)' });
+    init(node, { opacity: 0 }); at(node, t0 - .2, { opacity: 1 }, .3); at(node, t0 + 5.8, { opacity: 0 }, .2);
+    init(nodeDone, { opacity: 0 }); at(nodeDone, t0 + 5.8, { opacity: 1 }, .3);
+  };
+  runPkg('pk1', 67.0, 'c71', 'n3a', 'n3d');
+  out('s7p1', 74.0, .25); out('sess1', 74.0, .25);
+  init('s7p2', { opacity: 0 }); at('s7p2', 74.2, { opacity: 1 }, .25); type('s7t2', 74.3, .025);
+  init('sess2', { opacity: 0, transform: 'scale(.6)' }); at('sess2', 74.4, { opacity: 1, transform: 'none' }, .5, POP);
+  runPkg('pk2', 74.8, 'c72', 'n4a', 'n4d');
+  init('n5a', { opacity: 0 }); at('n5a', 81.2, { opacity: 1 }, .3);
+  pop('jd', 81.4, 'rotate(-4deg)', 'rotate(-4deg) scale(2)');
+
+  // ---------- S8 final review + close (84–95) ----------
+  scene('s8', 84, 94.6);
+  inn('s8h', 84.1);
+  inn('s8p1', 84.3, { from: 'translateX(-20px)' }); type('s8t1', 84.4, .025);
+  inn('val', 84.8, { from: 'translateY(30px)' }); inn('git', 85.0, { from: 'translateY(30px)' });
+  draw('gbr', 85.3, .8);
+  for (let i = 1; i <= 4; i++) { pop('gd' + i, 85.8 + i * .15); inn('gl' + i, 85.9 + i * .15, { from: 'translateY(8px)', d: .3 }); }
+  for (let i = 1; i <= 4; i++) { init('v' + i + 'x', { opacity: 0, transform: 'scale(.3)' }); at('v' + i + 'x', 86.0 + i * .5, { opacity: 1, transform: 'none' }, .35, POP); }
+  out('s8p1', 88.6, .25);
+  init('s8p2', { opacity: 0 }); at('s8p2', 88.8, { opacity: 1 }, .25); type('s8t2', 88.9, .025);
+  const gx = [270, 370, 470, 570];
+  for (let i = 1; i <= 4; i++) {
+    at('gd' + i, 90.4 + (4 - i) * .08, { transform: `translateX(${370 - gx[i - 1]}px) scale(.6)`, opacity: 0 }, .45, 'cubic-bezier(.6,0,.4,1)');
+    at('gl' + i, 90.3, { opacity: 0 }, .25);
+  }
+  at('gbr', 90.4, { strokeDashoffset: '0.46' }, .5, 'cubic-bezier(.6,0,.4,1)');
+  pop('gbig', 90.9, 'none', 'scale(.2)'); inn('gbl', 91.1, { from: 'translateY(8px)' });
+  init('gpush', { opacity: 0 }); at('gpush', 91.6, { opacity: 1 }, .4); inn('gpl', 91.9);
+  pop('np', 92.4, 'rotate(-2deg)', 'rotate(-2deg) scale(2.2)');
+  inn('npt', 92.9, { from: 'translateX(-20px)' });
+
+  // ---------- S9 app (95–111) ----------
+  scene('s9', 95, 110.6);
+  inn('brw', 95.2, { from: 'translateY(30px)' });
+  inn('s9h', 95.6);
+  // rows: slot y = 70 * s (base top 342px in the browser)
+  const slot = s => `translateY(${s * 70}px)`;
+  init('rN', { opacity: 0, transform: 'translateY(-24px)' });
+  init('rC', { opacity: 0, transform: slot(0) }); init('rB', { opacity: 0, transform: slot(1) }); init('rA', { opacity: 0, transform: slot(2) });
+  at('rC', 95.9, { opacity: 1 }, .3); at('rB', 96.05, { opacity: 1 }, .3); at('rA', 96.2, { opacity: 1 }, .3);
+  // cursor
+  const cur = 'cur';
+  const C = (x, y) => `translate(${x}px, ${y}px)`;
+  init(cur, { opacity: 0, transform: C(1300, 900) });
+  at(cur, 95.8, { opacity: 1, transform: C(300 + 70, 212 + 110) }, .5); // name input (browser offset 70,110)
+  const click = (x, y, t) => { at(cur, t, { transform: C(x, y) + ' scale(.82)' }, .08); at(cur, t + .12, { transform: C(x, y) }, .1); };
+  click(370, 322, 96.35);
+  // type name
+  out('phN', 96.4, .05);
+  type('inN', 96.45, .04);
+  at(cur, 97.15, { transform: C(690 + 70, 322) }, .35); click(760, 322, 97.5);
+  type('inT', 97.6, .06);
+  pop('sugg', 97.8, 'none', 'translateY(-8px)');
+  inn('cl1', 97.8, { from: 'translateX(30px)' });
+  at(cur, 98.0, { transform: C(760, 371) }, .25); click(760, 371, 98.3);
+  out('sugg', 98.45, .15);
+  at('inT', 98.45, { opacity: 0 }, .05); init('inT2', { opacity: 0 }); at('inT2', 98.45, { opacity: 1 }, .05);
+  at(cur, 98.7, { transform: C(925, 322) }, .35); click(925, 322, 99.1);
+  at('addb', 99.1, { transform: 'translate(3px,3px)', boxShadow: '0px 0px 0 #111111' }, .08); at('addb', 99.3, { transform: 'none', boxShadow: '3px 3px 0 #111111' }, .12);
+  at('inN', 99.35, { opacity: 0 }, .1); at('inT2', 99.35, { opacity: 0 }, .1); at('phN', 99.4, { opacity: 1 }, .1);
+  at('rN', 99.4, { opacity: 1, transform: slot(0) }, .45, POP);
+  at('rC', 99.4, { transform: slot(1) }, .45); at('rB', 99.4, { transform: slot(2) }, .45); at('rA', 99.4, { transform: slot(3) }, .45);
+  at('cl1', 99.4, { backgroundColor: W }, .3);
+  inn('cl2', 99.4, { from: 'translateX(30px)' });
+  // tick B (slot 2)
+  at(cur, 100.2, { transform: C(155, 621) }, .5); click(155, 621, 100.8);
+  init('ckB', { opacity: 0 }); at('ckB', 100.85, { opacity: 1 }, .15);
+  init('skB', { transform: 'scaleX(0)' }); at('skB', 100.9, { transform: 'scaleX(1)' }, .3);
+  at('nmB', 100.9, { opacity: .5 }, .3);
+  at('cl2', 100.85, { backgroundColor: W }, .3); inn('cl3', 100.85, { from: 'translateX(30px)' });
+  // search "pain"
+  at(cur, 101.6, { transform: C(250 + 70, 298 + 110) }, .45); click(320, 408, 102.1);
+  type('inS', 102.2, .08);
+  at('rN', 102.6, { opacity: 0 }, .3); at('rC', 102.6, { opacity: 0 }, .3); at('rB', 102.6, { opacity: 0 }, .3);
+  at('rA', 102.75, { transform: slot(0) }, .45);
+  at('cl3', 102.6, { backgroundColor: W }, .3); inn('cl4', 102.6, { from: 'translateX(30px)' });
+  // clear search
+  at('inS', 104.2, { opacity: 0 }, .15);
+  at('rA', 104.35, { transform: slot(3) }, .45);
+  at('rN', 104.45, { opacity: 1 }, .3); at('rC', 104.45, { opacity: 1 }, .3); at('rB', 104.45, { opacity: 1 }, .3);
+  // delete A (slot 3) -> delete button at x 941, y 342+210+29
+  at(cur, 104.9, { transform: C(939, 691) }, .55); click(939, 691, 105.6);
+  bg('delA', 105.6, R, .1);
+  at('scrim', 105.75, { opacity: 1 }, .25);
+  init('dlg', { opacity: 0, transform: 'scale(.85)' }); at('dlg', 105.8, { opacity: 1, transform: 'none' }, .4, POP);
+  at('cl4', 105.8, { backgroundColor: W }, .3); inn('cl5', 105.8, { from: 'translateX(30px)' });
+  at(cur, 106.6, { transform: C(727, 567) }, .5); // Supprimer in the dialog
+  click(727, 567, 107.3);
+  at('dz', 107.3, { transform: 'translate(3px,3px)', boxShadow: '0px 0px 0 #111111' }, .08);
+  at('dlg', 107.5, { opacity: 0, transform: 'scale(.92)' }, .25); at('scrim', 107.5, { opacity: 0 }, .25);
+  at('rA', 107.75, { opacity: 0, transform: slot(3) + ' scale(.94)' }, .35);
+  at('cl5', 108.3, { backgroundColor: W }, .3);
+  at(cur, 108.2, { transform: C(1180, 820), opacity: 0 }, .6);
+  inn('techs', 108.4, { from: 'translateY(20px)' });
+
+  // ---------- S10 outro (111–120) ----------
+  scene('s10', 111, 999);
+  inn('o1', 111.3, { from: 'translateY(30px)' });
+  for (let i = 1; i <= 6; i++) pop('oc' + i, 112.0 + (i - 1) * .3);
+  inn('o2', 114.4);
+  inn('o3', 115.2);
+
+  // ---------- build ----------
+  const anims = [], loops = [];
+  for (const [el, { init: ini, steps }] of tracks) {
+    steps.sort((a, b) => a.t - b.t);
+    const props = new Set([...Object.keys(ini), ...steps.flatMap(s => Object.keys(s.styles))]);
+    const cs = getComputedStyle(el);
+    let state = {};
+    for (const p of props) state[p] = p in ini ? ini[p] : cs[p];
+    const frames = [{ offset: 0, ...state, easing: 'linear' }];
+    let last = 0;
+    for (const s of steps) {
+      const o0 = Math.min(1, Math.max(last, s.t / TOTAL));
+      const o1 = Math.min(1, Math.max(o0, (s.t + s.d) / TOTAL));
+      frames.push({ offset: o0, ...state, easing: s.ease });
+      state = { ...state, ...s.styles };
+      frames.push({ offset: o1, ...state, easing: 'linear' });
+      last = o1;
+    }
+    frames.push({ offset: 1, ...state });
+    try {
+      const a = el.animate(frames, { duration: TOTAL * 1000, fill: 'both' });
+      a.pause(); anims.push(a);
+    } catch (err) { console.warn('anim failed', el.id, err); }
+  }
+  const loop = (el, frames, dur) => { el = $(el); if (!el) return; const a = el.animate(frames, { duration: dur * 1000, iterations: Infinity }); a.pause(); loops.push(a); };
+  loop('belt0', [{ backgroundPosition: '0px 0px' }, { backgroundPosition: '39.598px 0px' }], 1.1);
+  loop('belt7', [{ backgroundPosition: '0px 0px' }, { backgroundPosition: '39.598px 0px' }], .7);
+  loop('g1', [{ rotate: '0deg' }, { rotate: '360deg' }], 12);
+  loop('g2', [{ rotate: '0deg' }, { rotate: '-360deg' }], 7.6);
+  loop('g3', [{ rotate: '0deg' }, { rotate: '360deg' }], 12);
+  loop('g4', [{ rotate: '0deg' }, { rotate: '-360deg' }], 7.3);
+  document.querySelectorAll('.mk .m1').forEach(m => loop(m, [{ rotate: '0deg' }, { rotate: '360deg' }], 2.4));
+
+  // ---------- player ----------
+  const CHAPS = [[0,'Intro'],[7,'Le plugin'],[19,'Init'],[33,'Deux chemins'],[41,'Spec'],[53,'Plan(s)'],[66,'Implement'],[84,'Revue & clôture'],[95,"L'appli"],[111,'Fin']];
+  const screen = $('screen'), stage = $('stage');
+  const playBtn = $('play'), scrub = $('scrub'), timeEl = $('time'), speedBtn = $('speed');
+  let t = 0, playing = false, speed = 1, lastTs = null;
+  const fmt = s => { s = Math.max(0, Math.floor(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+
+  const nav = $('chapters'), ticks = $('ticks');
+  const chapBtns = CHAPS.map(([s, name], i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chap';
+    b.innerHTML = `<b>${String(i).padStart(2, '0')}</b>${name}`;
+    b.addEventListener('click', () => { seek(s + .01); if (!playing) play(); });
+    nav.appendChild(b);
+    if (i > 0) { const k = document.createElement('i'); k.style.left = (s / TOTAL * 100) + '%'; ticks.appendChild(k); }
+    return b;
+  });
+
+  function render() {
+    const ms = t * 1000;
+    for (const a of anims) a.currentTime = ms;
+    for (const a of loops) a.currentTime = ms;
+    scrub.value = t.toFixed(2);
+    scrub.style.setProperty('--p', (t / TOTAL * 100) + '%');
+    timeEl.textContent = fmt(t) + ' / ' + fmt(TOTAL);
+    let ci = 0; CHAPS.forEach(([s], i) => { if (t >= s) ci = i; });
+    chapBtns.forEach((b, i) => b.setAttribute('aria-current', i === ci ? 'true' : 'false'));
+  }
+  function setBtn() { playBtn.textContent = playing ? '❚❚ Pause' : (t >= TOTAL ? '↻ Rejouer' : '▶ Lecture'); }
+  function play() { if (t >= TOTAL) t = 0; playing = true; lastTs = null; setBtn(); }
+  function pause() { playing = false; setBtn(); }
+  function seek(s) { t = Math.min(TOTAL, Math.max(0, s)); render(); setBtn(); }
+  function tick(ts) {
+    if (playing) {
+      if (lastTs != null) { t += (ts - lastTs) / 1000 * speed; if (t >= TOTAL) { t = TOTAL; playing = false; setBtn(); } }
+      lastTs = ts; render();
+    } else lastTs = null;
+    requestAnimationFrame(tick);
+  }
+
+  playBtn.addEventListener('click', () => playing ? pause() : play());
+  $('restart').addEventListener('click', () => { seek(0); play(); });
+  scrub.addEventListener('input', () => { seek(parseFloat(scrub.value)); });
+  const SPEEDS = [1, 1.5, 2, .5];
+  speedBtn.addEventListener('click', () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; speedBtn.textContent = speed + '×'; });
+  $('fs').addEventListener('click', async () => {
+    try { if (document.fullscreenElement) await document.exitFullscreen(); else await screen.requestFullscreen(); } catch (_) { /* not available here */ }
+  });
+  document.addEventListener('keydown', ev => {
+    const tag = (ev.target && ev.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'TEXTAREA') return;
+    if (ev.code === 'Space') { ev.preventDefault(); playing ? pause() : play(); }
+    else if (ev.key === 'ArrowRight') seek(t + 5);
+    else if (ev.key === 'ArrowLeft') seek(t - 5);
+  });
+  screen.addEventListener('click', () => playing ? pause() : play());
+
+  function fit() {
+    const w = screen.clientWidth, h = screen.clientHeight;
+    const s = Math.min(w / 1600, h / 900);
+    stage.style.transform = `translate(${(w - 1600 * s) / 2}px, ${(h - 900 * s) / 2}px) scale(${s})`;
+  }
+  new ResizeObserver(fit).observe(screen); fit();
+
+  render(); setBtn();
+  requestAnimationFrame(tick);
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const start = () => { if (!reduce) play(); };
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(start, 400));
+})();
+</script>
+</body>
+</html>
