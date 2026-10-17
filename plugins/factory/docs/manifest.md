@@ -56,6 +56,7 @@ The plugin's agents carry no `model` in their frontmatter: the skill that spawns
 ```yaml
 kind: api                      # api | front | db | worker | lib
 stack: dotnet                  # free text; matches a stacks/{stack}/ pack when one exists
+skin: modern                   # a front's look: one of the plugin's skins/ (optional; an unknown name is an error)
 layers: [Domain, Application, Infrastructure, Api]   # the plan's sections for this component
 commands:
   build: dotnet build
@@ -68,6 +69,8 @@ logins: .claude/local/test-logins.md         # accounts for test-in-browser (git
 ```
 
 Only `kind` and `commands.build` are required. A component without `test` gets no test step; one without `lint` gets no lint step.
+
+`skin` sits in the component block, not in `factory.yaml`, so that a front keeps its look when it moves to its own repository. The skin's tokens are copied into the component by `factory-init`; the application overrides its variables in its own `overrides.css` and its rules in the `## Design` section of the component's `CLAUDE.md` (see `skins/README.md`).
 
 ## Stages
 

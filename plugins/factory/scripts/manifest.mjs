@@ -18,6 +18,8 @@ export const PRESETS = {
 };
 export const ROLES = Object.keys(PRESETS.standard);
 export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests"];
+// The plugin's skins: one folder per skin holding its tokens.css (see skins/README.md).
+export const SKINS_DIR = fileURLToPath(new URL("../skins/", import.meta.url));
 
 // ---------- YAML subset ----------
 
@@ -213,17 +215,20 @@ export const resolveModels = (spec) => {
 const readComponent = (root, c) => {
   const file = join(root, c.path, "CLAUDE.md");
   const base = { name: c.name, path: c.path, handoff: c.handoff ?? null, needs: c.needs ?? [], url: c.url ?? null, file: join(c.path, "CLAUDE.md") };
-  if (!existsSync(file)) return { ...base, missingFile: true, kind: null, stack: null, layers: [], commands: {}, logins: null };
+  if (!existsSync(file)) return { ...base, missingFile: true, kind: null, stack: null, skin: null, layers: [], commands: {}, logins: null };
   const block = fencedBlock(readFileSync(file, "utf8"), "component");
-  if (block === null) return { ...base, missingFile: false, missingBlock: true, kind: null, stack: null, layers: [], commands: {}, logins: null };
+  if (block === null) return { ...base, missingFile: false, missingBlock: true, kind: null, stack: null, skin: null, layers: [], commands: {}, logins: null };
   const spec = parseYaml(block) ?? {};
   const commands = {};
   for (const key of COMMAND_KEYS) if (spec.commands?.[key] != null) commands[key] = String(spec.commands[key]);
+  const skin = spec.skin == null ? null : String(spec.skin);
+  if (skin !== null && !existsSync(join(SKINS_DIR, skin, "tokens.css"))) throw new Error(`Manifest: component "${c.name}" names unknown skin "${skin}" in ${base.file}`);
   return {
     ...base,
     missingFile: false,
     kind: spec.kind ?? null,
     stack: spec.stack ?? null,
+    skin,
     layers: Array.isArray(spec.layers) ? spec.layers.map(String) : [],
     commands,
     logins: spec.logins ?? null,

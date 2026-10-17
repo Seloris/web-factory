@@ -3,6 +3,7 @@
 ```component
 kind: front
 stack: react-express
+skin: {{skin}}
 layers: [data, pages, ui]
 commands:
   build: npm run build
@@ -27,7 +28,8 @@ src/
     pages/                  routed pages (`{Name}Page.tsx`)
     ui/                     presentational components (props in, callbacks out), forms (`{Name}Form.tsx`)
   shared/
-    ui/                     shared components
+    ui/                     shared components: one per element of the skin's recipes (button, field, checkbox, dialog…)
+      theme/                skin.css (the skin's tokens, copied by factory-init: never edited), base.css (the page), overrides.css (this application's values)
     lib/                    utils, i18n
 ```
 
@@ -46,9 +48,16 @@ src/
 - **Pages** are routed, thin, and compose UI components; **UI** components receive props and emit callbacks: no data hook, no client call inside them.
 - **Forms:** one `{Name}Form.tsx` per form, holding its fields, validation and the mapping of the API's problem details (`400` field errors) to field messages.
 - **i18n:** every user-facing string goes through the translation layer; keys live in `{{i18n_file}}`, named `{feature}.{element}.{text}`; a missing key is a review finding.
-- **Styling:** {{styling}} (styles scoped to their component; no global overrides outside the theme).
+- **Styling:** {{styling}} (styles scoped to their component; no global style outside `src/shared/ui/theme/`). Styles read the skin's variables only: no literal color, radius, shadow, font family or control height (see Design).
 - **Loading and errors:** every page that reads data shows a loading state and an error state; a failed mutation shows the problem details' message.
 - File naming: `PascalCase.tsx` for components and pages, `camelCase.ts` for hooks and utils (`useOrdersQuery.ts`).
+
+## Design
+
+The skin named in the `component` block above: its tokens in `src/shared/ui/theme/skin.css`, imported first by `main.tsx`, then `base.css` and `overrides.css`. The UI follows the factory plugin's design rules (`reference/ui-design.md`), its element recipes (`skins/recipes.css`) and the skin's `SKIN.md`, read in place; this section wins over them. Features compose the `shared/ui` components and style only their own layout.
+
+- Variables this application changes: in `src/shared/ui/theme/overrides.css`, never in `skin.css`.
+- Rules this application adds or replaces: here, one line each.
 
 ## Testing
 

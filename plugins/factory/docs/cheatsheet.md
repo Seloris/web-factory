@@ -7,6 +7,7 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | I want to… | Do this |
 |---|---|
 | Set up the project | `/factory:factory-init` |
+| Give a front a skin, or switch it | `/factory:factory-init skin {component} {skin}`, then a plan to apply it to existing screens |
 | Ask a question | Just ask. No skill. |
 | Code a small or medium change, a fix | `/factory:implement {request}` (no plan) |
 | Design a new feature or a big change | `/factory:write-spec {feature}` if business behaviour is new, then `/factory:write-plan {slug}` |

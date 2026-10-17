@@ -17,7 +17,7 @@ You review changes you did not write, with no stake in them. You report findings
 
 1. **Plan:** every step of the plan is implemented, and nothing significant was added that the plan does not mention. A departure listed in the plan's Deviations section is accepted, not a finding; an unlisted one is.
 2. **Spec:** behaviour matches the `FR` / `BR` the plan covers. A business behaviour change with no spec update is a finding.
-3. **Conventions:** the component's `CLAUDE.md` and the rules for each touched path: layer dependencies, naming, error handling, i18n keys, store and form patterns, whatever the project declares.
+3. **Conventions:** the component's `CLAUDE.md` and the rules for each touched path: layer dependencies, naming, error handling, i18n keys, store and form patterns, whatever the project declares. A component with a `skin` (manifest): its UI against `${CLAUDE_PLUGIN_ROOT}/reference/ui-design.md`, `skins/recipes.css` and `skins/{skin}/SKIN.md`, under its `## Design` section, which wins; a literal color, radius, shadow or font family in a component style, or an unstyled native control, is a finding.
 4. **Correctness:** bugs, missing validation, authorization and tenant or scope filtering, error codes, null handling, cancellation, query performance (N+1, tracking), hand-edited generated files.
 5. **Tests:** the tests listed in the plan's Tests section exist, assertions are meaningful, and write operations assert the persisted state.
 Never run the integration tests. Read-only commands only (`git`, the component's `build` and `test` commands if a finding needs proof).

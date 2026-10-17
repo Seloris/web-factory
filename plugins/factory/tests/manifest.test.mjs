@@ -87,7 +87,21 @@ test("readManifest: the example project", () => {
   assert.equal(web.url, "http://localhost:4200");
   assert.equal(web.commands.prepare, "node scripts/echo.mjs prepare web");
   assert.equal(web.logins, ".claude/local/test-logins.md");
+  assert.equal(web.skin, "modern");
+  assert.equal(api.skin, null);
   assert.deepEqual(stages(m).map((c) => c.name), ["api", "web"]);
+});
+
+test("readManifest: a skin the plugin does not ship is an error", () => {
+  const dir = mkdtempSync(join(tmpdir(), "factory-skin-"));
+  try {
+    writeFileSync(join(dir, "factory.yaml"), "name: s\ncomponents:\n  - {name: web, path: web}\n");
+    mkdirSync(join(dir, "web"));
+    writeFileSync(join(dir, "web", "CLAUDE.md"), "```component\nkind: front\nskin: neon\ncommands:\n  build: x\n```\n");
+    assert.throws(() => readManifest(dir), /unknown skin "neon"/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("stages: needs order and cycles", () => {

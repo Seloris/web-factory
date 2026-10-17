@@ -3,6 +3,7 @@
 ```component
 kind: front
 stack: fake
+skin: modern
 layers: [data, pages, ui]
 commands:
   build: node scripts/echo.mjs build web

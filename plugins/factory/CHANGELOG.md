@@ -2,6 +2,12 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — A front has a skin
+
+- **Seven skins in `skins/`, one token contract, the design rules in `reference/ui-design.md`.** The sample's home page shipped with the browser's native controls and a few literal colors per CSS Module: nothing in the plugin said what a designed front looks like, so every implementation stopped at "it works". A skin is now a `tokens.css` (the same 62 variables for every skin, light and dark) and a `SKIN.md`; `skins/recipes.css` writes every element once against the tokens, so seven skins share one set of rules. `modern` is the default; `editorial`, `brutalist`, `aurora`, `swiss`, `soft` and `pro` were chosen on a preview of the sample under each.
+- **`skin` in the component block, read by the manifest.** In the block rather than `factory.yaml`, so that a front keeps its look when it leaves the project; an unknown name fails the manifest. Every skill that plans, implements or reviews a skinned component's UI reads the design files in place (workflow rules, reviewer); the component's `## Design` section wins over them, and its `overrides.css` over the skin's variables.
+- **`factory-init` asks for a front's skin and copies its tokens; `factory-init skin {component} {skin}` switches it.** It never rewires existing screens: applying a skin to a front that has some is a plan. The react-express skeleton imports `skin.css`, `base.css` and `overrides.css` from `src/shared/ui/theme/`, and its front template forbids literal colors, radii, shadows and fonts in component styles. Shared React components are not in the skeleton yet: they are born in the sample's first design plan and promoted when a second project needs them.
+
 ## 2026-10-17 — The commit message comes with the question
 
 - **The code block is written in the asking turn, before the question.** Every commit of the session took two rounds: the question sat in the app's next-step box, which holds one short line, the message was in no text of that turn, so the person's first yes only made the agent show it and ask again. The rule now says where the message goes: in the reply text of the same turn, just before a question shown apart from it. In the workflow rules, the template of a project's `CLAUDE.md`, the sample's and this repository's.

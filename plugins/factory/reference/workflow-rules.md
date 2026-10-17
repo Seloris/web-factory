@@ -8,13 +8,15 @@ The factory is a plugin: it carries the workflow, the project carries what is sp
 
 A component whose `stack` names a pack has stack skills in `${CLAUDE_PLUGIN_ROOT}/stacks/{stack}/skills/{name}/SKILL.md`: read the one the component's `CLAUDE.md` names when its step comes.
 
+A component with a `skin` (a front) has its look in `${CLAUDE_PLUGIN_ROOT}/skins/`: before planning, implementing or reviewing its UI, read `${CLAUDE_PLUGIN_ROOT}/reference/ui-design.md`, `skins/README.md` (the token contract), `skins/recipes.css` and `skins/{skin}/SKIN.md`, in place. The component's `## Design` section wins over all of them.
+
 ### What goes where
 
 Useful to two projects or more: the plugin. Specific to one project: that project's `CLAUDE.md` files, its manifest and its own `.claude/skills/`. A rule of the workflow changes with the case that motivated it, and the plugin's `CHANGELOG.md` says why.
 
 ## The manifest
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root and read the JSON: `name`, `baseBranch`, `language`, `models` (one model per role), `components` (name, path, kind, stack, layers, commands, handoff, needs, url, logins) and `stages` (the component names in implementation order). The script walks up from the folder given to the nearest `factory.yaml`, never past a `.git` folder. A component whose `missingFile` is true has no `CLAUDE.md` yet: say so and send the person to `/factory:factory-init component {component}`.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root and read the JSON: `name`, `baseBranch`, `language`, `models` (one model per role), `components` (name, path, kind, stack, skin, layers, commands, handoff, needs, url, logins) and `stages` (the component names in implementation order). The script walks up from the folder given to the nearest `factory.yaml`, never past a `.git` folder. A component whose `missingFile` is true has no `CLAUDE.md` yet: say so and send the person to `/factory:factory-init component {component}`.
 
 The `CLAUDE.md` of a component is loaded by Claude Code when you work under its path; read it yourself when you plan for it from elsewhere.
 

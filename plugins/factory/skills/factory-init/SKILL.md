@@ -1,6 +1,6 @@
 ---
 name: factory-init
-description: "Set up the current repository as a factory project: interview the person (name, base branch, language, model preset, sign-in, then each component: name, path, kind, description, stack, commands, url, the stack pack's placeholders), write its factory.yaml manifest and CLAUDE.md, one autonomous CLAUDE.md per component (from the stack pack when one exists), .planning/, .claude/settings.json (the plugin enabled, push denied), the planning and memory rules and docs/CONTRIBUTING.md. Also adds a component (factory-init component {component}), switches the model preset (factory-init models {preset}) or re-applies a stack pack (factory-init stack {component} {stack}). Writes no application code of its own: a component whose stack pack ships a code skeleton gets it copied, installed and checked (build and test green) when its folder is empty."
+description: "Set up the current repository as a factory project: interview the person (name, base branch, language, model preset, sign-in, then each component: name, path, kind, description, stack, commands, skin, url, the stack pack's placeholders), write its factory.yaml manifest and CLAUDE.md, one autonomous CLAUDE.md per component (from the stack pack when one exists), .planning/, .claude/settings.json (the plugin enabled, push denied), the planning and memory rules and docs/CONTRIBUTING.md. Also adds a component (factory-init component {component}), switches the model preset (factory-init models {preset}), switches a front component's skin (factory-init skin {component} {skin}) or re-applies a stack pack (factory-init stack {component} {stack}). Writes no application code of its own: a component whose stack pack ships a code skeleton gets it copied, installed and checked (build and test green) when its folder is empty, and a front gets its skin's tokens copied."
 ---
 
 # Init a project
@@ -15,7 +15,8 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, lan
 - `/factory:factory-init` with a manifest: say what exists and offer the three partial modes.
 - `/factory:factory-init component {component}`: interview for one component, write its `CLAUDE.md`, add it to the manifest's `components`.
 - `/factory:factory-init models {preset|role=model …}`: change the manifest's `models` and the `env.CLAUDE_CODE_SUBAGENT_MODEL` of `.claude/settings.json` (the `runner` model).
-- `/factory:factory-init stack {component} {stack}`: re-apply a stack pack's template to an existing component (its `CLAUDE.md` is rewritten: ask first, and keep its Conventions section); when the component's path holds no code (nothing but its `CLAUDE.md`), its skeleton is copied, installed and verified as in the full setup.
+- `/factory:factory-init skin {component} {skin}`: give a front component a skin, or switch it (one of `${CLAUDE_PLUGIN_ROOT}/skins/`; list them from the table of `skins/README.md` when the skin is not given). Sets `skin: {skin}` in the component's `component` block, copies `${CLAUDE_PLUGIN_ROOT}/skins/{skin}/tokens.css` over the tokens file its stack pack names under `## Skin` (else the one its `## Design` section names, else ask), creates the pack's `overrides.css` beside it only when absent (never overwrite it: it is the application's), and adds the pack template's `## Design` section to the component's `CLAUDE.md` when it has none. It never edits application code: wiring the theme files into an existing front (imports, shared components) is a plan's work, and the next prompt says so (`/factory:write-plan {slug}: apply the {skin} skin to {component}`). Runs the manifest check and the component's `build`, then proposes one commit (`tools(tooling): {component} skin {skin}`).
+- `/factory:factory-init stack {component} {stack}`: re-apply a stack pack's template to an existing component (its `CLAUDE.md` is rewritten: ask first, and keep its Conventions section); when the component's path holds no code (nothing but its `CLAUDE.md`), its skeleton is copied with the skin's tokens, installed and verified as in the full setup.
 
 ## Full setup
 
@@ -40,9 +41,10 @@ Round 2, one round per component (merge small ones):
 2. **Stack**: one of the packs, or free text for a stack with no pack.
 3. **Layers**, in implementation order (recommended from the pack, else a sensible default for the kind: `[Domain, Application, Infrastructure, Api]` for an API, `[data, pages, ui]` for a front).
 4. **Commands**: `build`, `test`, `lint` (with `{files}` where the changed files go), and when relevant `prepare`, `handoff` with the handoff file, `integration_tests` with `{filter}`; recommended from the pack, else from the detected tool (`dotnet build`, `npm run build`…). Leave out what the component does not have (a front with no unit tests has no `test`).
-5. **Url** for a front (recommended: the one its dev server uses) and, when the application has a sign-in, the **logins** file (recommended: `.claude/local/test-logins.md`); no `logins` otherwise.
-6. **Local run**: how to start it and its dependencies, for the component's `CLAUDE.md`.
-7. **Pack placeholders**: when the stack has a pack, the values its `README.md` lists under `## Placeholders` that the items above did not give, each with the recommended value the pack states. An optional placeholder left empty drops its line.
+5. **Skin** for a front: one of `${CLAUDE_PLUGIN_ROOT}/skins/`, each with its one-line look from the table of `skins/README.md` (recommended: `modern`).
+6. **Url** for a front (recommended: the one its dev server uses) and, when the application has a sign-in, the **logins** file (recommended: `.claude/local/test-logins.md`); no `logins` otherwise.
+7. **Local run**: how to start it and its dependencies, for the component's `CLAUDE.md`.
+8. **Pack placeholders**: when the stack has a pack, the values its `README.md` lists under `## Placeholders` that the items above did not give, each with the recommended value the pack states. An optional placeholder left empty drops its line.
 
 Stop asking when every value is known. Offer the `grill-me` skill once, in one line, for a project with many open choices; never start it unasked.
 
@@ -61,6 +63,7 @@ Into the project, from the plugin's `${CLAUDE_PLUGIN_ROOT}/templates/`, filling 
 | `docs/CONTRIBUTING.md` | `templates/docs/CONTRIBUTING.md` | base branch filled in. An existing one is kept and shown for the person to reconcile. |
 | `.claude/local/test-logins.example.md` | `templates/test-logins.example.md` | only when a component has `logins`. |
 | `.gitignore` | the used packs' `gitignore` files | adds `.claude/local/` and the lines of each used pack's `gitignore` file (when the pack has one), each line when missing. |
+| the skin's tokens per front component | `${CLAUDE_PLUGIN_ROOT}/skins/{skin}/tokens.css` | copied as is to the path the pack names under `## Skin` (react-express: `src/shared/ui/theme/skin.css`), after the skeleton; the pack's `overrides.css` is created when absent. A front with no pack: `skin: {skin}` in its block (`{{optional_fields}}`) and a `## Design` section naming the tokens file the person chose (recommended: `src/theme/skin.css`). |
 | `{path}/**` per component | the pack's `skeleton/{kind}/` when the pack has one for that kind | only when the component's path holds nothing but its `CLAUDE.md`: every file copied as is, placeholders filled, then the install command the pack's `README.md` names under `## Skeleton`, run from the component's path. A folder that already holds code is left alone, and the person is told so. |
 
 A pack's skills are not copied: they stay in `${CLAUDE_PLUGIN_ROOT}/stacks/{stack}/skills/` and the skills read them from there (see the workflow rules). Write each file with its exact content: no shell expansion of `$`, backticks or `{{…}}` on the way (the Write tool, or a quoted heredoc).

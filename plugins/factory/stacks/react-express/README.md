@@ -19,7 +19,11 @@ Two component templates and three skills, TypeScript end to end, Node 22 or late
 The minimum for which every command the templates declare passes with zero features. `factory-init` copies `skeleton/{kind}/` into the component's path when that path holds nothing but its `CLAUDE.md`, fills the placeholders (`{{name}}`, `{{node_version}}`, `{{api_url}}`), then runs **`npm install`** from the component's path, and checks that the component's `build` and `test` commands are green before committing. Dependency versions are pinned; `npm install` writes the lock file the project commits, and `npm ci` is the setup from then on.
 
 - **api**: `src/app.ts`, `server.ts`, `config.ts`; `db/schema.ts` and `db/client.ts` on PGlite; `shared/errors.ts` (the `AppError`s and the problem-details middleware), `validate.ts`, `clock.ts`, `openapi.ts` (the registry); `scripts/export-openapi.ts`; `test/setup.ts` and `test/factories.ts`; `drizzle.config.ts`, an empty migrations journal, `.data/.gitkeep` (PGlite needs the parent folder); Vitest, eslint flat config, strict tsconfig. One route, `GET /health`, in `features/health/` with its Supertest test: it proves the chain (app, clock, test context, OpenAPI registration) and is the first reference test.
-- **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (QueryClientProvider, RouterProvider), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; eslint flat config with the React hooks rules, strict tsconfig.
+- **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (QueryClientProvider, RouterProvider, the theme imports), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; `src/shared/ui/theme/base.css` and an empty `overrides.css` (the skin's `skin.css` comes from the skin, below); eslint flat config with the React hooks rules, strict tsconfig.
+
+## Skin
+
+A front component of this pack has a `skin` (the factory plugin's `skins/`). `factory-init` copies the skin's `tokens.css` to **`src/shared/ui/theme/skin.css`**, and creates `src/shared/ui/theme/overrides.css` when absent (an existing one is never touched). `src/main.tsx` imports `skin.css`, then `base.css`, then `overrides.css`, before any component style. The shared components (`src/shared/ui/`) port the plugin's `skins/recipes.css`, one component and its CSS Module per element; the features compose them. How the skin's fonts load is decided by the project's first design plan.
 
 ## The database
 
@@ -39,7 +43,7 @@ The front has no unit tests, as in the workflow's default: the `test-in-browser`
 
 ## Placeholders
 
-The templates' `{{placeholders}}` are asked by `factory-init` (round 2, after the common ones: `{{name}}`, `{{description}}`, `{{url}}`, `{{logins}}`), with these recommended values. An optional one left empty drops its line.
+The templates' `{{placeholders}}` are asked by `factory-init` (round 2, after the common ones: `{{name}}`, `{{description}}`, `{{url}}`, `{{logins}}`, `{{skin}}`), with these recommended values. An optional one left empty drops its line.
 
 | Placeholder | Template | Recommended | Meaning |
 |---|---|---|---|
@@ -50,7 +54,6 @@ The templates' `{{placeholders}}` are asked by `factory-init` (round 2, after th
 | `{{reference_tests}}` | api | `test/health/health.routes.test.ts` | the test files `write-api-tests` imitates: the skeleton's health route test until the project has richer ones |
 | `{{authenticated_calls}}` | api | `` `seed.user({ roles })` then `.set(authHeader(user))` `` when the application has a sign-in; empty otherwise (optional) | how a route test authenticates |
 | `{{i18n_file}}` | front | `src/shared/lib/i18n/{lang}.json` | where the translation keys live |
-| `{{styling}}` | front | `CSS Modules` | the styling approach |
-| `{{local_dependencies}}` | api | empty (optional) | what else must run locally (a third-party API, a queue…) |
+| `{{styling}}` | front | `CSS Modules` | the styling approach || `{{local_dependencies}}` | api | empty (optional) | what else must run locally (a third-party API, a queue…) |
 
 Conventions worth keeping when the templates are adapted: time through an injected `Clock`, never `new Date()` or `Date.now()` in services; booleans with the `is`/`has`/`can` prefix; one zod schema per input and output, the TypeScript types inferred from it (`z.infer`), never declared twice; errors as typed `AppError`s mapped to problem details by one middleware, never a bare `throw new Error`; no hand-edited migration; every write route's test asserts the database state.
