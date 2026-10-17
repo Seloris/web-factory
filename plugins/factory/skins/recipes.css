@@ -123,12 +123,16 @@ body {
   box-shadow: var(--shadow-control);
   transition: transform 0.12s, filter 0.12s, background-color 0.12s, color 0.12s;
 }
+/* restores the page's ring: .btn's own shadow has the same specificity and loads later */
+.btn:focus-visible { box-shadow: 0 0 0 3px var(--focus); }
 .btn:active { transform: translate(1px, 1px); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 .btn-primary { background: var(--accent); color: var(--accent-text); }
 .btn-danger { background: var(--danger); color: var(--danger-text); }
 .btn-primary:hover:not(:disabled), .btn-danger:hover:not(:disabled) { filter: brightness(1.07); }
 .btn-quiet { background: var(--surface-2); color: var(--text); }
+/* toward the text color: darker on a light skin, lighter on a dark one */
+.btn-quiet:hover:not(:disabled) { background: color-mix(in srgb, var(--surface-2), var(--text) 8%); }
 /* ghost: a row action (delete), quiet until hovered */
 .btn-ghost {
   height: auto; padding: 6px 10px;
@@ -162,12 +166,14 @@ body {
 }
 .switch input:checked { background: var(--accent); border-color: var(--control-border-on); }
 .switch input:checked::before { transform: translateX(16px); background: var(--accent-text); }
+.switch input:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ---------- list and its rows ---------- */
 
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--list-gap); border-top: var(--list-rule); }
+/* wraps: at narrow widths the tag and the row action go to a second line instead of widening the page */
 .item {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
   padding: var(--item-pad);
   background: var(--item-bg);
   border: var(--item-border);
@@ -175,7 +181,8 @@ body {
   border-radius: var(--item-radius);
   box-shadow: var(--item-shadow);
 }
-.item-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* the 120px basis keeps the text readable: the row's last items wrap before it narrows below it */
+.item-text { flex: 1 1 120px; min-width: 0; overflow-wrap: anywhere; }
 .item.is-done .item-text { color: var(--text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .empty {
   padding: 28px 16px; text-align: center; color: var(--text-muted);
@@ -202,6 +209,7 @@ body {
 }
 .check:checked { background: var(--accent); border-color: var(--control-border-on); }
 .check:checked::after { transform: translateY(-1px) rotate(45deg) scale(1); }
+.check:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ---------- badge: a tag ---------- */
 
@@ -234,7 +242,7 @@ body {
 }
 .dialog::backdrop { background: var(--scrim); }
 .dialog[open] { display: grid; gap: 8px; animation: fade 0.15s ease-out; }
-.dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.3em; font-weight: var(--title-weight); line-height: 1.2; }
+.dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.3em; font-weight: var(--title-weight); text-transform: var(--title-transform); line-height: 1.2; }
 .dialog p { margin: 0; color: var(--text-muted); }
 .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 @keyframes fade { from { opacity: 0; } }

@@ -17,6 +17,11 @@
   transition: transform 0.12s, filter 0.12s, background-color 0.12s, color 0.12s;
 }
 
+/* Restores the page's focus ring, which .btn's own shadow would replace (same specificity, loaded later). */
+.btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
 .btn:active {
   transform: translate(1px, 1px);
 }
@@ -46,6 +51,11 @@
 .quiet {
   background: var(--surface-2);
   color: var(--text);
+}
+
+/* Toward the text color: darker on a light skin, lighter on a dark one. */
+.quiet:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-2), var(--text) 8%);
 }
 
 /* A row action (delete), quiet until hovered. */

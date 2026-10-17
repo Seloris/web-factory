@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — The recipes keep the focus ring and fit a phone
+
+- **`skins/recipes.css` and the react-express skeleton's `shared/ui` components fix four gaps the sample's brutalist plan found (`shared/refactor-brutalist-skin`, its Deviations).** The sample fixed them in its own CSS Modules; the recipes still had them, so every new front inherited them. Buttons had no focus ring: the page's `:focus-visible` shadow has the same specificity as `.btn`'s own and loads first, so `.btn:focus-visible` restores it. At 360px a 30-character tag pushed a list row past the panel: `.item` now wraps, and `.item-text` keeps a 120px basis so a long name does not narrow to a column. The dialog heading ignored `--title-transform`, which brutalist's `SKIN.md` sets to uppercase. And `reference/ui-design.md` asks for hover and disabled on every control: the quiet button gets a hover (its fill mixed toward `--text`, visible on light and dark skins) and the switch a disabled state (like `.btn:disabled`); `.check:disabled`, already in the skeleton's `Checkbox`, joins the recipes. Fronts initialised earlier copy the four changes into their components.
+
 ## 2026-10-17 — The stage review is asked, not run
 
 - **The reviewer after a stage runs on request, not on every stage.** Every stage ended with a `reviewer` pass, whatever its size: a one-file stage paid the same review as a layered one, and the person wanted to choose per stage. A stage prompt now carries ` — with review` when the review is wanted (the factory board's checkbox adds it; a person can type it); without it the stage commits unreviewed and its plan's `Review` item stays `[ ]` until the final review settles it. The final review and the branch close are unchanged: nothing is closed unreviewed.

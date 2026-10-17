@@ -27,6 +27,7 @@
   font-size: 1.3em;
   font-weight: var(--title-weight);
   line-height: 1.2;
+  text-transform: var(--title-transform);
 }
 
 /* The error paragraph keeps ErrorMessage's colour. */
