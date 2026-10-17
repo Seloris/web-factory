@@ -82,10 +82,15 @@ test("readManifest: the example project", () => {
   assert.deepEqual(api.layers, ["Domain", "Application", "Api"]);
   assert.equal(api.handoff, "api/openapi.json");
   assert.equal(api.commands.build, "node scripts/echo.mjs build api");
+  assert.equal(api.commands.serve, "node scripts/echo.mjs serve api");
+  assert.equal(api.url, null, "no url: no browser test on the api stage");
+  assert.equal(api.serveUrl, "http://localhost:3000");
   assert.equal(web.kind, "front");
   assert.deepEqual(web.needs, ["api"]);
   assert.equal(web.url, "http://localhost:4200");
+  assert.equal(web.serveUrl, "http://localhost:4200", "serve_url falls back to url");
   assert.equal(web.commands.prepare, "node scripts/echo.mjs prepare web");
+  assert.equal(web.commands.serve, "node scripts/echo.mjs serve web");
   assert.equal(web.logins, ".claude/local/test-logins.md");
   assert.equal(web.skin, "modern");
   assert.equal(api.skin, null);

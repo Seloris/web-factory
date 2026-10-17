@@ -9,6 +9,7 @@ commands:
   build: npm run build
   lint: npx eslint {files}
   prepare: npx openapi-typescript {{api_handoff}} --output src/api/schema.d.ts
+  serve: npm run dev
 logins: {{logins}}
 ```
 
@@ -70,5 +71,5 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 ## Local run
 
 - Prerequisites: Node {{node_version}}, `npm ci`.
-- Run: `npm run dev` → {{url}}; the API must be running on {{api_url}}.
+- Run: `npm run dev` → {{url}}; the API must be running on {{api_url}} (`test-in-browser` starts both when they do not answer).
 - `prepare` regenerates `src/api/schema.d.ts` from the API's committed handoff file; run it at the start of every front stage.

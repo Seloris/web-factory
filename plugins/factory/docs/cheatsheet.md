@@ -15,7 +15,7 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | Review the branch | `/factory:review` |
 | Review a plan before coding | `/factory:review plan {plan folder}` |
 | Settle open decisions first | `/factory:grill-me {slug}` |
-| Click through the app locally | `/factory:test-in-browser {component} …` |
+| Click through the app locally | `/factory:test-in-browser {component} …` (starts the servers that do not answer, leaves them running) |
 
 ## Without a plan (default)
 

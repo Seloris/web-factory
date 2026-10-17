@@ -43,7 +43,7 @@ Round 2, one round per component (merge small ones):
 4. **Commands**: `build`, `test`, `lint` (with `{files}` where the changed files go), and when relevant `prepare`, `handoff` with the handoff file, `integration_tests` with `{filter}`; recommended from the pack, else from the detected tool (`dotnet build`, `npm run build`…). Leave out what the component does not have (a front with no unit tests has no `test`).
 5. **Skin** for a front: one of `${CLAUDE_PLUGIN_ROOT}/skins/`, each with its one-line look from the table of `skins/README.md` (recommended: `modern`).
 6. **Url** for a front (recommended: the one its dev server uses) and, when the application has a sign-in, the **logins** file (recommended: `.claude/local/test-logins.md`); no `logins` otherwise.
-7. **Local run**: how to start it and its dependencies, for the component's `CLAUDE.md`.
+7. **Local run**: how to start it and its dependencies, for the component's `CLAUDE.md`; for a component that runs a server, its `serve` command (recommended from the pack, with any prerequisite chained before it, else the detected dev script) and, when it has no `url`, its `serve_url` (where it answers locally), so `test-in-browser` can start it.
 8. **Pack placeholders**: when the stack has a pack, the values its `README.md` lists under `## Placeholders` that the items above did not give, each with the recommended value the pack states. An optional placeholder left empty drops its line.
 
 Stop asking when every value is known. Offer the `grill-me` skill once, in one line, for a project with many open choices; never start it unasked.

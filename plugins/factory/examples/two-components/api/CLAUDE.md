@@ -10,6 +10,8 @@ commands:
   lint: node scripts/echo.mjs lint api {files}
   handoff: node scripts/echo.mjs handoff api
   integration_tests: node scripts/echo.mjs integration api --filter "{filter}"
+  serve: node scripts/echo.mjs serve api
+serve_url: http://localhost:3000
 ```
 
 ## Conventions

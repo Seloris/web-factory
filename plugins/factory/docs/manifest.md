@@ -65,12 +65,14 @@ commands:
   handoff: npm run export-openapi            # produces the manifest's handoff file (api stage end)
   prepare: npm run generate-client           # front stage start, from the previous handoff
   integration_tests: dotnet test MyApp.IntegrationTests --filter "{filter}"   # never run unasked
-logins: .claude/local/test-logins.md         # accounts for test-in-browser (git-ignored); absent when the application has no sign-in
+  serve: dotnet run --project MyApp.Api      # starts the local server, run in the background by test-in-browser
+serve_url: http://localhost:5000             # where the server answers once started (default: the component's url)
+logins: .claude/local/test-logins.md         # accounts for test-in-browser (git-ignored)
 ```
 
 Only `kind` and `commands.build` are required. A component without `test` gets no test step; one without `lint` gets no lint step.
 
-`skin` sits in the component block, not in `factory.yaml`, so that a front keeps its look when it moves to its own repository. The skin's tokens are copied into the component by `factory-init`; the application overrides its variables in its own `overrides.css` and its rules in the `## Design` section of the component's `CLAUDE.md` (see `skins/README.md`).
+`serve` and `serve_url` let `test-in-browser` start, without asking, the servers that do not answer: the tested component's and those of the components it `needs`, in stage order, each awaited on its `serve_url` before the next starts. A server that already answers is left as it is. `serve` runs only when its server is down, so it can chain a prerequisite that needs the server stopped (`npm run db:migrate && npm run dev`). `serve_url` is separate from `url` because `url` makes a component browser-tested; any HTTP status on it counts as answering. The parser returns it as `serveUrl`, falling back to `url`.
 
 ## Stages
 

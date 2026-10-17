@@ -17,7 +17,7 @@ export const PRESETS = {
   premium: { planner: "fable", implementer: "opus", advisor: "fable", reviewer: "fable", runner: "haiku", explorer: "haiku" },
 };
 export const ROLES = Object.keys(PRESETS.standard);
-export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests"];
+export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests", "serve"];
 // The plugin's skins: one folder per skin holding its tokens.css (see skins/README.md).
 export const SKINS_DIR = fileURLToPath(new URL("../skins/", import.meta.url));
 
@@ -214,7 +214,7 @@ export const resolveModels = (spec) => {
 
 const readComponent = (root, c) => {
   const file = join(root, c.path, "CLAUDE.md");
-  const base = { name: c.name, path: c.path, handoff: c.handoff ?? null, needs: c.needs ?? [], url: c.url ?? null, file: join(c.path, "CLAUDE.md") };
+  const base = { name: c.name, path: c.path, handoff: c.handoff ?? null, needs: c.needs ?? [], url: c.url ?? null, serveUrl: c.serve_url ?? c.url ?? null, file: join(c.path, "CLAUDE.md") };
   if (!existsSync(file)) return { ...base, missingFile: true, kind: null, stack: null, skin: null, layers: [], commands: {}, logins: null };
   const block = fencedBlock(readFileSync(file, "utf8"), "component");
   if (block === null) return { ...base, missingFile: false, missingBlock: true, kind: null, stack: null, skin: null, layers: [], commands: {}, logins: null };
@@ -233,6 +233,7 @@ const readComponent = (root, c) => {
     commands,
     logins: spec.logins ?? null,
     url: c.url ?? spec.url ?? null,
+    serveUrl: c.serve_url ?? spec.serve_url ?? c.url ?? spec.url ?? null,
   };
 };
 
