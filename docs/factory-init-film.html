@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Film factory-init</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600;700&family=Geist:wght@400;600;700&family=Fraunces:ital,wght@0,400;0,600;1,400;1,500&family=Newsreader:wght@400;500&family=Outfit:wght@400;600&family=Schibsted+Grotesk:wght@400;700;800&family=Nunito:wght@400;700;800&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+*{box-sizing:border-box} body{margin:0}
+
+/* Layout: one 1600×900 stage scaled to fit, a brutalist control deck below.
+   Palette and faces = the todo-app's own "brutalist" skin (paper, ink, yellow, pink, Archivo Black, IBM Plex Mono).
+   Deliberately single-theme: the skin's light look. */
+:root{
+  --paper:#f2f0e8; --ink:#111111; --white:#ffffff; --yellow:#ffd60a; --pink:#ff90e8;
+  --red:#ff4a2e; --muted:#55524a; --sand:#e9e6da;
+  --display:'Archivo Black', Impact, 'Arial Black', sans-serif;
+  --mono:'IBM Plex Mono', ui-monospace, Consolas, 'Courier New', monospace;
+  color-scheme: light;
+}
+html,body{background:var(--paper); color:var(--ink)}
+body{font-family:var(--mono); padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); padding-block:24px 48px}
+.wrap{max-width:min(1360px, calc((100vh - 230px) * 16 / 9)); min-width:0; margin:0 auto; display:flex; flex-direction:column; gap:22px}
+@media (max-height:600px){.wrap{max-width:1360px}}
+.top{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:10px 24px}
+.top h1{margin:0; font-family:var(--display); font-weight:400; font-size:clamp(26px,4vw,40px); line-height:1; text-transform:uppercase; letter-spacing:-.01em}
+.top h1 span{background:var(--yellow); padding:0 .12em; box-shadow:4px 4px 0 var(--ink); border:2px solid var(--ink)}
+.top p{margin:0; max-width:56ch; font-size:14px; line-height:1.5; color:var(--muted)}
+
+.screen{position:relative; width:100%; aspect-ratio:16/9; max-width:100%; border:3px solid var(--ink); box-shadow:10px 10px 0 var(--ink); background:var(--paper); overflow:hidden}
+.screen:fullscreen{border:0; box-shadow:none; background:var(--ink)}
+#stage{position:absolute; left:0; top:0; width:1600px; height:900px; transform-origin:0 0; background:var(--paper); overflow:hidden; font-family:var(--mono); color:var(--ink); font-size:20px; line-height:1.35}
+#stage *{box-sizing:border-box}
+.scene{position:absolute; inset:0; opacity:0}
+.abs{position:absolute}
+.eb{position:absolute; left:70px; top:42px; display:flex; gap:12px; align-items:center; font:600 17px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase}
+.eb b{background:var(--ink); color:var(--paper); padding:7px 10px; letter-spacing:.04em}
+.h{position:absolute; left:70px; top:98px; font-family:var(--display); font-size:56px; line-height:1; text-transform:uppercase; letter-spacing:-.01em; white-space:nowrap}
+.tw{display:inline-block; overflow:hidden; white-space:pre; vertical-align:bottom}
+#stage .tw{box-sizing:content-box}
+.pill{position:absolute; left:70px; top:182px; height:54px; display:flex; align-items:center; gap:12px; padding:0 20px; background:var(--ink); color:var(--paper); font:600 22px/1 var(--mono); box-shadow:6px 6px 0 var(--yellow); white-space:nowrap}
+.pill em{font-style:normal; color:var(--yellow)}
+.card{position:absolute; background:var(--white); border:3px solid var(--ink); box-shadow:8px 8px 0 var(--ink)}
+.lbl{font:700 15px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase}
+.belt{position:absolute; left:0; width:100%; height:24px; border-block:3px solid var(--ink);
+  background-image:repeating-linear-gradient(-45deg, var(--ink) 0 14px, var(--yellow) 14px 28px); background-size:39.598px 39.598px}
+
+/* rail */
+.rail{position:absolute; right:70px; top:36px; display:flex; background:var(--white); border:3px solid var(--ink); box-shadow:4px 4px 0 var(--ink); font:600 15px/1 var(--mono); text-transform:uppercase; letter-spacing:.06em; opacity:0}
+.rail span{padding:10px 13px; border-left:3px solid var(--ink)}
+.rail span:first-child{border-left:0}
+
+/* intro */
+.big{font-family:var(--display); text-transform:uppercase; line-height:.9; letter-spacing:-.02em; white-space:nowrap}
+.big .hl{background:var(--yellow); padding:0 .06em; border:4px solid var(--ink); box-shadow:12px 12px 0 var(--ink); display:inline-block}
+.intro-sub{font-size:27px; line-height:1.45; margin:0}
+.flow{display:flex; gap:14px; align-items:center; font:700 24px/1 var(--mono); text-transform:uppercase}
+.flow span{border:3px solid var(--ink); background:var(--white); padding:12px 16px; box-shadow:5px 5px 0 var(--ink)}
+.flow span.y{background:var(--yellow)}
+.flow i{font-style:normal; font-family:var(--display)}
+.gear{position:absolute; border-radius:50%; border-style:dashed; border-color:var(--ink)}
+.gear::after{content:""; position:absolute; inset:32%; border-radius:50%; background:var(--paper); border:6px solid var(--ink)}
+
+/* plugin */
+.collab{position:absolute; font:700 16px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; display:flex; align-items:center; gap:10px}
+.collab b{font-family:var(--display); font-weight:400; font-size:34px; letter-spacing:0}
+.stack{position:absolute; display:flex; flex-direction:column; gap:10px}
+.srow{height:54px; display:flex; align-items:center; gap:16px; padding:0 16px; background:var(--white); border:3px solid var(--ink); box-shadow:4px 4px 0 var(--ink); font-size:18px; white-space:nowrap}
+.srow code{font:700 18px/1 var(--mono)}
+.srow span{color:var(--muted)}
+.acard{height:102px; padding:14px 18px; background:var(--pink); border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); display:flex; flex-direction:column; justify-content:center; gap:6px}
+.acard b{font-family:var(--display); font-weight:400; font-size:26px; line-height:1}
+.acard span{font-size:17px}
+.acard small{font-size:14px; letter-spacing:.06em; text-transform:uppercase; color:#3a2a37}
+.ecard{padding:14px 18px; background:var(--white); border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); display:flex; flex-direction:column; gap:6px}
+.ecard b{font-family:var(--display); font-weight:400; font-size:24px; line-height:1.05}
+.ecard span{font-size:16px; line-height:1.35; color:var(--muted)}
+.ecard.y{background:var(--yellow)} .ecard.y span{color:var(--ink)}
+.sw{display:flex; gap:6px; margin-top:4px}
+.sw i{width:30px; height:30px; border:3px solid var(--ink)}
+.band{position:absolute; background:var(--ink); color:var(--paper); padding:16px 24px; font-size:23px; white-space:nowrap}
+.band mark{background:var(--yellow); color:var(--ink); padding:0 6px}
+
+/* terminal */
+.term{position:absolute; background:var(--ink); color:var(--paper); border:3px solid var(--ink); box-shadow:10px 10px 0 var(--yellow); overflow:hidden}
+.term .bar{height:44px; background:var(--sand); color:var(--ink); border-bottom:3px solid var(--ink); display:flex; align-items:center; gap:9px; padding:0 14px; font:600 15px/1 var(--mono)}
+.term .bar i{width:15px; height:15px; border:3px solid var(--ink); background:var(--white)}
+.term .bar i:nth-child(1){background:var(--red)} .term .bar i:nth-child(2){background:var(--yellow)}
+.term .bar span{margin-left:10px}
+.term .body{padding:20px 24px; display:flex; flex-direction:column; gap:3px; font-size:20px; line-height:31px; white-space:pre}
+.term .ok{color:#b8f5a0}
+.term .cmd{color:var(--white)}
+.term .cmd em{font-style:normal; color:var(--yellow)}
+.term .q{color:#bdbab0}
+.term .q b{color:var(--yellow); font-weight:600}
+.term .hlc{background:var(--yellow); color:var(--ink); padding:0 6px}
+.tree{padding:20px 24px}
+.tree .lbl{margin-bottom:12px; display:block}
+.trow{display:flex; justify-content:space-between; gap:16px; font-size:19px; line-height:33px; white-space:nowrap}
+.trow span:last-child{color:var(--muted); font-size:16px}
+.trow.k span:first-child{font-weight:700}
+.yaml{padding:16px 22px; font-size:18px; line-height:28px; white-space:pre; background:var(--yellow)}
+.yaml i{font-style:normal; color:#5a4a00}
+.stamp{position:absolute; font-family:var(--display); text-transform:uppercase; border:4px solid var(--ink); padding:10px 18px; box-shadow:6px 6px 0 var(--ink); white-space:nowrap}
+
+/* fork */
+.fork-q{display:flex; align-items:center; justify-content:center; text-align:center; font:700 16px/1.35 var(--mono)}
+.bbox{padding:22px 26px; display:flex; flex-direction:column; gap:12px}
+.tag{align-self:flex-start; font:700 14px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; border:3px solid var(--ink); padding:7px 10px; background:var(--white)}
+.mini{background:var(--ink); color:var(--paper); font:600 19px/1 var(--mono); padding:12px 14px; white-space:nowrap; align-self:flex-start}
+.mini em{font-style:normal; color:var(--yellow)}
+.note{font-size:17px; color:var(--muted)}
+.blabel{position:absolute; font:700 16px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; background:var(--paper); padding:4px 8px}
+
+/* spec */
+.doc{padding:24px 30px}
+.doc .path{font-size:15px; color:var(--muted)}
+.doc .title{font-family:var(--display); font-size:34px; line-height:1.1; margin-top:8px}
+.frs{margin-top:16px; display:flex; flex-direction:column}
+.fr{font-size:17px; line-height:29px; white-space:nowrap}
+.fr b{display:inline-block; width:74px; font-weight:700}
+.brs{margin-top:14px; padding-top:12px; border-top:3px solid var(--ink); display:grid; grid-template-columns:1fr 1fr; gap:4px 22px; font-size:16px; line-height:25px}
+.brs b{font-weight:700}
+.badge{position:absolute; font:700 16px/1 var(--mono); letter-spacing:.12em; border:3px solid var(--ink); padding:9px 12px; background:var(--white)}
+.bub{position:absolute; border:3px solid var(--ink); padding:16px 20px; box-shadow:5px 5px 0 var(--ink); font-size:18px; line-height:1.45; background:var(--white)}
+.bub.p{background:var(--pink)} .bub.y{background:var(--yellow)}
+.bub code{display:block; margin-top:10px; background:var(--ink); color:var(--paper); padding:10px 12px; font-size:15px; line-height:1.45; white-space:normal}
+.bub .who{display:block; font:700 13px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; margin-bottom:8px}
+.commit{position:absolute; display:flex; align-items:center; gap:12px; font-size:18px; white-space:nowrap}
+.commit .dot{width:20px; height:20px; border-radius:50%; background:var(--ink)}
+.commit b{background:var(--ink); color:var(--yellow); padding:4px 8px; font-weight:600}
+.commit i{font-style:normal; color:var(--muted); font-size:15px; letter-spacing:.06em; text-transform:uppercase; border:2px solid var(--muted); padding:3px 7px}
+.cap{position:absolute; font-family:var(--display); text-transform:uppercase; font-size:24px; line-height:1.15}
+
+/* plan */
+.pgrid{position:absolute; inset:24px 28px; display:grid; grid-template-columns:repeat(6,1fr); grid-auto-rows:min-content; gap:14px}
+.sec{border:3px solid var(--ink); padding:12px 16px; background:var(--white)}
+.sec .lbl{display:block; margin-bottom:8px}
+.sec p{margin:0; font-size:16px; line-height:1.45}
+.sec ul{margin:0; padding:0; list-style:none; font-size:16px; line-height:1.5}
+.sec li::before{content:"■ "; font-size:11px; vertical-align:2px}
+.layers{display:flex; gap:8px}
+.layers span{border:3px solid var(--ink); padding:7px 12px; font:700 16px/1 var(--mono); background:var(--yellow)}
+.layers.p span{background:var(--pink)}
+
+/* implement */
+.station{position:absolute; top:258px; width:300px; height:132px; border:3px solid var(--ink); background:var(--white); box-shadow:6px 6px 0 var(--ink); padding:16px 18px; display:flex; flex-direction:column; gap:8px}
+.station b{font-family:var(--display); font-weight:400; font-size:25px; line-height:1}
+.station span{font-size:15px; line-height:1.4; color:var(--muted)}
+.station.opt{border-style:dashed}
+.station .n{position:absolute; right:12px; top:10px; font:700 14px/1 var(--mono)}
+.pkg{position:absolute; top:404px; left:0; width:240px; height:72px; border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); display:flex; align-items:center; justify-content:center; font-family:var(--display); font-size:22px; text-transform:uppercase}
+.sess{position:absolute; top:104px; right:70px; font-family:var(--display); font-size:22px; text-transform:uppercase; background:var(--yellow); border:3px solid var(--ink); padding:11px 16px; white-space:nowrap}
+.board{position:absolute; left:70px; top:690px; width:1460px; height:140px}
+.board .lbl{position:absolute; left:24px; top:22px}
+.board .lbl2{position:absolute; left:24px; top:48px; font-size:14px; color:var(--muted); width:170px; line-height:1.35}
+.board .line{position:absolute; left:260px; right:60px; top:43px; height:3px; background:var(--ink)}
+.node{position:absolute; top:26px; width:200px; margin-left:-100px; display:flex; flex-direction:column; align-items:center; gap:12px}
+.mk{position:relative; width:38px; height:38px}
+.mk i{position:absolute; inset:0; border-radius:50%; border:3px solid var(--ink); display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:700; font-size:20px}
+.mk .m0{background:var(--white)}
+.mk .m1{background:var(--yellow); opacity:0}
+.mk .m1::after{content:""; position:absolute; inset:-9px; border-radius:50%; border:3px dashed var(--ink)}
+.mk .m2{background:var(--ink); color:var(--yellow); opacity:0}
+.node span{font-size:15px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap}
+
+/* final */
+.vrow{display:flex; gap:16px; align-items:flex-start; font-size:19px; line-height:1.4}
+.vrow .bx{flex:none; position:relative; width:30px; height:30px; border:3px solid var(--ink); background:var(--white); margin-top:1px}
+.vrow .bx i{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:700; background:var(--yellow); opacity:0}
+.vrow b{font-weight:700}
+.vrow span{display:block; font-size:16px; color:var(--muted)}
+.gdot{position:absolute; width:30px; height:30px; margin:-15px 0 0 -15px; border-radius:50%; border:3px solid var(--ink); background:var(--yellow)}
+.glab{position:absolute; font-size:14px; line-height:1.3; text-align:center; width:110px; margin-left:-55px; white-space:nowrap}
+.glab b{display:block; font-weight:700}
+
+/* app */
+.browser{position:absolute; left:70px; top:110px; width:1000px; height:730px; background:var(--paper); border:3px solid var(--ink); box-shadow:10px 10px 0 var(--ink); overflow:hidden}
+.browser .bar{position:absolute; left:0; right:0; top:0; height:46px; background:var(--sand); border-bottom:3px solid var(--ink); display:flex; align-items:center; gap:9px; padding:0 14px}
+.browser .bar i{width:15px; height:15px; border:3px solid var(--ink); background:var(--white)}
+.browser .bar span{margin-left:14px; flex:1; height:28px; border:3px solid var(--ink); background:var(--white); font:600 14px/22px var(--mono); padding:0 10px}
+.apanel{position:absolute; left:26px; top:72px; width:948px; height:632px; background:var(--white); border:2px solid var(--ink); box-shadow:8px 8px 0 var(--ink)}
+/* inside the app, coordinates are relative to .browser */
+.ab{position:absolute}
+.atitle{font-family:var(--display); font-size:44px; line-height:1; text-transform:uppercase; letter-spacing:-.01em}
+.alabel{font:600 12px/1 var(--mono); text-transform:uppercase; letter-spacing:.06em}
+.ainput{height:44px; border:2px solid var(--ink); background:var(--white); box-shadow:3px 3px 0 var(--ink); font:400 15px/40px var(--mono); padding:0 12px; overflow:hidden; white-space:nowrap}
+.ainput .ph{color:#8a877c}
+.abtn{height:44px; border:2px solid var(--ink); background:var(--yellow); box-shadow:3px 3px 0 var(--ink); font:600 14px/40px var(--mono); text-transform:uppercase; letter-spacing:.04em; text-align:center}
+.sel::after{content:"▾"; position:absolute; right:12px; top:0}
+.switch{width:52px; height:28px; border:2px solid var(--ink); background:#e9e6da}
+.switch::after{content:""; position:absolute; left:3px; top:3px; width:18px; height:18px; background:var(--ink)}
+.arow{position:absolute; left:54px; top:342px; width:892px; height:58px; border:2px solid var(--ink); background:var(--white); box-shadow:4px 4px 0 var(--ink); display:flex; align-items:center; gap:16px; padding:0 16px; font-size:16px; white-space:nowrap}
+.arow .ck{flex:none; position:relative; width:26px; height:26px; border:2px solid var(--ink); background:var(--white)}
+.arow .ck i{position:absolute; inset:-2px; background:var(--ink); color:var(--yellow); display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:700; font-size:16px; opacity:0}
+.arow .nm{position:relative}
+.arow .nm s{position:absolute; left:0; right:0; top:50%; height:2px; background:var(--ink); transform:scaleX(0); transform-origin:0 50%}
+.abadge{font:600 12px/1 var(--mono); text-transform:uppercase; border:2px solid var(--ink); background:var(--pink); padding:5px 7px}
+.adel{margin-left:auto; width:118px; height:34px; border:2px solid var(--ink); background:var(--white); box-shadow:2px 2px 0 var(--ink); font:600 12px/30px var(--mono); text-transform:uppercase; text-align:center; letter-spacing:.04em}
+.sugg{border:2px solid var(--ink); background:var(--white); box-shadow:4px 4px 0 var(--ink); font:600 14px/1 var(--mono); padding:10px 12px; text-transform:uppercase}
+.scrim{position:absolute; left:0; top:46px; right:0; bottom:0; background:rgba(17,17,17,.38); opacity:0}
+.dlg{position:absolute; left:240px; top:273px; width:520px; height:232px; background:var(--white); border:2px solid var(--ink); box-shadow:10px 10px 0 var(--ink); padding:24px 28px; opacity:0}
+.dlg b{display:block; font-family:var(--display); font-weight:400; font-size:26px; text-transform:uppercase; line-height:1.1}
+.dlg p{margin:12px 0 0; font-size:16px; line-height:1.45}
+.dlg .acts{position:absolute; right:28px; bottom:26px; display:flex; gap:12px}
+.dlg .acts span{width:150px; height:44px; border:2px solid var(--ink); box-shadow:3px 3px 0 var(--ink); font:600 14px/40px var(--mono); text-transform:uppercase; text-align:center}
+.dlg .acts .dz{background:var(--red)}
+.callh{position:absolute; left:1110px; top:118px; width:430px; font-family:var(--display); font-size:30px; line-height:1.1; text-transform:uppercase}
+.call{position:absolute; left:1110px; width:420px; height:62px; border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); background:var(--yellow); display:flex; align-items:center; gap:14px; padding:0 16px; font-size:17px; white-space:nowrap}
+.call b{font-weight:700; background:var(--ink); color:var(--paper); padding:4px 7px}
+.techs{position:absolute; left:1110px; top:690px; width:420px; display:flex; flex-direction:column; gap:8px; font-size:16px}
+.techs div{border:3px solid var(--ink); background:var(--white); padding:9px 12px}
+.techs b{font-weight:700}
+#cur{position:absolute; left:0; top:0; width:30px; height:38px; z-index:5; filter:drop-shadow(3px 3px 0 rgba(17,17,17,.35))}
+
+/* outro */
+.cmds{display:flex; flex-wrap:wrap; gap:14px 12px; align-items:center; font:700 22px/1 var(--mono)}
+.cmds span{border:3px solid var(--ink); background:var(--white); padding:13px 16px; box-shadow:5px 5px 0 var(--ink)}
+.cmds span.y{background:var(--yellow)} .cmds span.p{background:var(--pink)}
+.cmds i{font-style:normal; font-family:var(--display); font-size:24px}
+
+/* control deck */
+.deck{display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px}
+.btn{font:700 15px/1 var(--mono); text-transform:uppercase; letter-spacing:.04em; color:var(--ink); background:var(--white); border:3px solid var(--ink); box-shadow:4px 4px 0 var(--ink); padding:11px 14px; cursor:pointer; min-height:44px}
+.btn:hover{background:var(--yellow)}
+.btn:active{transform:translate(3px,3px); box-shadow:1px 1px 0 var(--ink)}
+.btn:focus-visible{outline:3px solid var(--pink); outline-offset:3px}
+.btn.main{background:var(--yellow); min-width:120px}
+.time{font:600 15px/1 var(--mono); font-variant-numeric:tabular-nums; min-width:110px}
+.scrub{position:relative; flex:1 1 260px; min-width:0; height:44px; display:flex; align-items:center}
+.scrub input{width:100%; margin:0; appearance:none; -webkit-appearance:none; background:transparent; height:44px; cursor:pointer; position:relative; z-index:2}
+.scrub input::-webkit-slider-runnable-track{height:14px; border:3px solid var(--ink); background:linear-gradient(90deg, var(--yellow) var(--p,0%), var(--white) var(--p,0%))}
+.scrub input::-moz-range-track{height:8px; border:3px solid var(--ink); background:var(--white)}
+.scrub input::-moz-range-progress{height:8px; background:var(--yellow)}
+.scrub input::-webkit-slider-thumb{-webkit-appearance:none; width:16px; height:30px; margin-top:-11px; background:var(--ink); border:0}
+.scrub input::-moz-range-thumb{width:16px; height:30px; background:var(--ink); border:0; border-radius:0}
+.scrub input:focus-visible{outline:3px solid var(--pink); outline-offset:2px}
+.ticks{position:absolute; left:8px; right:8px; top:6px; height:6px; pointer-events:none; z-index:1}
+.ticks i{position:absolute; top:0; width:3px; height:6px; background:var(--ink)}
+.chapters{display:flex; flex-wrap:wrap; gap:10px}
+.chap{font:600 13px/1 var(--mono); text-transform:uppercase; letter-spacing:.05em; color:var(--ink); background:var(--white); border:2px solid var(--ink); padding:9px 11px; cursor:pointer; box-shadow:3px 3px 0 var(--ink)}
+.chap b{font-weight:700; margin-right:6px}
+.chap[aria-current="true"]{background:var(--yellow)}
+.chap:hover{background:var(--pink)}
+.chap:focus-visible{outline:3px solid var(--pink); outline-offset:2px}
+.foot{font-size:13px; color:var(--muted); line-height:1.5}
+
+
+/* ---- film 2 additions ---- */
+.step{position:absolute; top:214px; width:270px; height:430px; background:var(--white); border:3px solid var(--ink); box-shadow:8px 8px 0 var(--ink); padding:22px 22px; display:flex; flex-direction:column; gap:12px}
+.step .num{font-family:var(--display); font-size:76px; line-height:.9}
+.step b{font-family:var(--display); font-weight:400; font-size:27px; line-height:1.05; text-transform:uppercase}
+.step span{font-size:16px; line-height:1.5}
+.modes{position:absolute; display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:17px}
+.modes code{font:600 16px/1 var(--mono); border:3px solid var(--ink); background:var(--white); padding:9px 11px; box-shadow:3px 3px 0 var(--ink)}
+.qrow{position:absolute; left:70px; height:68px; background:var(--white); border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); display:flex; align-items:center; gap:16px; padding:0 14px 0 0; font-size:19px; white-space:nowrap}
+.qrow .n{width:62px; align-self:stretch; display:flex; align-items:center; justify-content:center; background:var(--ink); color:var(--paper); font-family:var(--display); font-size:24px}
+.qrow .ans{margin-left:auto; display:flex; gap:10px; align-items:center}
+.qrow .reco{position:relative; background:var(--yellow); border:3px solid var(--ink); padding:7px 11px; font:600 16px/1 var(--mono)}
+.qrow .reco s{position:absolute; left:6px; right:6px; top:50%; height:3px; background:var(--ink); transform:scaleX(0); transform-origin:0 50%}
+.qrow .reco.p{background:var(--pink)}
+.qrow .ok{background:var(--ink); color:var(--yellow); font:700 15px/1 var(--mono); padding:9px 10px; text-transform:uppercase}
+.qrow.sm{height:58px; font-size:17px}
+.qrow.sm .n{width:54px; font-size:21px}
+.qrow.sm .reco{font-size:15px; padding:6px 9px}
+.ptab{width:100%; border-collapse:collapse; font-size:18px}
+.ptab th,.ptab td{border-bottom:2px solid var(--ink); padding:9px 6px; text-align:left}
+.ptab th{font:700 14px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase}
+.ptab td:first-child{color:var(--muted)}
+.ptab tr.hl td{background:var(--yellow)}
+.code{font-size:17px; line-height:30px; white-space:pre}
+.code .c{color:var(--muted)}
+.code .k{font-weight:700}
+.trow2{display:grid; grid-template-columns:330px 1fr; gap:16px; font-size:17px; line-height:1.4; padding:7px 0; border-bottom:2px solid var(--sand)}
+.trow2 b{font-weight:700}
+.trow2 span{color:var(--muted)}
+.col2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+.col2 > div{border:3px solid var(--ink); background:var(--white); padding:14px 16px}
+.col2 ul{margin:8px 0 0; padding:0; list-style:none; font-size:16px; line-height:1.6}
+.col2 li::before{content:"■ "; font-size:10px; vertical-align:2px}
+.fchip{display:block; font-size:16px; line-height:1; padding:9px 0; border-bottom:2px solid var(--sand); white-space:nowrap}
+.cnode{position:absolute; left:1110px; width:420px; height:56px; border:3px solid var(--ink); background:var(--white); box-shadow:4px 4px 0 var(--ink); display:flex; align-items:center; padding:0 16px; font:600 17px/1 var(--mono)}
+.cnode.y{background:var(--yellow)} .cnode.p{background:var(--pink)}
+.clab{position:absolute; left:1130px; font-size:15px; color:var(--muted); white-space:nowrap}
+.clab b{font-family:var(--display); font-weight:400; color:var(--ink); font-size:20px; margin-right:8px}
+.layer{position:absolute; left:760px; width:770px; height:110px; border:3px solid var(--ink); box-shadow:6px 6px 0 var(--ink); padding:14px 18px; display:flex; flex-direction:column; gap:8px; background:var(--white)}
+.layer b{font-family:var(--display); font-weight:400; font-size:24px}
+.layer span{font-size:15px; color:var(--muted)}
+.layer .chips{display:flex; flex-wrap:wrap; gap:6px}
+.layer .chips i{font-style:normal; font:600 14px/1 var(--mono); border:2px solid var(--ink); padding:5px 7px; background:var(--pink)}
+.order{position:absolute; display:flex; gap:10px; align-items:center; font:600 17px/1 var(--mono)}
+.order span{border:3px solid var(--ink); background:var(--white); padding:9px 11px}
+.order span.y{background:var(--yellow)}
+.order i{font-style:normal; font-family:var(--display)}
+.slist{display:flex; flex-direction:column; gap:12px}
+.sline{display:flex; gap:12px; align-items:flex-start; font-size:16px; line-height:1.45}
+.sline i{flex:none; font-style:normal; width:28px; height:28px; border:3px solid var(--ink); display:flex; align-items:center; justify-content:center; font-weight:700; background:var(--yellow); font-size:15px}
+.sline i.no{background:var(--red)}
+.sline code{font:600 15px/1.45 var(--mono); background:var(--sand); padding:0 4px}
+
+/* skin previews: one markup, seven sets of variables */
+.pframe{position:absolute; overflow:hidden; border:3px solid var(--ink); box-shadow:10px 10px 0 var(--ink); background:var(--white)}
+.sk{position:absolute; left:0; top:0; width:900px; height:640px; overflow:hidden; background-color:var(--bg); background-image:var(--bg-image); color:var(--text); font-family:var(--font-sans); font-size:var(--font-size); line-height:1.4;
+  --border-width:1px; --panel-pad:28px; --panel-border:1px solid var(--border); --shadow-control:none; --title-size:34px; --title-weight:700; --title-tracking:-0.02em; --title-transform:none; --title-style:normal;
+  --label-size:12px; --label-weight:600; --label-transform:none; --label-tracking:0; --control-h:40px; --control-bg:var(--surface); --control-border:var(--border); --control-border-on:var(--accent);
+  --btn-border:var(--accent); --btn-weight:600; --btn-transform:none; --btn-tracking:0; --accent-text:#ffffff; --list-gap:8px; --list-rule:0 solid transparent; --item-pad:10px 14px; --item-bg:var(--surface);
+  --item-border:1px solid var(--border); --item-rule:1px solid var(--border); --item-radius:var(--radius-control); --item-shadow:none; --badge-border:0 solid transparent; --badge-radius:999px; --badge-transform:none; --badge-tracking:0;
+  --check-radius:5px; --switch-radius:999px; --font-size:15px; --bg-image:none; --blur:none; --panel-bg:var(--surface); --text-muted:#6b6b76; --accent-soft-text:var(--accent); --badge-weight:600}
+.sk .pn{position:absolute; left:150px; top:48px; width:600px; padding:var(--panel-pad); background:var(--panel-bg); border:var(--panel-border); border-radius:var(--radius); box-shadow:var(--shadow-card); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); display:flex; flex-direction:column; gap:22px}
+.sk .tt{margin:0; font-family:var(--font-display); font-size:var(--title-size); font-weight:var(--title-weight); letter-spacing:var(--title-tracking); text-transform:var(--title-transform); font-style:var(--title-style); line-height:1.02}
+.sk .fm{display:flex; gap:10px; align-items:flex-end}
+.sk .fl{flex:1; display:flex; flex-direction:column; gap:6px}
+.sk .lb{font-size:var(--label-size); font-weight:var(--label-weight); text-transform:var(--label-transform); letter-spacing:var(--label-tracking); color:var(--text-muted)}
+.sk .in{height:var(--control-h); border:var(--border-width) solid var(--control-border); background:var(--control-bg); border-radius:var(--radius-control); box-shadow:var(--shadow-control); padding:0 12px; display:flex; align-items:center; color:var(--text-muted)}
+.sk .bt{height:var(--control-h); padding:0 18px; background:var(--accent); color:var(--accent-text); border:var(--border-width) solid var(--btn-border); border-radius:var(--radius-control); box-shadow:var(--shadow-control); font-weight:var(--btn-weight); text-transform:var(--btn-transform); letter-spacing:var(--btn-tracking); display:flex; align-items:center}
+.sk .swr{display:flex; align-items:center; gap:10px}
+.sk .swt{position:relative; width:40px; height:22px; border-radius:var(--switch-radius); background:var(--accent); border:var(--border-width) solid var(--control-border-on)}
+.sk .swt::after{content:""; position:absolute; right:2px; top:50%; margin-top:-7px; width:14px; height:14px; border-radius:var(--switch-radius); background:var(--surface)}
+.sk .ls{display:flex; flex-direction:column; gap:var(--list-gap); border-top:var(--list-rule)}
+.sk .it{display:flex; align-items:center; gap:12px; padding:var(--item-pad); background:var(--item-bg); border:var(--item-border); border-bottom:var(--item-rule); border-radius:var(--item-radius); box-shadow:var(--item-shadow)}
+.sk .cb{flex:none; width:18px; height:18px; border:var(--border-width) solid var(--control-border); border-radius:var(--check-radius); background:var(--control-bg)}
+.sk .it.done .cb{background:var(--accent); border-color:var(--control-border-on)}
+.sk .it.done .nm{text-decoration:line-through; color:var(--text-muted)}
+.sk .bg{margin-left:auto; font-size:.78em; font-weight:var(--badge-weight); padding:4px 8px; background:var(--accent-soft); color:var(--accent-soft-text); border:var(--badge-border); border-radius:var(--badge-radius); text-transform:var(--badge-transform); letter-spacing:var(--badge-tracking)}
+.sk-modern{--bg:#f5f5f7; --surface:#ffffff; --border:#e3e3e8; --text:#17171c; --text-muted:#6e6e78; --accent:#4b4fd6; --accent-soft:#e7e7f8; --font-sans:'Geist', system-ui, sans-serif; --font-display:var(--font-sans); --radius:16px; --radius-control:10px; --shadow-card:0 1px 2px rgba(20,20,40,.04), 0 12px 32px -8px rgba(20,20,40,.10); --item-shadow:0 1px 2px rgba(20,20,40,.03); --title-weight:600}
+.sk-editorial{--bg:#f6f4ef; --surface:#fbfaf7; --border:#d6d0c4; --text:#1c1a16; --text-muted:#6b6458; --accent:#8c1d2c; --accent-soft:transparent; --accent-soft-text:#8c1d2c; --font-sans:'Newsreader', Georgia, serif; --font-display:'Fraunces', Georgia, serif; --radius:2px; --radius-control:0; --panel-bg:transparent; --panel-border:0 solid transparent; --panel-pad:0; --shadow-card:none; --title-size:50px; --title-weight:400; --title-style:italic; --title-tracking:-0.01em; --list-gap:0; --list-rule:2px solid #1c1a16; --item-bg:transparent; --item-border:0 solid transparent; --item-pad:12px 2px; --badge-transform:uppercase; --badge-tracking:.14em; --badge-radius:0; --label-transform:uppercase; --label-tracking:.14em; --check-radius:0; --font-size:17px; --control-h:42px; --btn-weight:500; --badge-weight:500}
+.sk-brutalist{--bg:#f2f0e8; --surface:#ffffff; --border:#111111; --text:#111111; --text-muted:#444444; --accent:#ffd60a; --accent-text:#111111; --accent-soft:#ff90e8; --accent-soft-text:#111111; --font-sans:'IBM Plex Mono', ui-monospace, monospace; --font-display:'Archivo Black', Impact, sans-serif; --radius:0; --radius-control:0; --border-width:2px; --panel-border:2px solid #111111; --shadow-card:8px 8px 0 #111111; --shadow-control:3px 3px 0 #111111; --title-size:40px; --title-weight:400; --title-transform:uppercase; --title-tracking:-0.01em; --label-transform:uppercase; --label-tracking:.06em; --control-h:44px; --control-border-on:#111111; --btn-border:#111111; --btn-weight:700; --btn-transform:uppercase; --btn-tracking:.04em; --list-gap:14px; --item-border:2px solid #111111; --item-rule:2px solid #111111; --item-shadow:4px 4px 0 #111111; --badge-border:2px solid #111111; --badge-radius:0; --badge-transform:uppercase; --check-radius:0; --switch-radius:0; --font-size:14px}
+.sk-aurora{--bg:#070b14; --bg-image:radial-gradient(55% 50% at 12% 8%, rgba(45,212,191,.32), transparent 70%), radial-gradient(45% 45% at 90% 15%, rgba(132,204,22,.18), transparent 70%), radial-gradient(60% 55% at 70% 100%, rgba(139,92,246,.28), transparent 70%); --surface:rgba(255,255,255,.07); --border:rgba(255,255,255,.13); --text:#e6edf6; --text-muted:#94a3b8; --accent:#2dd4bf; --accent-text:#042f2e; --accent-soft:rgba(45,212,191,.16); --accent-soft-text:#5eead4; --font-sans:'Outfit', system-ui, sans-serif; --font-display:var(--font-sans); --radius:20px; --radius-control:12px; --blur:blur(18px) saturate(140%); --shadow-card:0 24px 48px -20px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.14); --control-bg:rgba(255,255,255,.05); --item-bg:rgba(255,255,255,.04); --title-weight:600}
+.sk-swiss{--bg:#ffffff; --surface:#ffffff; --border:#d4d4d4; --text:#0a0a0a; --text-muted:#6b6b6b; --accent:#e3000f; --accent-soft:transparent; --accent-soft-text:#e3000f; --font-sans:'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; --font-display:var(--font-sans); --panel-bg:transparent; --panel-border:0 solid transparent; --panel-pad:0; --shadow-card:none; --radius:0; --radius-control:0; --title-size:66px; --title-weight:800; --title-tracking:-0.045em; --label-transform:uppercase; --label-tracking:.12em; --label-weight:700; --list-gap:0; --list-rule:2px solid #0a0a0a; --item-bg:transparent; --item-border:0 solid transparent; --item-pad:12px 0; --badge-transform:uppercase; --badge-tracking:.1em; --badge-radius:0; --badge-weight:700; --check-radius:0; --switch-radius:0; --control-h:42px; --btn-weight:700}
+.sk-soft{--bg:#eef6f2; --surface:#ffffff; --border:#d8e8e0; --text:#1d2e29; --text-muted:#5f7a71; --accent:#22a37c; --accent-soft:#fff0c2; --accent-soft-text:#7a5a00; --font-sans:'Nunito', ui-rounded, system-ui, sans-serif; --font-display:var(--font-sans); --radius:26px; --radius-control:16px; --control-h:48px; --shadow-card:0 18px 40px -18px rgba(29,46,41,.25); --list-gap:10px; --item-shadow:0 2px 0 #e3efe9; --item-radius:18px; --title-weight:800; --font-size:16px; --check-radius:7px; --btn-weight:700}
+.sk-pro{--bg:#f3f4f6; --surface:#ffffff; --border:#dcdfe4; --text:#1b2430; --text-muted:#667085; --accent:#1d63d8; --accent-soft:#e1eafb; --font-sans:'IBM Plex Sans', system-ui, sans-serif; --font-display:var(--font-sans); --radius:8px; --radius-control:5px; --control-h:32px; --shadow-card:0 1px 2px rgba(16,24,40,.06); --title-size:22px; --title-weight:600; --title-tracking:0; --list-gap:0; --list-rule:1px solid #dcdfe4; --item-border:0 solid transparent; --item-radius:0; --item-pad:8px 10px; --badge-radius:4px; --font-size:13px; --panel-pad:20px; --label-size:11px}
+.sk-editorial.ov{--accent:#1f6feb; --accent-soft-text:#1f6feb; --list-rule:2px solid #1f6feb}
+.pscale .sk{transform:scale(.72); transform-origin:0 0}
+.sinfo{position:absolute; left:1010px; top:196px; width:520px; display:flex; flex-direction:column; gap:14px}
+.sinfo .nm{font-family:var(--display); font-size:54px; line-height:1; text-transform:uppercase}
+.sinfo .look{font-size:19px; line-height:1.45}
+.sinfo .for{font-size:16px; color:var(--muted)}
+.sinfo .for b{color:var(--ink)}
+.sinfo .tok{display:grid; grid-template-columns:auto 1fr; gap:8px 16px; align-items:center; border:3px solid var(--ink); background:var(--white); padding:14px 16px; font-size:16px}
+.sinfo .tok span{font-weight:700}
+.sinfo .sw{display:inline-block; width:22px; height:22px; border:3px solid var(--ink); vertical-align:-5px; margin-right:8px}
+.skchips{position:absolute; left:1010px; top:722px; width:520px; display:flex; flex-wrap:wrap; gap:8px}
+.skchips span{font:600 15px/1 var(--mono); border:3px solid var(--ink); background:var(--white); padding:8px 10px; text-transform:uppercase}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1><span>factory</span>-init</h1>
+    <p>Comment un dossier vide devient un projet factory&nbsp;: l'entretien, les stack packs, le squelette, et le skin qui donne son look au front.</p>
+  </header>
+
+  <div class="screen" id="screen" aria-label="Animation : factory-init, la stack et les skins">
+    <div id="stage">
+      <div class="belt" id="belt0" style="bottom:0"></div>
+      <div class="rail" id="rail">
+        <span id="r1">étapes</span><span id="r2">entretien</span><span id="r3">stack</span><span id="r4">squelette</span><span id="r5">skin</span><span id="r6">vérif</span>
+      </div>
+
+      <!-- S1 INTRO 0–6 -->
+      <section class="scene" id="s1" style="opacity:1">
+        <div class="abs big" style="left:70px; top:120px; font-size:178px">
+          <div><span class="hl">Factory</span></div>
+          <div style="margin-top:22px">-init</div>
+        </div>
+        <p class="abs intro-sub" style="left:74px; top:520px; width:940px">Un dossier vide, un entretien, et un projet qui démarre au vert. Zoom sur le front&nbsp;: le choix de la stack et la notion de skin.</p>
+        <div class="abs flow" style="left:74px; top:690px">
+          <span id="if1">regarder</span><i id="ia1">→</i><span id="if2">interroger</span><i id="ia2">→</i><span id="if3">écrire</span><i id="ia3">→</i><span id="if4">vérifier</span><i id="ia4">→</i><span id="if5" class="y">commiter</span>
+        </div>
+        <div class="gear" id="g1" style="left:1160px; top:150px; width:330px; height:330px; border-width:36px; background:var(--yellow)"></div>
+        <div class="gear" id="g2" style="left:1320px; top:452px; width:210px; height:210px; border-width:28px; background:var(--pink)"></div>
+      </section>
+
+      <!-- S2 STEPS 6–18 -->
+      <section class="scene" id="s2">
+        <div class="eb"><b>01</b> Le déroulé</div>
+        <div class="h" id="s2h">Cinq étapes, une seule fois</div>
+        <div class="step" id="st1" style="left:70px"><span class="num">1</span><b>Regarder</b><span>Ce qui se constate ne se demande pas&nbsp;: branches git, dossiers, package.json, CLAUDE.md existants, packs disponibles.</span></div>
+        <div class="step" id="st2" style="left:366px"><span class="num">2</span><b>Interroger</b><span>Format grill-me&nbsp;: questions numérotées, chacune avec sa réponse recommandée. «&nbsp;Oui&nbsp;» l'accepte. 7 au plus par round.</span></div>
+        <div class="step" id="st3" style="left:662px"><span class="num">3</span><b>Écrire</b><span>Les templates remplis&nbsp;: factory.yaml, les CLAUDE.md, .planning/, settings, et le squelette du pack quand le dossier est vide.</span></div>
+        <div class="step" id="st4" style="left:958px"><span class="num">4</span><b>Vérifier</b><span>manifest.mjs résout le manifeste, puis build et test doivent passer avec le squelette seul.</span></div>
+        <div class="step" id="st5" style="left:1254px"><span class="num">5</span><b>Commiter</b><span>Un commit <b style="font:700 16px/1.5 var(--mono); text-transform:none">tools(tooling): factory init</b>, sur ton oui. Jamais poussé.</span></div>
+        <div class="band" id="s2b" style="left:70px; top:684px">Dossier vide&nbsp;? <mark>git init</mark> sur la branche de base, puis tout le reste.</div>
+        <div class="modes" id="s2m" style="left:70px; top:770px"><span style="font-weight:700">Projet déjà monté&nbsp;:</span><code id="md1">component {nom}</code><code id="md2">models {preset}</code><code id="md3">skin {composant} {skin}</code><code id="md4">stack {composant} {stack}</code></div>
+      </section>
+
+      <!-- S3 ROUND 1 18–30 -->
+      <section class="scene" id="s3">
+        <div class="eb"><b>02</b> Entretien · round 1</div>
+        <div class="h" id="s3h">D'abord le projet</div>
+        <div class="qrow" id="q1" style="top:196px; width:900px"><span class="n">1</span>Nom et description&nbsp;?<span class="ans"><span class="reco" id="q1r">todo-app</span><span class="ok" id="q1k">✓ oui</span></span></div>
+        <div class="qrow" id="q2" style="top:280px; width:900px"><span class="n">2</span>Branche de base&nbsp;?<span class="ans"><span class="reco" id="q2r">main</span><span class="ok" id="q2k">✓ oui</span></span></div>
+        <div class="qrow" id="q3" style="top:364px; width:900px"><span class="n">3</span>Langues&nbsp;?<span class="ans"><span class="reco" id="q3r">chat fr · repo en · appli fr</span><span class="ok" id="q3k">✓ oui</span></span></div>
+        <div class="qrow" id="q4" style="top:448px; width:900px"><span class="n">4</span>Preset de modèles&nbsp;?<span class="ans"><span class="reco" id="q4r">standard</span><span class="ok" id="q4k">✓ oui</span></span></div>
+        <div class="qrow" id="q5" style="top:532px; width:900px"><span class="n">5</span>Composants, dans l'ordre&nbsp;?<span class="ans"><span class="reco" id="q5r">api, puis web</span><span class="ok" id="q5k">✓ oui</span></span></div>
+        <div class="qrow" id="q6" style="top:616px; width:900px"><span class="n">6</span>Des comptes, une connexion&nbsp;?<span class="ans"><span class="reco" id="q6r">non</span><span class="ok" id="q6k">✓ oui</span></span></div>
+        <div class="card" id="preset" style="left:1010px; top:196px; width:520px; height:330px; padding:18px 22px">
+          <span class="lbl">les presets de modèles</span>
+          <table class="ptab" style="margin-top:12px">
+            <tr><th>rôle</th><th>standard</th><th>premium</th></tr>
+            <tr><td>planner</td><td>opus</td><td>fable</td></tr>
+            <tr><td>implementer</td><td>sonnet</td><td>opus</td></tr>
+            <tr><td>reviewer</td><td>opus</td><td>fable</td></tr>
+            <tr><td>runner</td><td>haiku</td><td>haiku</td></tr>
+          </table>
+        </div>
+        <div class="bub p" id="s3n" style="left:1010px; top:560px; width:520px">Pas de connexion&nbsp;: pas de fichier de logins de test, et les placeholders d'authentification des packs restent vides.</div>
+        <div class="band" id="s3b" style="left:70px; top:730px">Chaque question arrive avec sa réponse recommandée&nbsp;: <mark>«&nbsp;oui&nbsp;» suffit</mark>.</div>
+      </section>
+
+      <!-- S4 ROUND 2 WEB 30–44 -->
+      <section class="scene" id="s4">
+        <div class="eb"><b>03</b> Entretien · round 2</div>
+        <div class="h" id="s4h">Puis chaque composant : web</div>
+        <div class="qrow sm" id="w1" style="top:196px; width:820px"><span class="n">1</span>Chemin, kind, description&nbsp;?<span class="ans"><span class="reco" id="w1r">web · front</span><span class="ok" id="w1k">✓</span></span></div>
+        <div class="qrow sm" id="w2" style="top:264px; width:820px"><span class="n">2</span>Stack&nbsp;?<span class="ans"><span class="reco" id="w2r">react-express (pack)</span><span class="ok" id="w2k">✓</span></span></div>
+        <div class="qrow sm" id="w3" style="top:332px; width:820px"><span class="n">3</span>Layers&nbsp;?<span class="ans"><span class="reco" id="w3r">data, pages, ui</span><span class="ok" id="w3k">✓</span></span></div>
+        <div class="qrow sm" id="w4" style="top:400px; width:820px"><span class="n">4</span>Commandes&nbsp;?<span class="ans"><span class="reco" id="w4r">build · lint · prepare</span><span class="ok" id="w4k">✓</span></span></div>
+        <div class="qrow sm" id="w5" style="top:468px; width:820px"><span class="n">5</span>Skin&nbsp;?<span class="ans"><span class="reco" id="w5r">modern (recommandé)<s id="w5s"></s></span><span class="reco p" id="w5p">brutalist</span></span></div>
+        <div class="qrow sm" id="w6" style="top:536px; width:820px"><span class="n">6</span>URL&nbsp;?<span class="ans"><span class="reco" id="w6r">http://localhost:5173</span><span class="ok" id="w6k">✓</span></span></div>
+        <div class="qrow sm" id="w7" style="top:604px; width:820px"><span class="n">7</span>Lancement local&nbsp;?<span class="ans"><span class="reco" id="w7r">npm run dev</span><span class="ok" id="w7k">✓</span></span></div>
+        <div class="qrow sm" id="w8" style="top:672px; width:820px"><span class="n">8</span>Placeholders du pack&nbsp;?<span class="ans"><span class="reco" id="w8r">valeurs du pack</span><span class="ok" id="w8k">✓</span></span></div>
+        <div class="card" id="wcl" style="left:930px; top:196px; width:600px; height:432px; padding:18px 24px">
+          <span class="lbl">web/CLAUDE.md</span>
+          <div class="code" style="margin-top:12px"><div class="c">```component</div><div id="b1">kind: front</div><div id="b2">stack: react-express</div><div id="b5" style="background:var(--pink)">skin: brutalist</div><div id="b3">layers: [data, pages, ui]</div><div id="b4">commands:
+  build: npm run build
+  lint: npx eslint {files}
+  prepare: npx openapi-typescript …</div><div id="b7">  serve: npm run dev</div><div class="c">```</div></div>
+        </div>
+        <div class="card" id="wyaml" style="left:930px; top:650px; width:600px; padding:12px 20px; background:var(--yellow)"><div class="code" style="font-size:16px; line-height:26px">factory.yaml  ←  url: http://localhost:5173
+               needs: [api]</div></div>
+        <div class="abs" id="wph" style="left:930px; top:762px; width:600px; display:flex; flex-wrap:wrap; gap:8px; font:600 14px/1 var(--mono)">
+          <span class="tag">api_url :3000</span><span class="tag">node 22</span><span class="tag">i18n_file</span><span class="tag">CSS Modules</span>
+        </div>
+        <div class="cap" id="s4c" style="left:70px; top:760px; width:820px">Une réponse = une ligne du CLAUDE.md du composant.</div>
+      </section>
+
+      <!-- S5 STACK PACKS 44–58 -->
+      <section class="scene" id="s5">
+        <div class="eb"><b>04</b> Les stack packs</div>
+        <div class="h" id="s5h">La techno vit dans un pack</div>
+        <div class="card" id="tree" style="left:70px; top:196px; width:700px; height:470px; padding:18px 24px">
+          <span class="lbl">plugins/factory/stacks/react-express/</span>
+          <div style="margin-top:10px">
+            <div class="trow2" id="t1"><b>README.md</b><span>sa 1re ligne s'affiche dans l'entretien</span></div>
+            <div class="trow2" id="t2"><b>templates/api.CLAUDE.md</b><span>le CLAUDE.md pré-rempli, par kind</span></div>
+            <div class="trow2" id="t3"><b>templates/front.CLAUDE.md</b><span>idem pour le front</span></div>
+            <div class="trow2" id="t4"><b>skills/drizzle-migrations</b><span>skills de la stack, lus sur place</span></div>
+            <div class="trow2" id="t5"><b>skills/openapi-client</b><span>jamais copiés dans le projet</span></div>
+            <div class="trow2" id="t6"><b>skills/write-api-tests</b><span>&nbsp;</span></div>
+            <div class="trow2" id="t7"><b>gitignore</b><span>ajouté au .gitignore du projet</span></div>
+            <div class="trow2" id="t8" style="border-bottom:0"><b>skeleton/api · skeleton/front</b><span>le code de départ</span></div>
+          </div>
+        </div>
+        <div class="collab" id="s5l" style="left:820px; top:196px"><b>1</b> pack disponible</div>
+        <div class="card" id="rex" style="left:820px; top:244px; width:710px; height:300px; padding:18px 20px; background:var(--yellow)">
+          <div style="font-family:var(--display); font-size:30px; line-height:1">react-express</div>
+          <div style="font-size:16px; margin:6px 0 14px">TypeScript de bout en bout, Node 22</div>
+          <div class="col2">
+            <div id="rexa"><span class="lbl">api</span><ul><li>Express 5 · zod</li><li>Drizzle ORM · PostgreSQL</li><li>PGlite dans le process</li><li>Vitest + Supertest</li></ul></div>
+            <div id="rexf"><span class="lbl">front</span><ul><li>React · Vite</li><li>React Router</li><li>TanStack Query</li><li>openapi-fetch, typé</li></ul></div>
+          </div>
+        </div>
+        <div class="stamp" id="pgl" style="left:1250px; top:222px; background:var(--pink); font-size:18px; transform:rotate(4deg)">sans Docker&nbsp;: npm ci suffit</div>
+        <div class="card" id="nopack" style="left:820px; top:572px; width:710px; height:110px; padding:16px 20px; border-style:dashed; box-shadow:none">
+          <div style="font-weight:700; font-size:18px">Ta stack n'a pas de pack&nbsp;?</div>
+          <div style="font-size:16px; color:var(--muted); margin-top:6px">Réponds en texte libre (dotnet, angular…)&nbsp;: un CLAUDE.md générique, des conventions à faire grandir, et un pack plus tard.</div>
+        </div>
+        <div class="band" id="s5b" style="left:70px; top:720px">Le plugin ne connaît aucune stack&nbsp;: <mark>dotnet, angular…</mark> vivent dans stacks/ et les projets.</div>
+      </section>
+
+      <!-- S6 SKELETON 58–73 -->
+      <section class="scene" id="s6">
+        <div class="eb"><b>05</b> Le squelette</div>
+        <div class="h" id="s6h">Au vert avant la 1re feature</div>
+        <div class="card" id="skl" style="left:70px; top:196px; width:440px; height:400px; padding:16px 22px">
+          <span class="lbl">skeleton/front/</span>
+          <div style="margin-top:8px">
+            <span class="fchip" id="k1">vite.config.ts · proxy /api</span>
+            <span class="fchip" id="k2">src/main.tsx</span>
+            <span class="fchip" id="k3">src/router.tsx</span>
+            <span class="fchip" id="k4">src/api/client.ts</span>
+            <span class="fchip" id="k5">src/api/schema.d.ts · vide, valide</span>
+            <span class="fchip" id="k6">src/shared/ui/ · 16 composants</span>
+            <span class="fchip" id="k7">src/shared/ui/theme/base.css</span>
+            <span class="fchip" id="k8" style="border-bottom:0">eslint · tsconfig strict</span>
+          </div>
+        </div>
+        <div class="abs" id="sarr" style="left:514px; top:300px; width:112px; text-align:center">
+          <div style="font-family:var(--display); font-size:64px; line-height:1">→</div>
+          <div style="font-size:14px; line-height:1.35; margin-top:6px">copie, valeurs remplies</div>
+        </div>
+        <div class="card" id="skr" style="left:630px; top:196px; width:440px; height:400px; padding:16px 22px; background:var(--yellow)">
+          <span class="lbl">web/</span>
+          <div style="margin-top:8px">
+            <span class="fchip" id="j1">vite.config.ts · proxy /api</span>
+            <span class="fchip" id="j2">src/main.tsx</span>
+            <span class="fchip" id="j3">src/router.tsx</span>
+            <span class="fchip" id="j4">src/api/client.ts</span>
+            <span class="fchip" id="j5">src/api/schema.d.ts · vide, valide</span>
+            <span class="fchip" id="j6">src/shared/ui/ · 16 composants</span>
+            <span class="fchip" id="j7">src/shared/ui/theme/base.css</span>
+            <span class="fchip" id="j8" style="border-bottom:0">eslint · tsconfig strict</span>
+          </div>
+        </div>
+        <div class="term" id="sterm" style="left:70px; top:626px; width:1000px; height:200px; box-shadow:8px 8px 0 var(--pink)">
+          <div class="body" style="padding:16px 22px; font-size:19px; line-height:30px">
+            <div class="cmd"><em>› </em><span class="tw" id="x1">npm install</span></div>
+            <div class="ok" id="x1o">  ✓ versions épinglées, lock file écrit</div>
+            <div class="cmd"><em>› </em><span class="tw" id="x2">npm run build  ✓      npx eslint  ✓</span></div>
+            <div class="q" id="x2o">  pas de test unitaire côté front : test-in-browser s'en charge</div>
+          </div>
+        </div>
+        <div class="stamp" id="s6st" style="left:820px; top:756px; background:var(--yellow); font-size:24px; transform:rotate(-4deg)">au vert</div>
+        <div class="abs" id="chT" style="left:1110px; top:196px; width:420px; font-family:var(--display); font-size:24px; line-height:1.15; text-transform:uppercase">api → web,<br>typé de bout en bout</div>
+        <div class="cnode" id="cn1" style="top:290px">contrats zod · api</div>
+        <div class="clab" id="cl1" style="top:358px"><b>↓</b>handoff · export-openapi</div>
+        <div class="cnode y" id="cn2" style="top:398px">api/openapi.json</div>
+        <div class="clab" id="cl2" style="top:466px"><b>↓</b>prepare · openapi-typescript</div>
+        <div class="cnode" id="cn3" style="top:506px">web/src/api/schema.d.ts</div>
+        <div class="clab" id="cl3" style="top:574px"><b>↓</b>importé par</div>
+        <div class="cnode p" id="cn4" style="top:614px">client.ts · openapi-fetch</div>
+      </section>
+
+      <!-- S7 SKIN CONCEPT 73–89 -->
+      <section class="scene" id="s7">
+        <div class="eb"><b>06</b> Le skin</div>
+        <div class="h" id="s7h">Un skin = un fichier de variables</div>
+        <div class="card" id="tok" style="left:70px; top:196px; width:640px; height:560px; padding:18px 24px">
+          <span class="lbl">skins/brutalist/tokens.css</span>
+          <div class="code" style="margin-top:12px; font-size:16px; line-height:29px">
+<div id="c0">:root {</div><div id="c1">  --bg: #f2f0e8;                 <span class="c">couleur</span></div><div id="c2">  --accent: #ffd60a;</div><div id="c3">  --accent-soft: #ff90e8;</div><div id="c4">  --font-display: 'Archivo Black'; <span class="c">type</span></div><div id="c5">  --font-sans: 'IBM Plex Mono';</div><div id="c6">  --radius: 0;                   <span class="c">forme</span></div><div id="c7">  --border-width: 2px;</div><div id="c8">  --shadow-card: 8px 8px 0 #111; <span class="c">profondeur</span></div><div id="c9">  --list-gap: 14px;              <span class="c">liste</span></div><div id="c10">  --btn-transform: uppercase;    <span class="c">bouton</span></div><div id="c11">}</div><div id="c12">@media (prefers-color-scheme: dark) { … }</div></div>
+          <div id="c13" style="margin-top:10px; font-size:15px; color:var(--muted); line-height:1.4">La même liste de variables dans les 7 skins, vérifiée par skins.test.mjs.</div>
+        </div>
+        <div class="layer" id="L4" style="top:196px"><b>features/todos</b><span>compose les composants partagés, ne style que sa mise en page</span></div>
+        <div class="layer" id="L3" style="top:322px; background:var(--white)"><b>shared/ui</b><div class="chips"><i>Panel</i><i>Field</i><i>TextInput</i><i>Button</i><i>Switch</i><i>Checkbox</i><i>List</i><i>Badge</i><i>ConfirmDialog</i></div></div>
+        <div class="layer" id="L2" style="top:448px"><b>recipes.css</b><span>chaque élément écrit une fois, contre les variables seulement</span></div>
+        <div class="layer" id="L1" style="top:574px; background:var(--yellow)"><b>skin.css ← tokens.css</b><span style="color:var(--ink)">copié dans web/src/shared/ui/theme, jamais édité</span></div>
+        <div class="order" id="ord" style="left:760px; top:722px"><span style="border:0; background:none; padding:0">main.tsx :</span><span>fonts.ts</span><i>→</i><span class="y">skin.css</span><i>→</i><span>base.css</span><i>→</i><span>overrides.css</span></div>
+        <div class="band" id="s7b" style="left:70px; top:796px; font-size:21px; padding:12px 20px">Une couleur, un rayon ou une police en dur dans un composant&nbsp;: <mark>finding du reviewer</mark>.</div>
+      </section>
+
+      <!-- S8 SEVEN SKINS 89–108.6 -->
+      <section class="scene" id="s8">
+        <div class="eb"><b>07</b> Les 7 skins</div>
+        <div class="h" id="s8h">Même code, sept looks</div>
+        <div class="pframe" id="pf8" style="left:70px; top:186px; width:900px; height:640px">
+          <div id="pv-modern"></div><div id="pv-editorial"></div><div id="pv-brutalist"></div><div id="pv-aurora"></div><div id="pv-swiss"></div><div id="pv-soft"></div><div id="pv-pro"></div>
+        </div>
+        <div id="infos"></div>
+        <div class="skchips" id="skchips"></div>
+      </section>
+
+      <!-- S9 SWITCH + OVERRIDE 109–124 -->
+      <section class="scene" id="s9">
+        <div class="eb"><b>08</b> Changer de look</div>
+        <div class="h" id="s9h">Changer de skin en une commande</div>
+        <div class="pill" id="s9p"><em>›</em><span class="tw" id="s9t">/factory:factory-init skin web editorial</span></div>
+        <div class="card" id="s9c" style="left:70px; top:270px; width:760px; height:500px; padding:20px 24px">
+          <div class="slist">
+            <div class="sline" id="z1"><i>✓</i><span><code>skin: editorial</code> dans le bloc component</span></div>
+            <div class="sline" id="z2"><i>✓</i><span><code>tokens.css</code> recopié sur <code>src/shared/ui/theme/skin.css</code></span></div>
+            <div class="sline" id="z3"><i>✓</i><span><code>npm uninstall @fontsource/archivo-black @fontsource/ibm-plex-mono</code></span></div>
+            <div class="sline" id="z4"><i>✓</i><span><code>npm install --save-exact @fontsource/fraunces@5.3.0 @fontsource/newsreader@5.3.0</code></span></div>
+            <div class="sline" id="z5"><i>✓</i><span><code>fonts.ts</code> réécrit avec les imports du skin</span></div>
+            <div class="sline" id="z6"><i class="no">✕</i><span>jamais le code de l'appli&nbsp;: câbler un thème dans un front existant, c'est un plan</span></div>
+            <div class="sline" id="z7"><i>✓</i><span>build, puis le commit <code>tools(tooling): web skin editorial</code></span></div>
+          </div>
+        </div>
+        <div class="pframe pscale" id="pf9" style="left:880px; top:270px; width:650px; height:430px">
+          <div id="pv9a"></div><div id="pv9b"></div><div id="pv9c"></div>
+        </div>
+        <div class="card" id="ovr" style="left:880px; top:724px; width:650px; padding:12px 20px; background:var(--yellow)">
+          <div class="code" style="font-size:16px; line-height:26px"><span class="c">/* src/shared/ui/theme/overrides.css */</span>
+<span class="tw" id="ovt">:root { --accent: #1f6feb; }</span></div>
+        </div>
+        <div class="abs" id="s9cap" style="left:70px; top:792px; width:780px; font-size:19px; line-height:1.4">Tes variables&nbsp;: <b>overrides.css</b>. Tes règles&nbsp;: la section <b>## Design</b> de web/CLAUDE.md, qui gagne sur le skin.</div>
+      </section>
+
+      <!-- S10 VERIFY + COMMIT 124–134 -->
+      <section class="scene" id="s10">
+        <div class="eb"><b>09</b> Vérifier, commiter</div>
+        <div class="h" id="s10h">Manifeste résolu, puis le commit</div>
+        <div class="term" id="vterm" style="left:70px; top:196px; width:880px; height:370px">
+          <div class="bar"><i></i><i></i><i></i><span>claude · samples/todo-app</span></div>
+          <div class="body" style="font-size:19px; line-height:30px">
+            <div class="cmd"><em>› </em><span class="tw" id="v1">node scripts/manifest.mjs</span></div>
+            <div class="q" id="v2">  todo-app · base <b>main</b> · preset <b>standard</b></div>
+            <div class="q" id="v3">  stage 1  <b>api</b>   build · test · lint · handoff</div>
+            <div class="q" id="v4">  stage 2  <b>web</b>   prepare · build · lint · needs [api]</div>
+            <div class="cmd" id="v5"><em>› </em>api  npm run build <span class="ok">✓</span>  npx vitest run <span class="ok">✓</span></div>
+            <div class="cmd" id="v6"><em>› </em>web  npm run build <span class="ok">✓</span></div>
+          </div>
+        </div>
+        <div class="lbl abs" id="nxl" style="left:70px; top:604px">ensuite, au choix&nbsp;:</div>
+        <span class="mini abs" id="nx1" style="left:70px; top:636px"><em>› </em>/factory:write-spec {première feature}</span>
+        <span class="mini abs" id="nx2" style="left:70px; top:700px"><em>› </em>/factory:implement {un petit changement pour tester la boucle}</span>
+        <div class="bub" id="vb" style="left:1000px; top:196px; width:530px"><span class="who">Claude</span>Tout est écrit et au vert. Je commite avec ce message&nbsp;:<code>tools(tooling): factory init<br><br>factory.yaml, CLAUDE.md, api/ and web/ (skeletons, lock files), .planning/, .claude/, docs/CONTRIBUTING.md</code></div>
+        <div class="bub y" id="vy" style="left:1410px; top:500px; width:120px; text-align:center; font-weight:700"><span class="who">toi</span>oui</div>
+        <div class="commit" id="vc" style="left:990px; top:600px; font-size:16px"><span class="dot"></span><b>7d2bffb</b>tools(tooling): factory init<i>non poussé</i></div>
+      </section>
+
+      <!-- S11 OUTRO 134–142 -->
+      <section class="scene" id="s11">
+        <div class="abs big" id="o1" style="left:70px; top:110px; font-size:132px">
+          <div><span class="hl">Factory</span></div>
+          <div style="margin-top:16px">-init</div>
+        </div>
+        <div class="abs cmds" id="ocmds" style="left:74px; top:480px; width:1460px">
+          <span id="oc1">1 entretien</span><i>+</i><span id="oc2" class="y">1 stack pack</span><i>+</i><span id="oc3" class="p">7 skins</span><i>=</i><span id="oc4">un projet au vert, avec son look</span>
+        </div>
+        <div class="abs" id="o2" style="left:74px; top:620px; font-family:var(--display); font-size:36px; line-height:1.2; text-transform:uppercase; width:1200px">Tu réponds aux questions. Le front démarre avec sa stack, ses composants et son skin.</div>
+        <div class="abs" id="o3" style="left:74px; top:780px; font-size:18px; color:var(--muted)">plugins/factory/skills/factory-init · stacks/react-express · skins/</div>
+        <div class="gear" id="g3" style="left:1250px; top:96px; width:250px; height:250px; border-width:30px; background:var(--yellow)"></div>
+        <div class="gear" id="g4" style="left:1404px; top:296px; width:146px; height:146px; border-width:22px; background:var(--pink)"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="deck">
+    <button class="btn main" id="play" type="button">▶ Lecture</button>
+    <button class="btn" id="restart" type="button">↺ Début</button>
+    <span class="time" id="time">00:00 / 02:22</span>
+    <div class="scrub">
+      <div class="ticks" id="ticks"></div>
+      <input type="range" id="scrub" min="0" max="142" step="0.05" value="0" aria-label="Position dans le film">
+    </div>
+    <button class="btn" id="speed" type="button" aria-label="Vitesse">1×</button>
+    <button class="btn" id="fs" type="button">⛶ Plein écran</button>
+  </div>
+  <nav class="chapters" id="chapters" aria-label="Chapitres"></nav>
+  <p class="foot">Espace&nbsp;: lecture / pause · ← →&nbsp;: 5 secondes · les chapitres sautent directement à une étape.</p>
+</div>
+
+<script>
+(() => {
+  const TOTAL = 142;
+  const EASE = 'cubic-bezier(.2,.8,.2,1)';
+  const POP = 'cubic-bezier(.34,1.56,.64,1)';
+  const Y = '#ffd60a', W = '#ffffff', P = '#ff90e8';
+  const $ = s => typeof s === 'string' ? document.getElementById(s) : s;
+
+  // ---------- skin previews (built first, so they can be animated) ----------
+  const SKINS = [
+    { id: 'modern', look: 'Surfaces blanches, ombres douces, beaucoup d’air, un accent indigo.', for: 'la plupart des applis', fonts: 'Geist', accent: '#4b4fd6', radius: '16px', ctl: '40px', list: 'cartes' },
+    { id: 'editorial', look: 'Papier et encre : titre serif italique, filets au lieu de cartes, pas d’ombre, accent lie-de-vin.', for: 'contenu, outils de lecture', fonts: 'Fraunces + Newsreader', accent: '#8c1d2c', radius: '2px', ctl: '42px', list: 'lignes réglées' },
+    { id: 'brutalist', look: 'Bordures noires 2px, ombres décalées pleines, jaune et rose saturés, angles droits, texte mono.', for: 'projets perso, outils internes qui l’assument', fonts: 'Archivo Black + IBM Plex Mono', accent: '#ffd60a', radius: '0', ctl: '44px', list: 'cartes' },
+    { id: 'aurora', look: 'Fond lumineux en dégradé, surfaces translucides floutées, accent menthe. Pensé sombre d’abord.', for: 'dashboards, applis créatives', fonts: 'Outfit', accent: '#2dd4bf', radius: '20px', ctl: '40px', list: 'cartes' },
+    { id: 'swiss', look: 'Noir, blanc et un rouge : grand titre serré, labels en capitales espacées, grille stricte, pas de cartes.', for: 'portfolios, sites vitrines, outils sobres', fonts: 'Schibsted Grotesk', accent: '#e3000f', radius: '0', ctl: '42px', list: 'lignes réglées' },
+    { id: 'soft', look: 'Arrondi, pastel, grandes cibles tactiles (48px), chaleureux.', for: 'applis grand public et mobiles', fonts: 'Nunito', accent: '#22a37c', radius: '26px', ctl: '48px', list: 'cartes' },
+    { id: 'pro', look: 'Dense et neutre : contrôles de 32px, lignes au lieu de cartes, petit titre.', for: 'back-offices, tableaux de données', fonts: 'IBM Plex Sans', accent: '#1d63d8', radius: '8px', ctl: '32px', list: 'lignes réglées' }
+  ];
+  const mini = (skin, extra = '') => `<div class="sk sk-${skin} ${extra}"><div class="pn">
+      <h3 class="tt">Mes tâches</h3>
+      <div class="fm"><div class="fl"><span class="lb">Nom</span><div class="in">Nom de la tâche</div></div><div class="bt">Ajouter</div></div>
+      <div class="swr"><span class="swt"></span>Non terminées d’abord</div>
+      <div class="ls">
+        <div class="it"><span class="cb"></span><span class="nm">Préparer la démo</span><span class="bg">factory</span></div>
+        <div class="it"><span class="cb"></span><span class="nm">Acheter du pain</span><span class="bg">courses</span></div>
+        <div class="it done"><span class="cb"></span><span class="nm">Appeler le plombier</span><span class="bg">maison</span></div>
+      </div></div></div>`;
+  SKINS.forEach(s => {
+    const host = $('pv-' + s.id); host.outerHTML = mini(s.id).replace('<div class="sk', `<div id="pv-${s.id}" class="sk`);
+  });
+  const infos = $('infos'), chips = $('skchips');
+  SKINS.forEach(s => {
+    const d = document.createElement('div'); d.className = 'sinfo'; d.id = 'in-' + s.id;
+    d.innerHTML = `<div class="nm">${s.id}</div><div class="look">${s.look}</div><div class="for">Pour&nbsp;: <b>${s.for}</b></div>
+      <div class="tok"><span>--accent</span><div><i class="sw" style="background:${s.accent}"></i>${s.id === 'aurora' ? 'menthe' : s.accent}</div>
+      <span>--radius</span><div>${s.radius}</div><span>--control-h</span><div>${s.ctl}</div><span>polices</span><div>${s.fonts}</div><span>liste</span><div>${s.list}</div></div>`;
+    infos.appendChild(d);
+    const c = document.createElement('span'); c.id = 'ch-' + s.id; c.textContent = s.id; chips.appendChild(c);
+  });
+  $('pv9a').outerHTML = mini('brutalist').replace('<div class="sk', '<div id="pv9a" class="sk');
+  $('pv9b').outerHTML = mini('editorial').replace('<div class="sk', '<div id="pv9b" class="sk');
+  $('pv9c').outerHTML = mini('editorial', 'ov').replace('<div class="sk', '<div id="pv9c" class="sk');
+
+  // ---------- timeline engine ----------
+  const tracks = new Map();
+  const tr = el => { if (!tracks.has(el)) tracks.set(el, { init: {}, steps: [] }); return tracks.get(el); };
+  const init = (el, styles) => { el = $(el); if (!el) { console.warn('missing', el); return; } Object.assign(tr(el).init, styles); };
+  const at = (el, t, styles, d = .45, ease = EASE) => { el = $(el); if (!el) { console.warn('missing', el); return; } tr(el).steps.push({ t, styles, d, ease }); };
+  const inn = (el, t, { from = 'translateY(22px)', to = 'none', d = .45, ease = EASE } = {}) => { init(el, { opacity: 0, transform: from }); at(el, t, { opacity: 1, transform: to }, d, ease); };
+  const pop = (el, t, to = 'none', from = 'scale(.6)') => inn(el, t, { from, to, d: .5, ease: POP });
+  const out = (el, t, d = .35) => at(el, t, { opacity: 0 }, d);
+  const type = (el, t, cps = .035) => { el = $(el); const n = [...el.textContent].length; init(el, { width: '0ch' }); at(el, t, { width: n + 'ch' }, Math.max(.05, n * cps), `steps(${n}, end)`); return t + n * cps; };
+  const scene = (id, a, b) => { init(id, { opacity: 0, transform: 'translateY(16px)' }); at(id, a, { opacity: 1, transform: 'translateY(0px)' }, .5); at(id, b, { opacity: 0, transform: 'translateY(-14px)' }, .4); };
+  const bg = (el, t, color, d = .25) => at(el, t, { backgroundColor: color }, d);
+  const fadeIn = (el, t, d = .4) => { init(el, { opacity: 0 }); at(el, t, { opacity: 1 }, d); };
+
+  // S1 intro
+  init('s1', { opacity: 1, transform: 'translateY(0px)' });
+  at('s1', 5.6, { opacity: 0, transform: 'translateY(-14px)' }, .4);
+  ['if1','ia1','if2','ia2','if3','ia3','if4','ia4','if5'].forEach((id, i) => inn(id, .9 + i * .2, { from: 'translateY(18px)' }));
+
+  // rail
+  init('rail', { opacity: 0, transform: 'translateY(-10px)' });
+  at('rail', 6.2, { opacity: 1, transform: 'none' }); at('rail', 133.6, { opacity: 0 });
+  [['r1',6,18],['r2',18,44],['r3',44,58],['r4',58,73],['r5',73,124],['r6',124,134]].forEach(([id,a,b]) => {
+    init(id, { backgroundColor: 'rgba(255,214,10,0)' });
+    at(id, a + .3, { backgroundColor: Y }, .3); at(id, b - .3, { backgroundColor: 'rgba(255,214,10,0)' }, .3);
+  });
+
+  // S2 steps 6–18
+  scene('s2', 6, 17.6);
+  inn('s2h', 6.2);
+  for (let i = 1; i <= 5; i++) { pop('st' + i, 6.7 + (i - 1) * .35); init('st' + i, { backgroundColor: W }); bg('st' + i, 9.2 + (i - 1) * 1.2, Y); bg('st' + i, 10.3 + (i - 1) * 1.2, W); }
+  inn('s2b', 15.2, { from: 'translateY(30px)' });
+  inn('s2m', 15.8, { from: 'translateY(20px)' });
+  for (let i = 1; i <= 4; i++) pop('md' + i, 16.1 + i * .2);
+
+  // S3 round 1 18–30
+  scene('s3', 18, 29.6);
+  inn('s3h', 18.2);
+  for (let i = 1; i <= 6; i++) {
+    const t = 18.7 + (i - 1) * 1.45;
+    inn('q' + i, t, { from: 'translateX(-30px)' });
+    pop('q' + i + 'r', t + .45); pop('q' + i + 'k', t + .95);
+  }
+  pop('preset', 23.6);
+  inn('s3n', 26.6, { from: 'translateX(30px)' });
+  inn('s3b', 27.6, { from: 'translateY(30px)' });
+
+  // S4 round 2 web 30–44
+  scene('s4', 30, 43.6);
+  inn('s4h', 30.2);
+  inn('wcl', 30.5, { from: 'translateX(30px)' });
+  const blk = { 1: ['b1'], 2: ['b2'], 3: ['b3'], 4: ['b4'], 5: ['b5'], 7: ['b7'] };
+  for (let i = 1; i <= 8; i++) {
+    const t = 30.8 + (i - 1) * 1.35 + (i > 5 ? .6 : 0);
+    inn('w' + i, t, { from: 'translateX(-30px)' });
+    pop('w' + i + 'r', t + .4);
+    if (i !== 5) pop('w' + i + 'k', t + .85);
+    (blk[i] || []).forEach(b => inn(b, t + .7, { from: 'translateX(-14px)', d: .35 }));
+    if (i === 5) {
+      init('w5s', { transform: 'scaleX(0)' }); at('w5s', t + 1.0, { transform: 'scaleX(1)' }, .25);
+      at('w5r', t + 1.1, { opacity: .45 }, .25);
+      pop('w5p', t + 1.2);
+      inn('b5', t + 1.4, { from: 'translateX(-14px)', d: .35 });
+    }
+    if (i === 6) pop('wyaml', t + .7);
+    if (i === 8) inn('wph', t + .7, { from: 'translateY(12px)' });
+  }
+  inn('s4c', 42.0);
+
+  // S5 stack packs 44–58
+  scene('s5', 44, 57.6);
+  inn('s5h', 44.2);
+  inn('tree', 44.6, { from: 'translateY(30px)' });
+  for (let i = 1; i <= 8; i++) inn('t' + i, 45.0 + (i - 1) * .38, { from: 'translateX(-14px)', d: .3 });
+  inn('s5l', 48.2);
+  pop('rex', 48.6);
+  inn('rexa', 49.1, { from: 'translateY(14px)' }); inn('rexf', 49.5, { from: 'translateY(14px)' });
+  pop('pgl', 50.6, 'rotate(4deg)', 'rotate(4deg) scale(1.8)');
+  inn('nopack', 51.8, { from: 'translateY(20px)' });
+  inn('s5b', 53.6, { from: 'translateY(30px)' });
+
+  // S6 skeleton 58–73
+  scene('s6', 58, 72.6);
+  inn('s6h', 58.2);
+  inn('skl', 58.6, { from: 'translateY(30px)' });
+  for (let i = 1; i <= 8; i++) inn('k' + i, 59.0 + (i - 1) * .2, { from: 'translateX(-10px)', d: .25 });
+  inn('sarr', 61.0, { from: 'translateX(-20px)' });
+  inn('skr', 61.2, { from: 'translateY(30px)' });
+  for (let i = 1; i <= 8; i++) inn('j' + i, 61.7 + (i - 1) * .3, { from: 'translateX(-560px)', d: .5, ease: 'cubic-bezier(.5,0,.2,1)' });
+  inn('sterm', 64.4, { from: 'translateY(30px)' });
+  let e = type('x1', 64.8, .05); fadeIn('x1o', e + .5, .2);
+  e = type('x2', e + 1.0, .03); fadeIn('x2o', e + .4, .2);
+  inn('chT', 65.6);
+  inn('cn1', 66.2, { from: 'translateY(-12px)' }); inn('cl1', 66.8, { from: 'translateY(-8px)' });
+  inn('cn2', 67.3, { from: 'translateY(-12px)' }); inn('cl2', 67.9, { from: 'translateY(-8px)' });
+  inn('cn3', 68.4, { from: 'translateY(-12px)' }); inn('cl3', 69.0, { from: 'translateY(-8px)' });
+  inn('cn4', 69.5, { from: 'translateY(-12px)' });
+  pop('s6st', 70.4, 'rotate(-4deg)', 'rotate(-4deg) scale(2)');
+
+  // S7 skin concept 73–89
+  scene('s7', 73, 88.6);
+  inn('s7h', 73.2);
+  inn('tok', 73.6, { from: 'translateY(30px)' });
+  for (let i = 0; i <= 13; i++) inn('c' + i, 74.0 + i * .26, { from: 'translateX(-10px)', d: .25 });
+  inn('L1', 77.8, { from: 'translateY(40px)' }); inn('L2', 78.6, { from: 'translateY(40px)' });
+  inn('L3', 79.4, { from: 'translateY(40px)' }); inn('L4', 80.2, { from: 'translateY(40px)' });
+  inn('ord', 81.8, { from: 'translateX(-20px)' });
+  inn('s7b', 84.0, { from: 'translateY(30px)' });
+
+  // S8 seven skins 89–108.6
+  scene('s8', 89, 108.6);
+  inn('s8h', 89.2);
+  inn('pf8', 89.4, { from: 'translateY(30px)' });
+  inn('skchips', 89.6, { from: 'translateY(16px)' });
+  SKINS.forEach((s, i) => {
+    const t = 90.0 + i * 2.6;
+    init('pv-' + s.id, { opacity: 0 }); at('pv-' + s.id, t, { opacity: 1 }, .35);
+    init('in-' + s.id, { opacity: 0, transform: 'translateY(14px)' }); at('in-' + s.id, t, { opacity: 1, transform: 'none' }, .4);
+    init('ch-' + s.id, { backgroundColor: W }); bg('ch-' + s.id, t, Y, .2);
+    if (i < SKINS.length - 1) { at('pv-' + s.id, t + 2.6, { opacity: 0 }, .35); at('in-' + s.id, t + 2.6, { opacity: 0, transform: 'translateY(-10px)' }, .3); bg('ch-' + s.id, t + 2.6, W, .2); }
+  });
+
+  // S9 switch + override 109–124
+  scene('s9', 109, 123.6);
+  inn('s9h', 109.2);
+  inn('s9p', 109.4, { from: 'translateX(-20px)' }); type('s9t', 109.6, .03);
+  inn('s9c', 111.0, { from: 'translateY(30px)' });
+  for (let i = 1; i <= 7; i++) inn('z' + i, 111.4 + (i - 1) * .6, { from: 'translateX(-12px)', d: .3 });
+  inn('pf9', 111.2, { from: 'translateY(30px)' });
+  init('pv9b', { opacity: 0 }); at('pv9b', 112.2, { opacity: 1 }, .6);
+  init('pv9c', { opacity: 0 });
+  inn('ovr', 116.2, { from: 'translateY(20px)' }); type('ovt', 116.6, .03);
+  at('pv9c', 117.8, { opacity: 1 }, .6);
+  inn('s9cap', 118.8, { from: 'translateY(16px)' });
+
+  // S10 verify + commit 124–134
+  scene('s10', 124, 133.6);
+  inn('s10h', 124.2);
+  inn('vterm', 124.4, { from: 'translateY(30px)' });
+  e = type('v1', 124.8, .04);
+  for (let i = 2; i <= 6; i++) fadeIn('v' + i, e + .3 + (i - 2) * .45, .2);
+  pop('vb', 128.0);
+  pop('vy', 129.6);
+  inn('vc', 130.2, { from: 'translateX(-14px)' });
+  inn('nxl', 130.8); inn('nx1', 131.1, { from: 'translateX(-14px)' }); inn('nx2', 131.5, { from: 'translateX(-14px)' });
+
+  // S11 outro 134–142
+  scene('s11', 134, 999);
+  inn('o1', 134.3, { from: 'translateY(30px)' });
+  for (let i = 1; i <= 4; i++) pop('oc' + i, 135.0 + (i - 1) * .35);
+  inn('o2', 137.0); inn('o3', 137.8);
+
+  // ---------- build ----------
+  const anims = [], loops = [];
+  for (const [el, { init: ini, steps }] of tracks) {
+    steps.sort((a, b) => a.t - b.t);
+    const props = new Set([...Object.keys(ini), ...steps.flatMap(s => Object.keys(s.styles))]);
+    const cs = getComputedStyle(el);
+    let state = {};
+    for (const p of props) state[p] = p in ini ? ini[p] : cs[p];
+    const frames = [{ offset: 0, ...state, easing: 'linear' }];
+    let last = 0;
+    for (const s of steps) {
+      const o0 = Math.min(1, Math.max(last, s.t / TOTAL));
+      const o1 = Math.min(1, Math.max(o0, (s.t + s.d) / TOTAL));
+      frames.push({ offset: o0, ...state, easing: s.ease });
+      state = { ...state, ...s.styles };
+      frames.push({ offset: o1, ...state, easing: 'linear' });
+      last = o1;
+    }
+    frames.push({ offset: 1, ...state });
+    try { const a = el.animate(frames, { duration: TOTAL * 1000, fill: 'both' }); a.pause(); anims.push(a); }
+    catch (err) { console.warn('anim failed', el.id, err); }
+  }
+  const loop = (el, frames, dur) => { el = $(el); if (!el) return; const a = el.animate(frames, { duration: dur * 1000, iterations: Infinity }); a.pause(); loops.push(a); };
+  loop('belt0', [{ backgroundPosition: '0px 0px' }, { backgroundPosition: '39.598px 0px' }], 1.1);
+  loop('g1', [{ rotate: '0deg' }, { rotate: '360deg' }], 12);
+  loop('g2', [{ rotate: '0deg' }, { rotate: '-360deg' }], 7.6);
+  loop('g3', [{ rotate: '0deg' }, { rotate: '360deg' }], 12);
+  loop('g4', [{ rotate: '0deg' }, { rotate: '-360deg' }], 7.3);
+
+  // ---------- player ----------
+  const CHAPS = [[0,'Intro'],[6,'Le déroulé'],[18,'Round 1'],[30,'Round 2 : web'],[44,'Stack packs'],[58,'Squelette'],[73,'Le skin'],[89,'Les 7 skins'],[109,'Changer de look'],[124,'Vérif & commit'],[134,'Fin']];
+  const screen = $('screen'), stage = $('stage');
+  const playBtn = $('play'), scrub = $('scrub'), timeEl = $('time'), speedBtn = $('speed');
+  let t = 0, playing = false, speed = 1, lastTs = null;
+  const fmt = s => { s = Math.max(0, Math.floor(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+  const nav = $('chapters'), ticks = $('ticks');
+  const chapBtns = CHAPS.map(([s, name], i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chap';
+    b.innerHTML = `<b>${String(i).padStart(2, '0')}</b>${name}`;
+    b.addEventListener('click', () => { seek(s + .01); if (!playing) play(); });
+    nav.appendChild(b);
+    if (i > 0) { const k = document.createElement('i'); k.style.left = (s / TOTAL * 100) + '%'; ticks.appendChild(k); }
+    return b;
+  });
+  function render() {
+    const ms = t * 1000;
+    for (const a of anims) a.currentTime = ms;
+    for (const a of loops) a.currentTime = ms;
+    scrub.value = t.toFixed(2);
+    scrub.style.setProperty('--p', (t / TOTAL * 100) + '%');
+    timeEl.textContent = fmt(t) + ' / ' + fmt(TOTAL);
+    let ci = 0; CHAPS.forEach(([s], i) => { if (t >= s) ci = i; });
+    chapBtns.forEach((b, i) => b.setAttribute('aria-current', i === ci ? 'true' : 'false'));
+  }
+  function setBtn() { playBtn.textContent = playing ? '❚❚ Pause' : (t >= TOTAL ? '↻ Rejouer' : '▶ Lecture'); }
+  function play() { if (t >= TOTAL) t = 0; playing = true; lastTs = null; setBtn(); }
+  function pause() { playing = false; setBtn(); }
+  function seek(s) { t = Math.min(TOTAL, Math.max(0, s)); render(); setBtn(); }
+  function tick(ts) {
+    if (playing) {
+      if (lastTs != null) { t += (ts - lastTs) / 1000 * speed; if (t >= TOTAL) { t = TOTAL; playing = false; setBtn(); } }
+      lastTs = ts; render();
+    } else lastTs = null;
+    requestAnimationFrame(tick);
+  }
+  playBtn.addEventListener('click', () => playing ? pause() : play());
+  $('restart').addEventListener('click', () => { seek(0); play(); });
+  scrub.addEventListener('input', () => { seek(parseFloat(scrub.value)); });
+  const SPEEDS = [1, 1.5, 2, .5];
+  speedBtn.addEventListener('click', () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; speedBtn.textContent = speed + '×'; });
+  $('fs').addEventListener('click', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await screen.requestFullscreen(); } catch (_) {} });
+  document.addEventListener('keydown', ev => {
+    const tag = (ev.target && ev.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'TEXTAREA') return;
+    if (ev.code === 'Space') { ev.preventDefault(); playing ? pause() : play(); }
+    else if (ev.key === 'ArrowRight') seek(t + 5);
+    else if (ev.key === 'ArrowLeft') seek(t - 5);
+  });
+  screen.addEventListener('click', () => playing ? pause() : play());
+  function fit() {
+    const w = screen.clientWidth, h = screen.clientHeight;
+    const s = Math.min(w / 1600, h / 900);
+    stage.style.transform = `translate(${(w - 1600 * s) / 2}px, ${(h - 900 * s) / 2}px) scale(${s})`;
+  }
+  new ResizeObserver(fit).observe(screen); fit();
+  render(); setBtn();
+  requestAnimationFrame(tick);
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => { if (!reduce) play(); }, 400));
+})();
+</script>
+</body>
+</html>
