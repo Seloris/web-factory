@@ -211,7 +211,12 @@ const GREY = '#8b8b8b'
 
 const MARKER_SVG: Record<Marker, string> = {
   done: `<circle cx="9" cy="9" r="8" fill="${GREEN}"/><path d="M5.3 9.4l2.4 2.4 5-5.1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
-  running: `<circle cx="9" cy="9" r="7" fill="none" stroke="${ORANGE}" stroke-width="2"/><circle cx="9" cy="9" r="3.5" fill="${ORANGE}"/>`,
+  // A faint ring, an arc turning on it (SMIL: plays only in an `isInteractive` Svg), the dot.
+  running:
+    `<circle cx="9" cy="9" r="7" fill="none" stroke="${ORANGE}" stroke-opacity="0.3" stroke-width="2"/>` +
+    `<circle cx="9" cy="9" r="7" fill="none" stroke="${ORANGE}" stroke-width="2" stroke-linecap="round" stroke-dasharray="11 33">` +
+    `<animateTransform attributeName="transform" type="rotate" from="0 9 9" to="360 9 9" dur="1s" repeatCount="indefinite"/></circle>` +
+    `<circle cx="9" cy="9" r="3.5" fill="${ORANGE}"/>`,
   next: `<circle cx="9" cy="9" r="7" fill="none" stroke="${ORANGE}" stroke-width="2"/>`,
   pending: `<circle cx="9" cy="9" r="7" fill="none" stroke="${GREY}" stroke-opacity="0.7" stroke-width="1.5"/>`,
 }
@@ -528,7 +533,7 @@ export const register: Register = on => {
                 )}
                 <Box position="absolute" left={0} top={0}>
                   {Svg ? (
-                    <Svg source={markerSvg(marker)} alt={MARKER_ALT[marker]} width={18} height={18} />
+                    <Svg source={markerSvg(marker)} alt={MARKER_ALT[marker]} width={18} height={18} isInteractive={marker === 'running'} />
                   ) : (
                     <Text color={MARKER_COLOR[marker]}>{MARKER_GLYPH[marker]}</Text>
                   )}
