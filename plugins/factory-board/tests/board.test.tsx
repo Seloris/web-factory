@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { committed, describeRun, nextAction, parseFactoryCommand, parsePlan, parseSpec } from '../hooks/planning'
+import { activeStep, committed, describeRun, isStepDone, nextAction, parseFactoryCommand, parsePlan, parseSpec, runStep, stamp } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -180,6 +180,7 @@ test('nextAction follows the feature state', () => {
   const feature = (state: FactoryBoardFeature['state'], p = plan): FactoryBoardFeature => ({
     slug: 'demo',
     title: 'Demo',
+    hasSpec: true,
     specStatus: null,
     plan: p,
     state,
@@ -204,6 +205,7 @@ test('committed names a stage whose commit reached the branch', () => {
       {
         slug: 'demo',
         title: 'Demo',
+        hasSpec: true,
         specStatus: null,
         state: 'running',
         plan: { ...plan, stages: plan.stages.map((s, i) => (i === 0 ? { ...s, sha } : s)) },
@@ -238,12 +240,15 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(await ui.find({ type: 'Text', text: /spec validée/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /█{4}░{4} 1\/2/ })).toBeDefined()
     expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Stage 2 — web')
-    expect(await ui.find({ key: 'stage:demo:1' })).toBeUndefined()
+    expect(await ui.find({ key: 'step:demo:stage:1' })).toBeUndefined()
 
     await ui.press({ key: 'row:demo' })
-    expect((await ui.find({ key: 'stage:demo:1' }))?.text).toContain('b71e04')
-    expect((await ui.find({ key: 'stage:demo:2' }))?.text).toContain('1/3')
-    expect(await ui.find({ type: 'Text', text: /Validation\s+0\/2/ })).toBeDefined()
+    expect((await ui.find({ key: 'step:demo:spec' }))?.text).toContain('brouillon')
+    expect((await ui.find({ key: 'step:demo:plan' }))?.text).toContain('commité')
+    expect((await ui.find({ key: 'step:demo:stage:1' }))?.text).toContain('b71e04')
+    expect((await ui.find({ key: 'step:demo:stage:2' }))?.text).toContain('1/3')
+    expect((await ui.find({ key: 'step:demo:review' }))?.text).toContain('0/2')
+    expect(await ui.find({ key: 'step:demo:close' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: new RegExp(`/factory:implement ${PLAN_FOLDER}`) })).toBeDefined()
     expect(await ui.find({ key: 'copy:demo' })).toBeDefined()
     expect(await ui.find({ key: 'review:demo' })).toBeDefined()
@@ -252,12 +257,12 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(filled.at(-1)).toBe(`/factory:implement ${PLAN_FOLDER}`)
 
     await ui.press({ key: 'row:demo' })
-    expect(await ui.find({ key: 'stage:demo:1' })).toBeUndefined()
+    expect(await ui.find({ key: 'step:demo:stage:1' })).toBeUndefined()
     await ui.unmount()
   }
 })
 
-test('a /factory: prompt records the run, the turn end marks it waiting, a commit marks it done, the session end drops it', async ($, on) => {
+test('a /factory: prompt records the run, the turn end marks it waiting, a commit marks it done, the session end keeps it', async ($, on) => {
   const store = mockProject(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('prompt.submit', ($, e) => ({ text: e.text }))
@@ -267,26 +272,48 @@ test('a /factory: prompt records the run, the turn end marks it waiting, a commi
   await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
 
   await $.prompt.submit({ text: `/factory:implement ${PLAN_FOLDER}`, wait: false, origin: { kind: 'composer' } })
-  const started = store.get('run:session-aaaa-1111') as Record<string, unknown>
-  expect(started).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'implement', status: 'running', root: ROOT })
+  const started = store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
+  expect(started).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'implement', step: 'stage:2', status: 'running', root: ROOT })
 
   await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
-  const ended = store.get('run:session-aaaa-1111') as Record<string, unknown>
+  const ended = store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
   expect(ended.status).toBe('waiting')
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect(await ui.find({ key: 'run:session-aaaa-1111', text: /attend une réponse/ })).toBeDefined()
+  expect(await ui.find({ key: 'live:session-aaaa-1111:1000000', text: /Stage 2 — web · demo · cette session/ })).toBeDefined()
+  await ui.press({ key: 'live:session-aaaa-1111:1000000' })
+  expect(await ui.find({ key: 'run:session-aaaa-1111:1000000', text: /Implémentation.*attend une réponse/ })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('1 en attente')
 
   await $.tool.call({ tool: 'Bash', command: 'git commit -m "docs(demo): spec"' } as never)
-  expect((store.get('run:session-aaaa-1111') as Record<string, unknown>).status).toBe('done')
+  expect((store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>).status).toBe('done')
   await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 't2', reason: 'answer' })
-  expect((store.get('run:session-aaaa-1111') as Record<string, unknown>).status).toBe('done')
-  expect(await ui.find({ key: 'run:session-aaaa-1111', text: /terminé/ })).toBeDefined()
+  expect((store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>).status).toBe('done')
+  expect(await ui.find({ key: 'live:session-aaaa-1111:1000000' })).toBeUndefined()
+  expect(await ui.find({ key: 'run:session-aaaa-1111:1000000', text: /✓.*Implémentation/ })).toBeDefined()
   await ui.unmount()
 
   await $.session.end({ sessionId: 'session-aaaa-1111', reason: 'other', resume: { sessionId: 'session-aaaa-1111' } as never })
-  expect(store.has('run:session-aaaa-1111')).toBe(false)
+  expect((store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>).status).toBe('done')
+})
+
+test('a session that ends while its run waits leaves it interrupted in the history', async ($, on) => {
+  const store = mockProject(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: '/factory:write-plan tags', wait: false, origin: { kind: 'composer' } })
+  await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  await $.session.end({ sessionId: 'session-aaaa-1111', reason: 'other', resume: { sessionId: 'session-aaaa-1111' } as never })
+  expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'tags', step: 'plan', status: 'interrupted' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'row:tags' })
+  expect(await ui.find({ key: 'step:tags:plan', text: /Plan.*interrompue/ })).toBeDefined()
+  expect((await ui.find({ key: 'prepare:tags' }))?.text).toBe('Écrire le plan')
+  await ui.unmount()
 })
 
 test('a plain prompt records nothing', async ($, on) => {
@@ -298,16 +325,36 @@ test('a plain prompt records nothing', async ($, on) => {
   expect([...store.keys()]).toEqual([])
 })
 
+test('the timeline steps follow the feature: active step, done steps, the step a prompt lands on', () => {
+  const parsed = parsePlan(PLAN)
+  const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
+  const demo: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: 'Draft', plan, state: 'running' }
+  const empty: FactoryBoardFeature = { slug: 'new', title: 'new', hasSpec: false, specStatus: null, plan: null, state: 'empty' }
+  expect(activeStep(demo)).toBe('stage:2')
+  expect(activeStep(empty)).toBe('spec')
+  expect(activeStep({ ...demo, plan: { ...plan, isDraft: true } })).toBe('plan')
+  expect(['spec', 'plan', 'stage:1', 'stage:2', 'review', 'close'].map(s => isStepDone(demo, s))).toEqual([true, true, true, false, false, false])
+  expect(isStepDone(empty, 'spec')).toBe(false)
+  const command = (text: string) => parseFactoryCommand(text)!
+  expect(runStep(command(`/factory:implement ${PLAN_FOLDER}`), demo)).toBe('stage:2')
+  expect(runStep(command(`/factory:implement ${PLAN_FOLDER} — final review`), demo)).toBe('review')
+  expect(runStep(command(`/factory:implement ${PLAN_FOLDER} — close the branch`), demo)).toBe('close')
+  expect(runStep(command(`/factory:review plan ${PLAN_FOLDER}`), demo)).toBe('plan')
+  expect(runStep(command('/factory:write-spec new'), undefined)).toBe('spec')
+  expect(stamp(Date.now())).toMatch(/^\d\d\/\d\d \d\d:\d\d$/)
+})
+
 test('describeRun names the skill, the feature and the stage at hand', () => {
   const parsed = parsePlan(PLAN)
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
-  const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', specStatus: null, plan, state: 'running' }
+  const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plan, state: 'running' }
   const run = (command: string) => ({
     sessionId: 's',
     root: ROOT,
     feature: 'demo',
     folder: null,
     command,
+    step: 'stage:2',
     status: 'running' as const,
     since: 0,
     updatedAt: 0,

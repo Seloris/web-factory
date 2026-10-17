@@ -10,6 +10,7 @@ import type {
   FactoryBoardPlan,
   FactoryBoardRun,
   FactoryBoardStage,
+  FactoryBoardStep,
 } from '../types'
 
 export type ParsedPlan = {
@@ -175,6 +176,66 @@ export function nextAction(feature: FactoryBoardFeature): NextAction | null {
     case 'done':
       return plan ? { label: 'Fermer la branche', prompt: `/factory:implement ${plan.folder} — close the branch` } : null
   }
+}
+
+/** The timeline steps of a feature, in order: spec, plan, its stages, the final review, the close. */
+export function steps(feature: FactoryBoardFeature): FactoryBoardStep[] {
+  return ['spec', 'plan', ...(feature.plan?.stages.map(s => `stage:${s.number}`) ?? []), 'review', 'close']
+}
+
+/** The step a feature stands at: the one `nextAction` prepares. */
+export function activeStep(feature: FactoryBoardFeature): FactoryBoardStep {
+  const plan = feature.plan
+  switch (feature.state) {
+    case 'empty':
+      return 'spec'
+    case 'spec':
+      return 'plan'
+    case 'plan':
+    case 'running': {
+      if (plan === null || plan.isDraft) return 'plan'
+      const stage = nextStage(plan)
+      return stage ? `stage:${stage.number}` : 'review'
+    }
+    case 'review':
+      return 'review'
+    case 'done':
+      return 'close'
+  }
+}
+
+/** True once the feature is past the step. `close` is never done: a closed feature leaves the board. */
+export function isStepDone(feature: FactoryBoardFeature, step: FactoryBoardStep): boolean {
+  const plan = feature.plan
+  if (step === 'spec') return feature.hasSpec
+  if (step === 'plan') return plan !== null && !plan.isDraft
+  if (step === 'review') return plan !== null && plan.validationTotal > 0 && plan.validationDone === plan.validationTotal
+  const stage = plan?.stages.find(s => `stage:${s.number}` === step)
+  return stage !== undefined && stage.total > 0 && stage.done === stage.total
+}
+
+/** The step a `/factory:` prompt works on, frozen when the run starts. */
+export function runStep(command: FactoryCommand, feature: FactoryBoardFeature | undefined): FactoryBoardStep {
+  switch (command.skill) {
+    case 'write-spec':
+      return 'spec'
+    case 'write-plan':
+      return 'plan'
+    case 'review':
+      return /^plan\b/.test(command.args) ? 'plan' : 'review'
+    default:
+      if (/final review\s*$/i.test(command.args)) return 'review'
+      if (/close the branch\s*$/i.test(command.args)) return 'close'
+      // An implement on a feature the board does not know lands on no row: listed with the sessions only.
+      return feature ? activeStep(feature) : command.skill
+  }
+}
+
+/** `16/10 00:21`, local time. */
+export function stamp(ms: number): string {
+  const d = new Date(ms)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 /**

@@ -107,6 +107,7 @@ export async function scanBoard($: EngineInterface, root: string, now: number): 
       features.push({
         slug,
         title: spec?.title ?? plan?.title ?? slug,
+        hasSpec: spec !== null,
         specStatus: spec?.status ?? null,
         plan,
         state: featureState(spec !== null, plan),

@@ -1,6 +1,6 @@
 # factory-board
 
-A Claude Code mod (function hooks) for projects that use the factory. It opens a pane headed by the project, its branch and the live sessions, four tiles (features, without a plan, in progress, stages left), then one row per feature: its state, its stage bar and the button that prepares the next `/factory:` prompt. Each feature is a card, framed in the colour of its state; a card unfolds into its stages and the prompt itself. A band above the prompt names what this session does (`Stage 2 — web · demo`, `Plan · tags`, `Spec · tags`, `Revue · …`, `Revue finale`, `Fermeture de la branche`) with its run status, counts the other live sessions, and carries the button that opens or closes the pane.
+A Claude Code mod (function hooks) for projects that use the factory. It opens a pane headed by the project, its branch and the live sessions, four tiles (features, without a plan, in progress, stages left), the live sessions (one line each, a click unfolds its feature), then one card per feature, framed in the colour of its state: its slug and title, its state, its stage bar and the button that prepares the next `/factory:` prompt. A card unfolds into its timeline: Spec, Plan, one row per stage, Revue finale, Clôture de la branche; done rows are ticked, the step at hand is framed and carries the buttons and the prompt, and under each row stand the sessions that worked on it (date, skill, duration, status). A band above the prompt names what this session does (`Stage 2 — web · demo`, `Plan · tags`, `Spec · tags`, `Revue · …`, `Revue finale`, `Fermeture de la branche`) with its run status, counts the other live sessions, and carries the button that opens or closes the pane.
 
 ## What it shows
 
@@ -11,22 +11,22 @@ A Claude Code mod (function hooks) for projects that use the factory. It opens a
 | Stages | One line per `### Stage N — …` of the plan's Progress, with the short SHA of the stage's commit once its subject (`Commit:` line) is on the branch |
 | Draft | `(brouillon)` while `plan.md` is untracked, as the planning rule defines a draft |
 | Spec | `spec brouillon` (`Draft`) or `spec validée` (`Approved`), from the spec header, for a feature with no plan yet |
-| Runs | `● en cours`, `○ attend une réponse` or `✓ terminé`, per session that submitted a `/factory:` prompt on the feature, with the session id and the age |
+| Timeline | `Spec` (`brouillon`, `validée`, `absente`), `Plan` (`brouillon`, `commité`), one `Stage N — …` per stage (its count, then its short SHA), `Revue finale` (the Validation count), `Clôture de la branche`; the step at hand is the one the primary button prepares |
+| Runs | Under each step, newest first: `✓ 16/10 00:21 · Implémentation · 14 min · session 7f0772df`, with `en cours`, `attend une réponse` or `interrompue` when not done. The live ones are also listed above the cards, in a block that unfolds the feature on a click |
 
 The source of truth stays the files and git. The board is rescanned every 10 seconds, after each `git commit` run through Bash, and at the end of each turn. A stage whose commit reaches the branch, or a Validation checklist that becomes complete, raises a toast.
 
 ## The one thing the mod keeps
 
-The runs live in the mod's own store (`$.store`, a JSON file under the user's Claude Code directory, shared by every session, never in the repository). A run is written when a prompt starting with `/factory:implement`, `/factory:write-plan`, `/factory:write-spec` or `/factory:review` names a feature (a `.planning/features/{slug}` path, or a bare slug for `write-plan` and `write-spec`), set to `running` at each turn start, `waiting` at each turn end, `done` once the session's main loop runs a successful `git commit` (every factory skill ends its job with its commit), dropped when the session ends. A `done` run stays done until the session submits a new `/factory:` prompt. A run nobody touched for a day is dropped as a dead session. A prompt typed without the `/factory:` command records nothing: use the pane's button, which prepares the exact command.
+The runs live in the mod's own store (`$.store`, a JSON file under the user's Claude Code directory, shared by every session, never in the repository). A run is written when a prompt starting with `/factory:implement`, `/factory:write-plan`, `/factory:write-spec` or `/factory:review` names a feature (a `.planning/features/{slug}` path, or a bare slug for `write-plan` and `write-spec`), with the timeline step it lands on, frozen at that moment (`spec`, `plan`, `stage:N` the next stage of the plan, `review` for `— final review`, `close` for `— close the branch`). It is set to `running` at each turn start, `waiting` at each turn end, `done` once the session's main loop runs a successful `git commit` (every factory skill ends its job with its commit), `interrupted` when the session ends before that or goes silent for a day. A finished run stays as history under its step; a run older than a month is dropped. Each `/factory:` prompt of a session starts a new run. A prompt typed without the `/factory:` command records nothing: use the pane's button, which prepares the exact command.
 
 ## Buttons
 
-- The feature row unfolds its plan folder, its stages (the active one marked `◉`), its Validation count and the prepared prompt.
+- The feature row unfolds its timeline; a line of the live sessions block unfolds the feature it works on.
 - The row's primary button fills the prompt box with the next command: `write-spec` for an empty feature, `write-plan` for a spec alone or a draft plan, `implement {plan folder}` for the next stage, `… — final review` once every stage is ticked, `… — close the branch` once the Validation is complete. Enter sends it. Where no prompt box takes it, the prompt is copied instead.
-- `Copier` copies that prompt; `Revue du plan` prepares `/factory:review plan {plan folder}`.
+- In the framed step: `Copier` copies that prompt; `Revue du plan` prepares `/factory:review plan {plan folder}`.
 - `⟳` rescans now.
 - The band’s `Ouvrir le tableau` / `Fermer le tableau` toggles the pane; closing it from the engine’s own mark flips the button too.
-- Under 72 cells the row's columns wrap under the feature name and the column header is dropped.
 
 ## Running it
 

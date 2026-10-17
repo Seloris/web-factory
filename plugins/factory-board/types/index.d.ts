@@ -51,6 +51,7 @@ export type FactoryBoardFeature = {
   slug: string
   /** The spec's title, else the plan's, else the slug. */
   title: string
+  hasSpec: boolean
   /** The spec header's status (`Draft`, `Approved`…), when there is a spec. */
   specStatus: string | null
   /** The latest plan of the feature (highest timestamp), when there is one. */
@@ -58,9 +59,15 @@ export type FactoryBoardFeature = {
   state: FactoryBoardFeatureState
 }
 
-export type FactoryBoardRunStatus = 'running' | 'waiting' | 'done'
+export type FactoryBoardRunStatus = 'running' | 'waiting' | 'done' | 'interrupted'
 
-/** One session working on one feature, as the mod saw it start. */
+/**
+ * The step of a feature's timeline a run works on: `spec`, `plan`,
+ * `stage:{N}`, `review` (the final review) or `close` (the branch).
+ */
+export type FactoryBoardStep = string
+
+/** One session working on one step of one feature, kept as history once over. */
 export type FactoryBoardRun = {
   sessionId: string
   /** The project root the session runs in. */
@@ -70,9 +77,12 @@ export type FactoryBoardRun = {
   folder: string | null
   /** The factory skill the session was started with (`implement`, `write-plan`…). */
   command: string
+  /** The timeline step the run was started on, frozen at its start. */
+  step: FactoryBoardStep
   /**
    * `running` while a turn runs, `waiting` once it ended and the person is asked,
-   * `done` once the session's main loop committed: the skill's job is over.
+   * `done` once the session's main loop committed: the skill's job is over,
+   * `interrupted` when the session ended or went silent for a day before that.
    */
   status: FactoryBoardRunStatus
   /** When the run was recorded (ms since the epoch). */
