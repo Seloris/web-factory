@@ -2,6 +2,13 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — Three holes in the `react-express` skeleton
+
+Stage 1 (api) of the sample's `home` plan and its review found them; every project started from the pack had them.
+
+- **The PGlite folder is ignored wherever it is.** The pack's `gitignore` line `.data/pglite/` has an inner slash, so git anchors it to the project's root; the database lives in `api/.data/pglite/`, stayed untracked, and a `git add -A` would have committed it. The line is now `**/.data/pglite/`.
+- **`ProblemDetails` is an OpenAPI component from the start.** `shared/openapi.ts` does not call `extendZodWithOpenApi`, so `registry.register(...)` throws `zodSchema.openapi is not a function`; the sample named its components with zod's own `.meta({ id })` instead. The skeleton's `problemDetailsSchema` now carries `.meta({ id: "ProblemDetails" })`, and the api template says a schema the front reads by name gets a `.meta({ id })`.
+- **A body that is not valid JSON is a `400`, not a `500`.** `express.json()` rejects it with `type: "entity.parse.failed"`, and the error middleware turned every error that is not an `AppError` into a `500`, logged as a server fault. It now answers the same `validation_failed` problem details as a zod failure, with a test in the skeleton.
 ## 2026-10-17 — The recipes keep the focus ring and fit a phone
 
 - **`skins/recipes.css` and the react-express skeleton's `shared/ui` components fix four gaps the sample's brutalist plan found (`shared/refactor-brutalist-skin`, its Deviations).** The sample fixed them in its own CSS Modules; the recipes still had them, so every new front inherited them. Buttons had no focus ring: the page's `:focus-visible` shadow has the same specificity as `.btn`'s own and loads first, so `.btn:focus-visible` restores it. At 360px a 30-character tag pushed a list row past the panel: `.item` now wraps, and `.item-text` keeps a 120px basis so a long name does not narrow to a column. The dialog heading ignored `--title-transform`, which brutalist's `SKIN.md` sets to uppercase. And `reference/ui-design.md` asks for hover and disabled on every control: the quiet button gets a hover (its fill mixed toward `--text`, visible on light and dark skins) and the switch a disabled state (like `.btn:disabled`); `.check:disabled`, already in the skeleton's `Checkbox`, joins the recipes. Fronts initialised earlier copy the four changes into their components.
