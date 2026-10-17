@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, nextAction, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, sessionRequest, stamp, withPlan } from '../hooks/planning'
+import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, sessionRequest, stamp, withPlan } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -55,12 +55,14 @@ Commit: \`feat(demo): api — init\`
 - [x] Review: done
 `
 
+const NEW_PLAN_FOLDER = '.planning/features/demo/dev-plans/20261017-100000-rework-counter'
+
 const TAGS_SPEC = `# Tags — PRD
 
 > **Status**: Approved
 `
 
-const FILES: Record<string, string> = {
+const BASE_FILES: Record<string, string> = {
   [`${ROOT}/.planning/features/demo/00_spec.md`]: SPEC,
   [`${ROOT}/${PLAN_FOLDER}/plan.md`]: PLAN,
   [`${ROOT}/${OLD_PLAN_FOLDER}/plan.md`]: OLD_PLAN,
@@ -73,24 +75,24 @@ const GIT_LOG = ['b71e04\tfeat(demo): api — counter endpoint', '9c0d1e\tchore:
 const norm = (path: string): string => path.split('\\').join('/').replace(/^[A-Za-z]:/, '')
 
 /** A project on disk, git included, answered from memory. Returns the store the mod writes to. */
-function mockProject(on: On, options: { log?: string } = {}): Map<string, unknown> {
-  const paths = Object.keys(FILES)
-  const isDir = (path: string) => paths.some(p => p.startsWith(`${path}/`))
+function mockProject(on: On, options: { log?: string; files?: Record<string, string> } = {}): Map<string, unknown> {
+  const files = options.files ?? BASE_FILES
+  const isDir = (path: string) => Object.keys(files).some(p => p.startsWith(`${path}/`))
   on('session.root', () => ({ value: ROOT }))
   on('session.id', () => ({ value: 'session-aaaa-1111' }))
   on('fs.exists', ($, e) => {
     const path = norm(e.path)
-    return { value: path in FILES || isDir(path) }
+    return { value: path in files || isDir(path) }
   })
   on('fs.read', ($, e) => {
-    const text = FILES[norm(e.path)]
+    const text = files[norm(e.path)]
     if (text === undefined) throw new Error(`ENOENT ${e.path}`)
     return { value: text }
   })
   on('fs.list', ($, e) => {
     const path = norm(e.path)
     const names = new Map<string, 'file' | 'dir'>()
-    for (const p of paths) {
+    for (const p of Object.keys(files)) {
       if (!p.startsWith(`${path}/`)) continue
       const rest = p.slice(path.length + 1)
       const [head] = rest.split('/')
@@ -423,6 +425,51 @@ test('withPlan follows a feature on one of its plans, and its runs with it', () 
   expect(isRunOfPlan(run('stage:1', PLAN_FOLDER), onOld)).toBe(false)
   expect(isRunOfPlan(run('plan', null), onOld)).toBe(false)
   expect(isRunOfPlan(run('plan', null), demo)).toBe(true)
+
+  // A live `write-plan demo`: the card leaves the plans for the new one, which only its live run shows on.
+  const writing = { ...run('plan', null), command: 'write-plan', status: 'running' as const }
+  expect(onNewPlan(demo, [run('plan', null)])).toBeNull()
+  expect(onNewPlan({ ...demo, plans: [{ ...latest, isDraft: true }, old] }, [writing])).toBeNull()
+  const onNew = onNewPlan(demo, [writing])
+  expect(onNew).toMatchObject({ plan: null, state: 'spec' })
+  expect(isRunOfPlan(writing, onNew as FactoryBoardFeature)).toBe(true)
+  expect(isRunOfPlan(run('plan', null), onNew as FactoryBoardFeature)).toBe(false)
+
+  const board = (plans: typeof demo.plans): FactoryBoard => ({ root: ROOT, branch: null, features: [{ ...demo, plans }], runs: [], scannedAt: 0, error: null })
+  expect(newPlans(null, board([latest, old]))).toEqual([])
+  expect(newPlans(board([old]), board([old]))).toEqual([])
+  expect(newPlans(board([old]), board([latest, old]))).toEqual(['demo'])
+})
+
+test('a new plan being written takes the card, and the plan that appears is followed', async ($, on) => {
+  const files = { ...BASE_FILES }
+  const store = mockProject(on, { files })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'row:demo' })
+  await ui.select({ key: 'plan:demo', value: OLD_PLAN_FOLDER })
+  await $.prompt.submit({ text: '/factory:write-plan demo', wait: false, origin: { kind: 'composer' } })
+  expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'demo', folder: null, step: 'plan', status: 'running' })
+
+  expect(await ui.find({ type: 'Text', text: /● nouveau plan en cours/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Nouveau plan en cours d’écriture/ })).toBeDefined()
+  expect(await ui.find({ key: 'step:demo:plan', text: /Plan.*en cours/ })).toBeDefined()
+  expect(await ui.find({ key: 'step:demo:stage:1' })).toBeUndefined()
+  expect(await ui.find({ key: 'plan:demo' })).toBeUndefined()
+  expect(await ui.find({ key: 'new-plan:demo' })).toBeUndefined()
+  expect(await ui.find({ key: 'prepare:demo' })).toBeUndefined()
+
+  files[`${ROOT}/${NEW_PLAN_FOLDER}/plan.md`] = PLAN
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "docs(demo): plan"' } as never)
+  expect(await ui.find({ type: 'Text', text: NEW_PLAN_FOLDER })).toBeDefined()
+  expect((await ui.find({ type: 'Text', text: /^Plans \(3\)$/ }))?.text).toBe('Plans (3)')
+  expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Stage 2 — web')
+  expect(await ui.find({ key: 'run:session-aaaa-1111:1000000', text: /✓.*Plan/ })).toBeDefined()
+  await ui.unmount()
 })
 
 test('describeRun names the skill, the feature and the stage at hand', () => {

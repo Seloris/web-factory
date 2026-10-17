@@ -166,7 +166,32 @@ export function withPlan(feature: FactoryBoardFeature, folder: string | null | u
 export function isRunOfPlan(run: FactoryBoardRun, feature: FactoryBoardFeature): boolean {
   if (run.step === 'spec') return true
   if (run.folder !== null) return run.folder === feature.plan?.folder
+  // The new plan being written (`onNewPlan`): only the live run writing it, not the older plans' history.
+  if (feature.plan === null && feature.plans.length > 0) return run.status === 'running' || run.status === 'waiting'
   return feature.plan === (feature.plans[0] ?? null)
+}
+
+/**
+ * The feature while a live `write-plan {slug}` run writes a new plan whose folder
+ * is not there yet (its latest plan is committed): followed on no plan, the new
+ * one's timeline. `null` when no such run is live.
+ */
+export function onNewPlan(feature: FactoryBoardFeature, runs: FactoryBoardRun[]): FactoryBoardFeature | null {
+  const latest = feature.plans[0]
+  const isWriting = runs.some(r => r.feature === feature.slug && r.command === 'write-plan' && r.folder === null && (r.status === 'running' || r.status === 'waiting'))
+  if (latest === undefined || latest.isDraft || !isWriting) return null
+  return { ...feature, plan: null, state: featureState(feature.hasSpec, null) }
+}
+
+/** The features whose latest plan appeared since the previous scan: the pane follows it at once. */
+export function newPlans(before: FactoryBoard | null, after: FactoryBoard): string[] {
+  return after.features
+    .filter(feature => {
+      const latest = feature.plans[0]
+      const was = before?.features.find(f => f.slug === feature.slug)
+      return latest !== undefined && was !== undefined && !was.plans.some(p => p.folder === latest.folder)
+    })
+    .map(feature => feature.slug)
 }
 
 export type NextAction = {

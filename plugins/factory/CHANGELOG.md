@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-17 — The board follows a new plan
+
+- **A plan being written takes its feature's card; the plan that appears is followed.** On the sample's `home`, `Nouveau plan` started a `write-plan` session while the card stayed on the finished plan: its `Plan` row turned running and `Fermer la branche` was still offered, and once the new folder existed the card kept the plan picked before. While a live `write-plan {slug}` run writes a plan whose folder is not there yet, the card now shows that plan on its way (`nouveau plan en cours`, no picker, no prompt); a plan folder that appears between two scans is followed at once.
+
 ## 2026-10-17 — A front has a skin
 
 - **Seven skins in `skins/`, one token contract, the design rules in `reference/ui-design.md`.** The sample's home page shipped with the browser's native controls and a few literal colors per CSS Module: nothing in the plugin said what a designed front looks like, so every implementation stopped at "it works". A skin is now a `tokens.css` (the same 62 variables for every skin, light and dark) and a `SKIN.md`; `skins/recipes.css` writes every element once against the tokens, so seven skins share one set of rules. `modern` is the default; `editorial`, `brutalist`, `aurora`, `swiss`, `soft` and `pro` were chosen on a preview of the sample under each.

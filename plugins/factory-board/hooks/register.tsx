@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, nextAction, parseFactoryCommand, runLastStep, runStep, sessionRequest, stamp, stepTitle, steps, withPlan } from './planning'
+import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runStep, sessionRequest, stamp, stepTitle, steps, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -73,7 +73,10 @@ async function refresh($: EngineInterface): Promise<FactoryBoard> {
   const scanned = await scanBoard($, root, now)
   const runs = await readRuns($, root, now)
   const next: FactoryBoard = { ...scanned, runs }
+  const appeared = newPlans(await read($, board), next)
   await update($, board, () => next)
+  // A plan that appears (a `write-plan` session created its folder) is followed at once: an older pick is dropped.
+  if (appeared.length > 0) await update($, pickedPlans, m => Object.fromEntries(Object.entries(m).filter(([slug]) => !appeared.includes(slug))))
   return next
 }
 
@@ -384,7 +387,8 @@ export const register: Register = on => {
       )
     }
 
-    const features = b.features.map(f => withPlan(f, picked[f.slug]))
+    // A live `write-plan` writing a new plan wins over the pick: the card shows the plan on its way.
+    const features = b.features.map(f => onNewPlan(f, b.runs) ?? withPlan(f, picked[f.slug]))
     const project = b.root.split(/[\\/]/).filter(Boolean).at(-1) ?? b.root
     const live = b.runs.filter(isLive).sort((a, b2) => b2.since - a.since)
     const running = live.filter(r => r.status === 'running').length
@@ -476,7 +480,9 @@ export const register: Register = on => {
         {features.map(feature => {
           const plan = feature.plan
           const runs = b.runs.filter(r => r.feature === feature.slug)
-          const action = nextAction(feature)
+          const isNewPlan = plan === null && feature.plans.length > 0
+          // Its session writes it: no prompt to prepare until its folder is there.
+          const action = isNewPlan ? null : nextAction(feature)
           const isOpen = open === feature.slug
           const stagesDone = plan ? plan.stages.filter(isStageDone).length : 0
           const stagesTotal = plan ? plan.stages.length : 0
@@ -561,7 +567,7 @@ export const register: Register = on => {
               marginTop={1}
               paddingX={1}
               borderStyle="round"
-              borderColor={STATE_COLOR[feature.state]}
+              borderColor={isNewPlan ? 'claude' : STATE_COLOR[feature.state]}
               borderDimColor={!isOpen && !runs.some(isLive)}
             >
               <Box gap={2} flexWrap="wrap" alignItems="center" justifyContent="space-between">
@@ -573,8 +579,8 @@ export const register: Register = on => {
                   </Button>
                 </Box>
                 <Box gap={2} alignItems="center">
-                  <Text color={STATE_COLOR[feature.state]} wrap="truncate-end">
-                    ● {STATE_LABEL[feature.state]}
+                  <Text color={isNewPlan ? 'claude' : STATE_COLOR[feature.state]} wrap="truncate-end">
+                    ● {isNewPlan ? 'nouveau plan en cours' : STATE_LABEL[feature.state]}
                     {plan?.isDraft ? <Text dimColor> brouillon</Text> : ''}
                   </Text>
                   {plan ? (
@@ -614,7 +620,7 @@ export const register: Register = on => {
                           onSelect={folder => void update($, pickedPlans, m => ({ ...m, [feature.slug]: folder }))}
                         />
                       )}
-                      {feature.hasSpec && feature.plans.length > 0 && (
+                      {feature.hasSpec && plan && (
                         <Button key={`new-plan:${feature.slug}`} label="Nouveau plan" onPress={prepare(`/factory:write-plan ${feature.slug}`)} />
                       )}
                     </Box>
@@ -625,7 +631,11 @@ export const register: Register = on => {
                     </Text>
                   ) : (
                     <Text size="caption" dimColor>
-                      {feature.hasSpec ? 'Pas encore de plan : la spec attend son plan.' : 'Ni spec ni plan : tout commence par la spec.'}
+                      {isNewPlan
+                        ? 'Nouveau plan en cours d’écriture : il s’affiche ici dès que son dossier existe.'
+                        : feature.hasSpec
+                          ? 'Pas encore de plan : la spec attend son plan.'
+                          : 'Ni spec ni plan : tout commence par la spec.'}
                     </Text>
                   )}
                   <Box flexDirection="column" marginTop={1}>

@@ -7,7 +7,7 @@ A Claude Code mod (function hooks) for projects that use the factory. It opens a
 | Column | Source |
 |---|---|
 | Feature slug and title | `.planning/features/{slug}/00_spec.md` (title, status), else the plan's title |
-| Plans | Every `dev-plans/*/plan.md`, newest first by folder name (its timestamp); the card, its state and the tiles follow the plan picked in the card, the latest until another is picked (kept for the session) |
+| Plans | Every `dev-plans/*/plan.md`, newest first by folder name (its timestamp); the card, its state and the tiles follow the plan picked in the card, the latest until another is picked (kept for the session). While a live `write-plan {slug}` session writes a new plan whose folder is not there yet (the latest plan is committed), the card shows that plan on its way instead: `nouveau plan en cours`, its `Plan` row running, no picker and no prompt to prepare. A plan that appears is followed at once, whatever plan was picked |
 | State | `spec seule`, `plan prêt`, `en cours`, `à valider`, `à fermer`, from the followed plan: its Progress ticks and its Validation checklist |
 | Stages | One line per `### Stage N — …` of the plan's Progress, with the short SHA of the stage's commit once its subject (`Commit:` line) is on the branch |
 | Draft | `(brouillon)` while `plan.md` is untracked, as the planning rule defines a draft |
@@ -53,4 +53,4 @@ The tests cover the parser (`hooks/planning.ts`) directly and the hooks through 
 - Draft detection relies on `git status` paths relative to the repository root: a project rooted in a sub-folder of its repository shows no draft.
 - The stage SHA is matched on the commit subject the plan announces; a stage committed under another subject shows `non committé` until the branch is squashed.
 - The mobile app draws no picker: there a card shows the latest plan.
-- A `write-plan {slug}` run names no plan folder: it is listed under the latest plan.
+- A `write-plan {slug}` run names no plan folder: once over, it is listed under the latest plan.
