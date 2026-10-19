@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, committed, describeRun, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, sessionRequest, stamp, withPlan } from '../hooks/planning'
+import { activeStep, afterCommit, committed, describeRun, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runPlan, runStep, runTitle, stamp, tickReview, withPlan } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -298,11 +298,6 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     filled.push(e.text)
     return { isFilled: true }
   })
-  const submitted: string[] = []
-  on('prompt.submit', ($, e) => {
-    submitted.push(e.text)
-    return { text: e.text }
-  })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
 
@@ -332,6 +327,8 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(await ui.find({ type: 'Text', text: new RegExp(`/factory:implement ${PLAN_FOLDER}`) })).toBeDefined()
     expect(await ui.find({ key: 'copy:demo' })).toBeDefined()
     expect(await ui.find({ key: 'review:demo' })).toBeDefined()
+    expect(await ui.find({ key: 'session:demo' })).toBeUndefined()
+    expect(await ui.find({ key: 'mark-review:demo' })).toBeUndefined()
 
     await ui.press({ key: 'prepare:demo' })
     expect(filled.at(-1)).toBe(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`)
@@ -346,10 +343,6 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(await ui.find({ key: 'step:demo:stage:2' })).toBeUndefined()
     expect((await ui.find({ key: 'step:demo:spec' }))?.text).toContain('brouillon')
     await ui.select({ key: 'plan:demo', value: PLAN_FOLDER })
-
-    await ui.press({ key: 'session:demo' })
-    expect(submitted.at(-1)).toBe(sessionRequest(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`))
-    expect(submitted.at(-1)).toContain('start_session')
 
     await ui.press({ key: 'row:demo' })
     expect(await ui.find({ key: 'step:demo:stage:1' })).toBeUndefined()
@@ -375,8 +368,12 @@ test('a /factory: prompt records the run, the turn end marks it waiting, a commi
   expect(ended.status).toBe('waiting')
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect(await ui.find({ key: 'live:session-aaaa-1111:1000000', text: /Stage 2 — web · demo/ })).toBeDefined()
-  expect((await ui.find({ key: 'card:session-aaaa-1111:1000000' }))?.text).toMatch(/attend une réponse.*cette session · Implémentation/)
+  expect(await ui.find({ key: 'live:session-aaaa-1111:1000000', text: /Stage 2 — web\s+1\/3/ })).toBeDefined()
+  const card = (await ui.find({ key: 'card:session-aaaa-1111:1000000' }))?.text
+  expect(card).toMatch(/attend une réponse/)
+  expect(card).toMatch(/Feature\s+demo\s+Demo counter \(Compteur de démo\)\s+● en cours/)
+  expect(card).toMatch(/Plan\s+20261016-120000-add-counter\s+Demo counter\s+stages 1\/2/)
+  expect(card).toMatch(/cette session · Implémentation · depuis \d\d\/\d\d \d\d:\d\d · 0 min/)
   await ui.press({ key: 'live:session-aaaa-1111:1000000' })
   expect(await ui.find({ key: 'run:session-aaaa-1111:1000000', text: /Implémentation.*attend une réponse/ })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('1 en attente')
@@ -513,6 +510,58 @@ test('a new plan being written takes the card, and the plan that appears is foll
   expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Stage 2 — web')
   expect(await ui.find({ key: 'run:session-aaaa-1111:1000000', text: /✓.*Plan/ })).toBeDefined()
   await ui.unmount()
+})
+
+test('tickReview ticks the Validation’s Review item only, the line endings kept', () => {
+  const plan = '## Progress\n\n### Stage 1 — api\n- [ ] Review the endpoint\n\n## Validation\n\n- [ ] Review: the reviewer\n- [ ] Tests: green\n'
+  const ticked = plan.replace('- [ ] Review: the', '- [x] Review: the')
+  expect(tickReview(plan)).toBe(ticked)
+  expect(parsePlan(ticked).reviewDone).toBe(true)
+  expect(tickReview(plan.split('\n').join('\r\n'))).toBe(ticked.split('\n').join('\r\n'))
+  expect(tickReview('## Validation\n\n- [-] Revue : refusée\n')).toBe('## Validation\n\n- [x] Revue : refusée\n')
+  expect(tickReview('## Validation\n\n- [x] Review: done\n')).toBeNull()
+  expect(tickReview('## Validation\n\n- [ ] Tests: green\n')).toBeNull()
+  expect(tickReview('## Progress\n\n- [ ] Review: not here\n')).toBeNull()
+})
+
+test('the final review is marked done from the pane: Review ticked in plan.md, the plan finalized', async ($, on) => {
+  const finished = PLAN.replace(/- \[ \] (pages|ui):/g, '- [x] $1:')
+  const files = { ...BASE_FILES, [`${ROOT}/${PLAN_FOLDER}/plan.md`]: finished }
+  mockProject(on, { files })
+  const written: string[] = []
+  on('fs.write', ($, e) => {
+    files[norm(e.path)] = e.text
+    written.push(norm(e.path))
+    return { value: undefined }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'row:demo' })
+  expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Revue finale')
+  expect(await ui.find({ key: 'session:demo' })).toBeUndefined()
+  await ui.press({ key: 'mark-review:demo' })
+  expect(written).toEqual([`${ROOT}/${PLAN_FOLDER}/plan.md`])
+  expect(files[`${ROOT}/${PLAN_FOLDER}/plan.md`]).toBe(finished.replace('- [ ] Review:', '- [x] Review:'))
+  expect(await ui.find({ type: 'Text', text: /plan finalisé/ })).toBeDefined()
+  expect(await ui.find({ key: 'prepare:demo' })).toBeUndefined()
+  expect(await ui.find({ key: 'mark-review:demo' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('runPlan names the plan a run works on', () => {
+  const parsed = parsePlan(PLAN)
+  const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
+  const old = { ...plan, folder: OLD_PLAN_FOLDER }
+  const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [plan, old], plan, state: 'running' }
+  const run = (command: string, step: string, folder: string | null) => ({ sessionId: 's', root: ROOT, feature: 'demo', folder, command, step, status: 'running' as const, since: 0, updatedAt: 0 })
+  expect(runPlan(run('implement', 'stage:2', OLD_PLAN_FOLDER), feature)).toBe(old)
+  expect(runPlan(run('implement', 'stage:2', null), feature)).toBe(plan)
+  expect(runPlan(run('write-spec', 'spec', null), feature)).toBeUndefined()
+  expect(runPlan(run('write-plan', 'plan', null), feature)).toBeNull()
+  expect(runPlan(run('write-plan', 'plan', null), { ...feature, plans: [{ ...plan, isDraft: true }] })?.isDraft).toBe(true)
+  expect(runTitle(run('implement', 'stage:2', null), feature)).toBe('Stage 2 — web')
 })
 
 test('describeRun names the skill, the feature and the stage at hand', () => {

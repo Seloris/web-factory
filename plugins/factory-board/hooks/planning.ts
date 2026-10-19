@@ -215,11 +215,27 @@ export type NextAction = {
 const stageName = (stage: FactoryBoardStage): string => `Stage ${stage.number}${stage.title ? ` — ${stage.title}` : ''}`
 
 /**
- * The request that has this session start a new desktop session running `prompt`.
- * Same folder, no worktree: the board reads this checkout's branch.
+ * A `plan.md` with its Validation's `Review` item ticked (`[ ]` or `[-]` to `[x]`),
+ * every other line and the line endings untouched: the final review marked done
+ * without running it. `null` when the Validation has no `Review` item left to tick.
  */
-export function sessionRequest(prompt: string): string {
-  return `Start a new session for this factory step with the start_session tool (initiation "offer", context "fresh", use_worktree false), its prompt exactly the line below. Do nothing else in this session.\n\n${prompt}`
+export function tickReview(text: string): string | null {
+  const lines = text.split('\n')
+  let section = ''
+  for (const [index, line] of lines.entries()) {
+    const h2 = HEADING_2.exec(line)
+    if (h2 && !line.startsWith('###')) {
+      section = (h2[1] ?? '').toLowerCase()
+      continue
+    }
+    if (section !== 'validation') continue
+    const box = CHECKBOX.exec(line)
+    if (box && /[ -]/.test(box[1] ?? '') && REVIEW_ITEM.test(line.slice(box[0].length))) {
+      lines[index] = line.replace(/\[[ -]\]/, '[x]')
+      return lines.join('\n')
+    }
+  }
+  return null
 }
 
 /** The marker a stage prompt carries when the person asked for the reviewer after the stage (the pane's checkbox). */
@@ -387,18 +403,36 @@ export function stepTitle(feature: FactoryBoardFeature | undefined, step: Factor
  * stage: once a stage's boxes are ticked, its session is still finishing it.
  */
 export function describeRun(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): string {
+  return `${runTitle(run, feature)} · ${run.feature}`
+}
+
+/** What a session does, without its feature: the title of a live session's card. */
+export function runTitle(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): string {
   switch (run.command) {
     case 'write-spec':
-      return `Spec · ${run.feature}`
+      return 'Spec'
     case 'write-plan':
-      return `Plan · ${run.feature}`
+      return 'Plan'
     case 'review':
-      return `${run.step === 'plan' ? 'Revue du plan' : 'Revue'} · ${run.feature}`
+      return run.step === 'plan' ? 'Revue du plan' : 'Revue'
     case 'implement': {
       const isStep = /^stage:\d+$/.test(run.step) || run.step === 'review'
-      return `${isStep ? stepTitle(feature, run.step) : 'Implémentation'} · ${run.feature}`
+      return isStep ? stepTitle(feature, run.step) : 'Implémentation'
     }
     default:
-      return `${run.command} · ${run.feature}`
+      return run.command
   }
+}
+
+/**
+ * The plan a run works on, for its card: the plan its prompt named, the new one
+ * a `write-plan {slug}` writes (`null`: its folder is not there yet, unless the
+ * latest plan is still a draft), the latest for any other run; none for a spec.
+ */
+export function runPlan(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): FactoryBoardPlan | null | undefined {
+  if (run.command === 'write-spec' || run.step === 'spec') return undefined
+  if (run.folder !== null) return feature?.plans.find(p => p.folder === run.folder) ?? null
+  const latest = feature?.plans[0]
+  if (run.command === 'write-plan') return latest?.isDraft ? latest : null
+  return latest ?? null
 }

@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runStep, sessionRequest, stamp, stepTitle, steps, withPlan } from './planning'
+import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, stamp, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -119,6 +119,23 @@ async function touchRun($: EngineInterface, status: FactoryBoardRunStatus): Prom
   const [key, run] = latest
   if (run.status === status || !isLive(run)) return
   await $.store.set(key, { ...run, status, updatedAt: await $.clock.now() })
+}
+
+/**
+ * Ticks the `Review` item of a plan's Validation, the final review marked done
+ * without running it: the plan is finalized, the tick left uncommitted.
+ */
+async function markReviewDone($: EngineInterface, root: string, folder: string): Promise<void> {
+  const file = `${root}/${folder}/plan.md`
+  const text = await $.fs.read(file).catch(() => null)
+  const ticked = typeof text === 'string' ? tickReview(text) : null
+  if (ticked === null) {
+    $.ui.toast('Aucun item Review à cocher dans la Validation du plan.')
+    return
+  }
+  await $.fs.write(file, ticked)
+  await refresh($)
+  $.ui.toast('Review coché dans plan.md : plan finalisé, la coche reste à committer.', { timeoutMs: 8000 })
 }
 
 const STATE_LABEL: Record<FactoryBoardFeature['state'], string> = {
@@ -376,11 +393,6 @@ export const register: Register = on => {
       const copied = await $.ui.copy({ text: prompt, surface: press.surface })
       $.ui.toast(copied.isCopied ? 'Prompt copié dans le presse-papiers.' : 'Pas de presse-papiers sur cette surface.')
     }
-    // asUser: the click is the person's own request; the desktop app then asks them "New session" or "Do it here".
-    const startSession = (prompt: string) => async () => {
-      const sent = await $.prompt.submit({ text: sessionRequest(prompt), asUser: true })
-      $.ui.toast(sent.drop === undefined ? 'Demande envoyée : accepte la nouvelle session.' : "Impossible d'envoyer la demande ici.")
-    }
     const who = (run: FactoryBoardRun) => (run.sessionId === sessionId ? 'cette session' : `session ${run.sessionId.slice(0, 8)}`)
 
     if (b === null) {
@@ -451,30 +463,46 @@ export const register: Register = on => {
             <Text size="caption" dimColor>
               Sessions en cours
             </Text>
-            <Box gap={1} flexWrap="wrap" marginTop={1}>
+            <Box flexDirection="column" gap={1} marginTop={1}>
               {live.map(run => {
                 const found = b.features.find(f => f.slug === run.feature)
                 const feature = found && withPlan(found, run.folder)
+                const plan = runPlan(run, found)
+                const planName = plan ? planLabel(plan) : (run.folder?.split('/').at(-1) ?? 'nouveau plan, dossier pas encore créé')
+                const stepAt = plan && /^stage:\d+$|^review$/.test(run.step) && feature ? stepDetail(feature, run.step) : ''
+                const stages = plan ? `stages ${plan.stages.filter(isStageDone).length}/${plan.stages.length}` : ''
+                // A click unfolds the feature on the run's plan.
+                const follow = async () => {
+                  await update($, expanded, () => run.feature)
+                  if (plan) await update($, pickedPlans, m => ({ ...m, [run.feature]: plan.folder }))
+                }
                 return (
-                  <Box
-                    key={`card:${run.sessionId}:${run.since}`}
-                    flexDirection="column"
-                    flexGrow={1}
-                    minWidth={28}
-                    borderStyle="round"
-                    borderColor={RUN_COLOR[run.status]}
-                    paddingX={1}
-                  >
+                  <Box key={`card:${run.sessionId}:${run.since}`} flexDirection="column" borderStyle="round" borderColor={RUN_COLOR[run.status]} paddingX={1}>
                     <Box justifyContent="space-between" gap={1}>
-                      <Button key={`live:${run.sessionId}:${run.since}`} plain onPress={() => update($, expanded, () => run.feature)}>
-                        <Text weight="semibold">{describeRun(run, feature)}</Text>
+                      <Button key={`live:${run.sessionId}:${run.since}`} plain onPress={follow}>
+                        <Text weight="semibold">{runTitle(run, feature)}</Text>
+                        {stepAt ? <Text dimColor mono tabular>{`  ${stepAt}`}</Text> : ''}
                       </Button>
                       <Text color={RUN_COLOR[run.status]} wrap="truncate-end">
                         {RUN_LABEL[run.status]}
                       </Text>
                     </Box>
-                    <Text size="caption" dimColor>
-                      {who(run)} · {SKILL_LABEL[run.command] ?? run.command} · {age(now, run.since)}
+                    <Text wrap="truncate-end">
+                      <Text dimColor>{'Feature  '}</Text>
+                      <Text weight="semibold">{run.feature}</Text>
+                      {found && found.title !== found.slug ? <Text>{`  ${found.title}`}</Text> : ''}
+                      {found ? <Text color={STATE_COLOR[found.state]}>{`  ● ${STATE_LABEL[found.state]}`}</Text> : ''}
+                    </Text>
+                    {plan !== undefined && (
+                      <Text wrap="truncate-end">
+                        <Text dimColor>{'Plan     '}</Text>
+                        <Text mono>{planName}</Text>
+                        {plan ? <Text>{`  ${plan.title}`}</Text> : ''}
+                        {stages ?<Text dimColor tabular>{`  ${stages}`}</Text> : ''}
+                      </Text>
+                    )}
+                    <Text size="caption" dimColor wrap="truncate-end">
+                      {who(run)} · {SKILL_LABEL[run.command] ?? run.command} · depuis {stamp(run.since)} · {age(now, run.since)}
                     </Text>
                   </Box>
                 )
@@ -565,7 +593,9 @@ export const register: Register = on => {
                       <Button key={`prepare:${feature.slug}`} variant="primary" label={action.label} onPress={prepare(action.prompt)} />
                       {action.all && <Button key={`all:${feature.slug}`} label={action.all.label} onPress={prepare(action.all.prompt)} />}
                       <Button key={`copy:${feature.slug}`} label="Copier" onPress={copy(action.prompt)} />
-                      <Button key={`session:${feature.slug}`} label="Nouvelle session" onPress={startSession(action.prompt)} />
+                      {plan && feature.state === 'review' && (
+                        <Button key={`mark-review:${feature.slug}`} label="Marquer comme fait" onPress={() => markReviewDone($, b.root, plan.folder)} />
+                      )}
                       {plan && <Button key={`review:${feature.slug}`} label="Revue du plan" onPress={prepare(`/factory:review plan ${plan.folder}`)} />}
                       {isStageAction && (
                         <Button key={`review-stage:${feature.slug}`} label={`${reviewOn ? '☑' : '☐'} Revue après chaque stage`} onPress={toggleReview} />
