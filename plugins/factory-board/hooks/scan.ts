@@ -1,6 +1,7 @@
 /**
  * Builds the board from the project's files and its git branch. Reads only:
- * `.planning/features/*` through `$.fs`, the branch and the log through git.
+ * `.planning/features/*` and `factory.yaml`'s `base_branch` through `$.fs`;
+ * the branch, its commits since the base, the status and the log through git.
  */
 
 import type { EngineInterface } from 'claude-code'
@@ -12,6 +13,11 @@ const join = (...parts: string[]): string => parts.join('/')
 
 type Git = {
   branch: string | null
+  baseBranch: string
+  /** The subjects of the branch's commits since it left the base branch; null when git cannot tell. */
+  branchSubjects: string[] | null
+  /** Paths with an uncommitted change (modified, staged or untracked), the whole repository. */
+  changedCount: number
   /** Untracked paths, relative to the repository, forward slashes. */
   untracked: Set<string>
   /** Short SHA by commit subject; the newest commit with that subject wins. */
@@ -27,11 +33,24 @@ async function git($: EngineInterface, root: string, argv: string[]): Promise<st
   }
 }
 
+/** The manifest's `base_branch`, `main` without one. */
+async function readBaseBranch($: EngineInterface, root: string): Promise<string> {
+  const text = await $.fs.read(join(root, 'factory.yaml')).catch(() => null)
+  // shortcut: a line match, not a YAML parse; enough for the top-level key factory-init writes.
+  const m = typeof text === 'string' ? /^base_branch:\s*["']?([^"'\s#]+)/m.exec(text) : null
+  return m?.[1] ?? 'main'
+}
+
 async function readGit($: EngineInterface, root: string): Promise<Git> {
   const branch = (await git($, root, ['rev-parse', '--abbrev-ref', 'HEAD']))?.trim() || null
-  const status = (await git($, root, ['status', '--porcelain', '--untracked-files=all', '--', '.planning'])) ?? ''
+  const baseBranch = await readBaseBranch($, root)
+  // `base..HEAD` starts at the merge base: the branch's own commits. No local base branch: its remote one.
+  const range = (await git($, root, ['log', '--format=%s', `${baseBranch}..HEAD`])) ?? (await git($, root, ['log', '--format=%s', `origin/${baseBranch}..HEAD`]))
+  const branchSubjects = range === null ? null : range.split(/\r?\n/).filter(Boolean)
+  const status = (await git($, root, ['status', '--porcelain', '--untracked-files=all'])) ?? ''
+  const lines = status.split(/\r?\n/).filter(line => line.length > 3)
   const untracked = new Set<string>()
-  for (const line of status.split(/\r?\n/)) {
+  for (const line of lines) {
     if (!line.startsWith('?? ')) continue
     untracked.add(line.slice(3).trim().replace(/^"|"$/g, '').replace(/\\/g, '/'))
   }
@@ -43,7 +62,7 @@ async function readGit($: EngineInterface, root: string): Promise<Git> {
     const subject = line.slice(tab + 1).trim()
     if (!shaBySubject.has(subject)) shaBySubject.set(subject, line.slice(0, tab))
   }
-  return { branch, untracked, shaBySubject }
+  return { branch, baseBranch, branchSubjects, changedCount: lines.length, untracked, shaBySubject }
 }
 
 /** Every plan of a feature, newest first: the folder names start with their timestamp. */
@@ -81,7 +100,7 @@ async function readPlans($: EngineInterface, featureDir: string, relFeatureDir: 
 
 /** Reads every feature under `{root}/.planning/features`, its plans, and git. */
 export async function scanBoard($: EngineInterface, root: string, now: number): Promise<FactoryBoard> {
-  const base: FactoryBoard = { root, branch: null, features: [], runs: [], scannedAt: now, error: null }
+  const base: FactoryBoard = { root, branch: null, baseBranch: 'main', aheadCount: null, branchFeature: null, changedCount: 0, features: [], runs: [], scannedAt: now, error: null }
   const featuresDir = join(root, '.planning', 'features')
   if (!(await $.fs.exists(featuresDir))) {
     return { ...base, error: 'Pas de dossier .planning/features dans ce projet.' }
@@ -113,7 +132,11 @@ export async function scanBoard($: EngineInterface, root: string, now: number): 
         state: featureState(spec !== null, plan),
       })
     }
-    return { ...base, branch: state.branch, features }
+    const { branch, baseBranch, branchSubjects, changedCount } = state
+    // The commit scope `{type}({slug}): …` names the feature; the newest commit naming one of the board's wins.
+    const scopes = (branchSubjects ?? []).map(subject => /^\w+\(([^)]+)\)!?:/.exec(subject)?.[1])
+    const branchFeature = scopes.find(scope => features.some(f => f.slug === scope)) ?? null
+    return { ...base, branch, baseBranch, aheadCount: branchSubjects?.length ?? null, branchFeature, changedCount, features }
   } catch (error) {
     return { ...base, error: `Lecture impossible : ${error instanceof Error ? error.message : String(error)}` }
   }

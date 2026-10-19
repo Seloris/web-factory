@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, stamp, stepTitle, steps, tickReview, withPlan } from './planning'
+import { activeStep, afterCommit, committed, describeRun, isFinalized, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, stamp, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -423,6 +423,13 @@ export const register: Register = on => {
     const inProgress = features.filter(f => f.state === 'running' || f.state === 'review').length
     const stagesLeft = features.reduce((n, f) => n + (f.plan?.stages.filter(s => !isStageDone(s)).length ?? 0), 0)
     const sessions = [running > 0 ? `${running} en cours` : null, waiting > 0 ? `${waiting} en attente` : null].filter(Boolean)
+    // `HEAD` is a detached head: no branch to squash.
+    const isBaseBranch = b.branch === b.baseBranch || b.branch === 'HEAD'
+    // The squash folds a finalized plan: a branch whose commits name a feature with a plan waits for it.
+    const branchPlan = b.features.find(f => f.slug === b.branchFeature)?.plan ?? null
+    const isPlanOpen = branchPlan !== null && !isFinalized(branchPlan)
+    const squashPrompt = branchPlan ? `/factory:implement ${branchPlan.folder} — close the branch` : `/factory:implement close the branch ${b.branch}`
+    const canSquash = b.branch !== null && !isBaseBranch && (b.aheadCount ?? 0) > 1
 
     const tile = (key: string, label: string, value: number, color?: string) => (
       <Box key={`tile:${key}`} flexDirection="column" flexGrow={1} minWidth={12} borderStyle="round" borderDimColor paddingX={1}>
@@ -444,12 +451,33 @@ export const register: Register = on => {
               {version ? ` v${version}` : ''}
               {'  '}
               {project}
-              {b.branch ? ` · ${b.branch}` : ''}
               {sessions.length > 0 ? ` · ${sessions.join(', ')}` : ''}
             </Text>
           </Text>
           <Button key="refresh" plain dimColor label="⟳" onPress={() => refreshQuietly($)} />
         </Box>
+
+        {b.branch && (
+          <Box justifyContent="space-between" alignItems="center" gap={1} paddingX={1}>
+            <Text wrap="truncate-end">
+              <Text dimColor>{'Branche  '}</Text>
+              <Text weight="semibold" mono>
+                {b.branch}
+              </Text>
+              <Text dimColor tabular>
+                {b.aheadCount !== null && !isBaseBranch ? `  ${b.aheadCount} commit(s) depuis ${b.baseBranch}` : ''}
+                {`  · ${b.changedCount > 0 ? `${b.changedCount} fichier(s) non commité(s)` : 'rien à committer'}`}
+              </Text>
+            </Text>
+            {/* The squash skill checks the range, proposes the message and waits for a yes: the button only prepares it. */}
+            {canSquash && !isPlanOpen && <Button key="squash" label="Squasher" onPress={prepare(squashPrompt)} />}
+            {canSquash && isPlanOpen && (
+              <Text key="squash-later" size="caption" dimColor wrap="truncate-end">
+                squash une fois le plan finalisé
+              </Text>
+            )}
+          </Box>
+        )}
 
         <Box gap={1} flexWrap="wrap" marginTop={1}>
           {tile('features', 'Features', b.features.length)}

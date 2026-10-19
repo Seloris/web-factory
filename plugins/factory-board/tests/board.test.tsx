@@ -67,6 +67,7 @@ const BASE_FILES: Record<string, string> = {
   [`${ROOT}/${PLAN_FOLDER}/plan.md`]: PLAN,
   [`${ROOT}/${OLD_PLAN_FOLDER}/plan.md`]: OLD_PLAN,
   [`${ROOT}/.planning/features/tags/00_spec.md`]: TAGS_SPEC,
+  [`${ROOT}/factory.yaml`]: 'project: demo\nbase_branch: "develop"  # the base\n',
 }
 
 const GIT_LOG = ['b71e04\tfeat(demo): api — counter endpoint', '9c0d1e\tchore: init', ''].join('\n')
@@ -75,7 +76,7 @@ const GIT_LOG = ['b71e04\tfeat(demo): api — counter endpoint', '9c0d1e\tchore:
 const norm = (path: string): string => path.split('\\').join('/').replace(/^[A-Za-z]:/, '')
 
 /** A project on disk, git included, answered from memory. Returns the store the mod writes to. */
-function mockProject(on: On, options: { log?: string; files?: Record<string, string> } = {}): Map<string, unknown> {
+function mockProject(on: On, options: { log?: string; range?: string; files?: Record<string, string> } = {}): Map<string, unknown> {
   const files = options.files ?? BASE_FILES
   const isDir = (path: string) => Object.keys(files).some(p => p.startsWith(`${path}/`))
   on('session.root', () => ({ value: ROOT }))
@@ -108,7 +109,8 @@ function mockProject(on: On, options: { log?: string; files?: Record<string, str
       value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     })
     if (argv.startsWith('git rev-parse')) return ok('feat/demo\n')
-    if (argv.startsWith('git status')) return ok('')
+    if (argv === 'git log --format=%s develop..HEAD') return ok(options.range ?? 'feat(demo): api — counter endpoint\ndocs(demo): plan\ndocs(demo): spec\n')
+    if (argv.startsWith('git status')) return ok(' M api/src/app.ts\n?? notes.md\n')
     if (argv.startsWith('git log')) return ok(options.log ?? GIT_LOG)
     return ok('')
   })
@@ -196,7 +198,7 @@ test('a plan is finalized once its stages and its Review are ticked, whatever th
   const board = (validation: string): FactoryBoard => {
     const plan = finished(validation)
     const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [plan], plan, state: featureState(true, plan) }
-    return { root: ROOT, branch: 'feat/demo', features: [feature], runs: [], scannedAt: 0, error: null }
+    return { root: ROOT, branch: 'feat/demo', baseBranch: 'main', aheadCount: 2, changedCount: 0, features: [feature], runs: [], scannedAt: 0, error: null }
   }
   expect(committed(board('- [ ] Review: pending\n'), board('- [x] Review: done\n- [ ] Browser test: not run\n'))).toEqual(['demo · plan finalisé'])
   expect(committed(board('- [x] Review: done\n'), board('- [x] Review: done\n'))).toEqual([])
@@ -270,7 +272,7 @@ test('committed names a stage whose commit reached the branch', () => {
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
   const board = (sha: string | null): FactoryBoard => ({
     root: ROOT,
-    branch: 'feat/demo',
+    branch: 'feat/demo', baseBranch: 'main', aheadCount: 2, changedCount: 0,
     runs: [],
     scannedAt: 0,
     error: null,
@@ -303,7 +305,12 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('repo · feat/demo')
+    expect(await ui.find({ type: 'Text', text: /^ v9\.9\.9  repo$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^feat\/demo$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /3 commit\(s\) depuis develop  · 2 fichier\(s\) non commité\(s\)/ })).toBeDefined()
+    // The branch's commits name `demo`, whose latest plan is not finalized: no squash yet.
+    expect(await ui.find({ key: 'squash' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /squash une fois le plan finalisé/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^ v9\.9\.9/ })).toBeDefined()
     expect((await ui.find({ key: 'tile:features' }))?.text).toContain('2')
     expect((await ui.find({ key: 'tile:no-plan' }))?.text).toContain('1')
@@ -376,7 +383,7 @@ test('a /factory: prompt records the run, the turn end marks it waiting, a commi
   expect(card).toMatch(/cette session · Implémentation · depuis \d\d\/\d\d \d\d:\d\d · 0 min/)
   await ui.press({ key: 'live:session-aaaa-1111:1000000' })
   expect(await ui.find({ key: 'run:session-aaaa-1111:1000000', text: /Implémentation.*attend une réponse/ })).toBeDefined()
-  expect((await ui.find({ type: 'Text', text: /feat\/demo/ }))?.text).toContain('1 en attente')
+  expect((await ui.find({ type: 'Text', text: /en attente/ }))?.text).toContain('repo · 1 en attente')
 
   await $.tool.call({ tool: 'Bash', command: 'git commit -m "docs(demo): spec"' } as never)
   expect((store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>).status).toBe('done')
@@ -475,7 +482,7 @@ test('withPlan follows a feature on one of its plans, and its runs with it', () 
   expect(isRunOfPlan(writing, onNew as FactoryBoardFeature)).toBe(true)
   expect(isRunOfPlan(run('plan', null), onNew as FactoryBoardFeature)).toBe(false)
 
-  const board = (plans: typeof demo.plans): FactoryBoard => ({ root: ROOT, branch: null, features: [{ ...demo, plans }], runs: [], scannedAt: 0, error: null })
+  const board = (plans: typeof demo.plans): FactoryBoard => ({ root: ROOT, branch: null, baseBranch: 'main', aheadCount: null, changedCount: 0, features: [{ ...demo, plans }], runs: [], scannedAt: 0, error: null })
   expect(newPlans(null, board([latest, old]))).toEqual([])
   expect(newPlans(board([old]), board([old]))).toEqual([])
   expect(newPlans(board([old]), board([latest, old]))).toEqual(['demo'])
@@ -613,4 +620,34 @@ test('the band shows this session’s step and toggles the pane', async ($, on) 
   expect(await ui.find({ type: 'Text', text: /Stage 2 — web · demo/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /● en cours/ })).toBeDefined()
   await ui.unmount()
+})
+
+/** Mounts the pane on a project, presses `Squasher` when it shows: the prompt it prepared, null without the button. */
+async function squashPrompt($: Parameters<Parameters<typeof test>[1]>[0], on: On, options: Parameters<typeof mockProject>[1]): Promise<string | null> {
+  mockProject(on, options)
+  const filled: string[] = []
+  on('prompt.fill', ($, e) => {
+    filled.push(e.text)
+    return { isFilled: true }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const button = await ui.find({ key: 'squash' })
+  if (button !== undefined) await ui.press({ key: 'squash' })
+  await ui.unmount()
+  return button === undefined ? null : (filled.at(-1) ?? null)
+}
+
+test('the squash of a branch whose feature has its plan finalized closes that plan', async ($, on) => {
+  const { [`${ROOT}/${PLAN_FOLDER}/plan.md`]: _, ...finalized } = BASE_FILES
+  expect(await squashPrompt($, on, { files: finalized })).toBe(`/factory:implement ${OLD_PLAN_FOLDER} — close the branch`)
+})
+
+test('the squash of a branch whose commits name no feature closes the branch without a plan', async ($, on) => {
+  expect(await squashPrompt($, on, { range: 'chore(ci): cache\nchore(ci): node 20\n' })).toBe('/factory:implement close the branch feat/demo')
+})
+
+test('a branch of one commit offers no squash', async ($, on) => {
+  expect(await squashPrompt($, on, { range: 'chore(ci): cache\n' })).toBeNull()
 })

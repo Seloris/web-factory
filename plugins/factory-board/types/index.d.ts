@@ -101,6 +101,14 @@ export type FactoryBoardRun = {
 export type FactoryBoard = {
   root: string
   branch: string | null
+  /** The manifest's `base_branch` (`main` without one): the branch features are squashed into. */
+  baseBranch: string
+  /** The branch's own commits since it left `baseBranch`; null when git cannot tell. */
+  aheadCount: number | null
+  /** The feature the branch's commits name (`{type}({slug}): …`), when it is one of `features`. */
+  branchFeature: string | null
+  /** Uncommitted paths of the repository (modified, staged, untracked). */
+  changedCount: number
   features: FactoryBoardFeature[]
   runs: FactoryBoardRun[]
   scannedAt: number
