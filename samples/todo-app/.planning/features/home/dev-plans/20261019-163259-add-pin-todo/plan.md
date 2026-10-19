@@ -122,6 +122,6 @@ Commit: `feat(home): web — pinned todos at the top of the list`
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
 - [x] Tests: the full `test` command of `api` green on the plan's final code
 - [x] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web
