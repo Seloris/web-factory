@@ -16,6 +16,11 @@ import {
   useSetTodoCompletedMutation,
   type SetTodoCompletedVariables,
 } from "../data/useSetTodoCompletedMutation.ts";
+import {
+  setTodoPinnedKey,
+  useSetTodoPinnedMutation,
+  type SetTodoPinnedVariables,
+} from "../data/useSetTodoPinnedMutation.ts";
 import { useTodosQuery, type Todo } from "../data/useTodosQuery.ts";
 import { TodoFilters } from "../ui/TodoFilters.tsx";
 import { TodoForm } from "../ui/TodoForm.tsx";
@@ -31,11 +36,16 @@ function HomePage() {
   const todosQuery = useTodosQuery();
   const createTodo = useCreateTodoMutation();
   const setTodoCompleted = useSetTodoCompletedMutation();
+  const setTodoPinned = useSetTodoPinnedMutation();
   const deleteTodo = useDeleteTodoMutation();
   // One useMutation only exposes its latest variables: every pending toggle comes from the cache.
   const pendingIds = useMutationState({
     filters: { mutationKey: setTodoCompletedKey, status: "pending" },
     select: (mutation) => (mutation.state.variables as SetTodoCompletedVariables).id,
+  });
+  const pendingPinIds = useMutationState({
+    filters: { mutationKey: setTodoPinnedKey, status: "pending" },
+    select: (mutation) => (mutation.state.variables as SetTodoPinnedVariables).id,
   });
 
   const todos = todosQuery.data ?? [];
@@ -88,7 +98,7 @@ function HomePage() {
           </div>
         ) : (
           <>
-            {setTodoCompleted.isError && <ErrorMessage>{t("common.error.generic")}</ErrorMessage>}
+            {(setTodoCompleted.isError || setTodoPinned.isError) && <ErrorMessage>{t("common.error.generic")}</ErrorMessage>}
             {todos.length === 0 ? (
               <EmptyState>{t("home.list.empty")}</EmptyState>
             ) : visible.length === 0 ? (
@@ -98,6 +108,8 @@ function HomePage() {
                 todos={visible}
                 pendingIds={pendingIds}
                 onToggleCompleted={(todo, isCompleted) => setTodoCompleted.mutate({ id: todo.id, isCompleted })}
+                pendingPinIds={pendingPinIds}
+                onTogglePinned={(todo, isPinned) => setTodoPinned.mutate({ id: todo.id, isPinned })}
                 onDelete={(todo) => {
                   deleteTodo.reset();
                   setTodoToDelete(todo);

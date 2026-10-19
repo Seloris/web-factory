@@ -1,4 +1,4 @@
-# web — the todo-app front: the home page lists, adds, completes, filters and deletes todos
+# web — the todo-app front: the home page lists, adds, completes, pins, filters and deletes todos
 
 ```component
 kind: front

@@ -16,6 +16,7 @@ const fr = {
   "home.list.empty": "Aucune tâche pour l'instant : ajoutez la première !",
   "home.list.noMatch": "Aucune tâche ne correspond à votre recherche.",
   "home.item.toggle": "« {name} » terminée",
+  "home.item.pin": "Épingler",
   "home.item.delete": "Supprimer",
   "home.delete.title": "Supprimer la tâche ?",
   "home.delete.message": "La tâche « {name} » sera supprimée définitivement.",

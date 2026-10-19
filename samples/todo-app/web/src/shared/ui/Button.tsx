@@ -5,6 +5,6 @@ export function Button({
   variant = "quiet",
   type = "button",
   ...props
-}: { variant?: "primary" | "danger" | "quiet" | "ghost" } & Omit<ComponentProps<"button">, "className">) {
+}: { variant?: "primary" | "danger" | "quiet" | "ghost" | "subtle" } & Omit<ComponentProps<"button">, "className">) {
   return <button type={type} className={`${styles.btn} ${styles[variant]}`} {...props} />;
 }

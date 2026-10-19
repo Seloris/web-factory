@@ -28,6 +28,11 @@
   overflow-wrap: anywhere;
 }
 
+/* A pinned row: its leading edge in the accent, thicker than the other edges. */
+.item.isPinned {
+  border-left: calc(var(--border-width) * 3) solid var(--accent);
+}
+
 .item.isDone .itemText {
   color: var(--text-muted);
   text-decoration: line-through;

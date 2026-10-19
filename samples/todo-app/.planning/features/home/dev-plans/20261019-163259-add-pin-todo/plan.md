@@ -114,14 +114,14 @@ Commit: `feat(home): api — pin and unpin a todo`
 
 ### Stage 2 — web
 Commit: `feat(home): web — pinned todos at the top of the list`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: `useSetTodoPinnedMutation`, pinned-first order in `selectVisibleTodos`
-- [ ] pages: `HomePage` wires the pin mutation, its pending ids and its error
-- [ ] ui: pin button in `TodoItem`, `TodoList` props, `PinIcon`, `subtle` button variant, `ListItem` `isPinned`, `home.item.pin`
-- [ ] Conventions: `web/CLAUDE.md` title
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: `useSetTodoPinnedMutation`, pinned-first order in `selectVisibleTodos`
+- [x] pages: `HomePage` wires the pin mutation, its pending ids and its error
+- [x] ui: pin button in `TodoItem`, `TodoList` props, `PinIcon`, `subtle` button variant, `ListItem` `isPinned`, `home.item.pin`
+- [x] Conventions: `web/CLAUDE.md` title
 
 ## Validation
 
 - [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [x] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web

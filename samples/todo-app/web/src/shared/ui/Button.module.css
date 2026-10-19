@@ -74,3 +74,26 @@
   width: 15px;
   height: 15px;
 }
+
+/* A neutral row action (pin), quiet until hovered or pressed. */
+.subtle {
+  height: auto;
+  padding: 6px 10px;
+  font-size: 0.86em;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-muted);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.subtle:hover:not(:disabled),
+.subtle[aria-pressed="true"] {
+  color: var(--accent-soft-text);
+  background: var(--accent-soft);
+}
+
+.subtle svg {
+  width: 15px;
+  height: 15px;
+}

@@ -21,6 +21,15 @@ export function SearchIcon() {
   );
 }
 
+export function PinIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M12 17v5" />
+      <path d="M9 3h6l-1 7 4 4v3H6v-3l4-4z" />
+    </svg>
+  );
+}
+
 export function TrashIcon() {
   return (
     <svg {...iconProps}>

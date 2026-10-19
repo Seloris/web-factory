@@ -21,8 +21,11 @@ export function selectVisibleTodos(
     (todo) =>
       fold(todo.name).includes(search) && (tag === null || (todo.tag !== null && fold(todo.tag) === tag)),
   );
-  // Stable sort: the API's newest-first order stays within each state.
-  return view.isSortedByState
-    ? visible.toSorted((a, b) => Number(a.isCompleted) - Number(b.isCompleted))
-    : visible;
+  // Stable sort: the pinned group comes first, the sort by state applies within each group,
+  // and the API's newest-first order stays within each state.
+  return visible.toSorted(
+    (a, b) =>
+      Number(b.isPinned) - Number(a.isPinned) ||
+      (view.isSortedByState ? Number(a.isCompleted) - Number(b.isCompleted) : 0),
+  );
 }
