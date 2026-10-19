@@ -127,7 +127,7 @@ const STATE_LABEL: Record<FactoryBoardFeature['state'], string> = {
   plan: 'plan prêt',
   running: 'en cours',
   review: 'à valider',
-  done: 'à fermer',
+  done: 'plan finalisé',
 }
 
 /** Theme keys, so the pane follows the person's theme on every surface. */
@@ -192,7 +192,6 @@ function stepDetail(feature: FactoryBoardFeature, step: FactoryBoardStep): strin
   }
   if (step === 'plan') return plan === null ? '' : plan.isDraft ? 'brouillon' : 'commité'
   if (step === 'review') return plan ? `${plan.validationDone}/${plan.validationTotal}` : ''
-  if (step === 'close') return ''
   const stage = plan?.stages.find(s => `stage:${s.number}` === step)
   if (stage === undefined) return ''
   return isStageDone(stage) ? (stage.sha ?? 'non committé') : `${stage.done}/${stage.total}`

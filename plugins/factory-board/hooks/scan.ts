@@ -72,6 +72,7 @@ async function readPlans($: EngineInterface, featureDir: string, relFeatureDir: 
       stages: parsed.stages,
       validationDone: parsed.validationDone,
       validationTotal: parsed.validationTotal,
+      reviewDone: parsed.reviewDone,
       isDraft: state.untracked.has(`${folder}/plan.md`),
     })
   }

@@ -18,6 +18,7 @@ export type ParsedPlan = {
   stages: FactoryBoardStage[]
   validationDone: number
   validationTotal: number
+  reviewDone: boolean
 }
 
 const HEADING_1 = /^#\s+(.+?)\s*$/
@@ -26,10 +27,12 @@ const STAGE = /^###\s+Stage\s+(\d+)\s*(?:[—–-]+\s*(.*?))?\s*$/
 const COMMIT = /^Commit:\s*`([^`]+)`/
 // `[-]`: settled without a tick (a validation check the person declined); counts as done.
 const CHECKBOX = /^\s*[-*]\s+\[([ xX-])\]/
+// The one Validation item a plan's finalization waits for, in English or French.
+const REVIEW_ITEM = /^\s*(?:review|revue)\b/i
 
-/** Reads a `plan.md`: its title, the Progress stages and the Validation count. */
+/** Reads a `plan.md`: its title, the Progress stages, the Validation count and its `Review` item. */
 export function parsePlan(text: string): ParsedPlan {
-  const plan: ParsedPlan = { title: null, stages: [], validationDone: 0, validationTotal: 0 }
+  const plan: ParsedPlan = { title: null, stages: [], validationDone: 0, validationTotal: 0, reviewDone: false }
   let section = ''
   let stage: FactoryBoardStage | null = null
 
@@ -67,6 +70,8 @@ export function parsePlan(text: string): ParsedPlan {
       if (box) {
         plan.validationTotal += 1
         if (box[1] !== ' ') plan.validationDone += 1
+        // Review is never declined: only a tick counts.
+        if (/[xX]/.test(box[1] ?? '') && REVIEW_ITEM.test(line.slice(box[0].length))) plan.reviewDone = true
       }
     }
   }
@@ -136,6 +141,11 @@ export function stagesDone(plan: FactoryBoardPlan): boolean {
   return plan.stages.length > 0 && plan.stages.every(s => s.total > 0 && s.done === s.total)
 }
 
+/** Every stage and the Validation's `Review` ticked; the optional items do not hold it back. */
+export function isFinalized(plan: FactoryBoardPlan): boolean {
+  return stagesDone(plan) && plan.reviewDone
+}
+
 export function nextStage(plan: FactoryBoardPlan): FactoryBoardStage | null {
   return plan.stages.find(s => s.done < s.total || s.total === 0) ?? null
 }
@@ -145,8 +155,7 @@ export function featureState(hasSpec: boolean, plan: FactoryBoardPlan | null): F
   const ticked = plan.stages.reduce((n, s) => n + s.done, 0)
   if (ticked === 0) return 'plan'
   if (!stagesDone(plan)) return 'running'
-  if (plan.validationDone < plan.validationTotal) return 'review'
-  return 'done'
+  return plan.reviewDone ? 'done' : 'review'
 }
 
 /**
@@ -252,13 +261,14 @@ export function nextAction(feature: FactoryBoardFeature, options: { review?: boo
     case 'review':
       return plan ? { label: 'Revue finale', prompt: `/factory:implement ${plan.folder} — final review` } : null
     case 'done':
-      return plan ? { label: 'Fermer la branche', prompt: `/factory:implement ${plan.folder} — close the branch` } : null
+      // The squash is proposed by the step that finalized the plan: nothing left to prepare.
+      return null
   }
 }
 
-/** The timeline steps of a feature, in order: spec, plan, its stages, the final review, the close. */
+/** The timeline steps of a feature, in order: spec, plan, its stages, the final review. */
 export function steps(feature: FactoryBoardFeature): FactoryBoardStep[] {
-  return ['spec', 'plan', ...(feature.plan?.stages.map(s => `stage:${s.number}`) ?? []), 'review', 'close']
+  return ['spec', 'plan', ...(feature.plan?.stages.map(s => `stage:${s.number}`) ?? []), 'review']
 }
 
 /** The step a feature stands at: the one `nextAction` prepares. */
@@ -276,18 +286,17 @@ export function activeStep(feature: FactoryBoardFeature): FactoryBoardStep {
       return stage ? `stage:${stage.number}` : 'review'
     }
     case 'review':
-      return 'review'
     case 'done':
-      return 'close'
+      return 'review'
   }
 }
 
-/** True once the feature is past the step. `close` is never done: a closed feature leaves the board. */
+/** True once the feature is past the step. */
 export function isStepDone(feature: FactoryBoardFeature, step: FactoryBoardStep): boolean {
   const plan = feature.plan
   if (step === 'spec') return feature.hasSpec
   if (step === 'plan') return plan !== null && !plan.isDraft
-  if (step === 'review') return plan !== null && plan.validationTotal > 0 && plan.validationDone === plan.validationTotal
+  if (step === 'review') return plan !== null && plan.reviewDone
   const stage = plan?.stages.find(s => `stage:${s.number}` === step)
   return stage !== undefined && stage.total > 0 && stage.done === stage.total
 }
@@ -303,7 +312,6 @@ export function runStep(command: FactoryCommand, feature: FactoryBoardFeature | 
       return /^plan\b/.test(command.args) ? 'plan' : 'review'
     default:
       if (/final review\s*$/i.test(command.args)) return 'review'
-      if (/close the branch\s*$/i.test(command.args)) return 'close'
       // `— stage 2 (web)`, or the first of `— stages 2-3 (web, e2e), chained`.
       if (/\bstages?\s+\d+/i.test(command.args)) return `stage:${/\bstages?\s+(\d+)/i.exec(command.args)?.[1]}`
       // An implement on a feature the board does not know lands on no row: listed with the sessions only.
@@ -340,7 +348,7 @@ export function stamp(ms: number): string {
 
 /**
  * What a new scan proves was committed since the previous one: a stage whose
- * commit reached the branch, a Validation checklist that became complete.
+ * commit reached the branch, a plan that became finalized.
  * One line per event, ready for a toast.
  */
 export function committed(before: FactoryBoard | null, after: FactoryBoard): string[] {
@@ -354,23 +362,19 @@ export function committed(before: FactoryBoard | null, after: FactoryBoard): str
           lines.push(`${feature.slug} · stage ${stage.number} committé (${stage.sha})`)
         }
       }
-      const complete = plan.validationTotal > 0 && plan.validationDone === plan.validationTotal
-      const wasComplete =
-        previous !== null && previous.validationTotal > 0 && previous.validationDone === previous.validationTotal
-      if (complete && !wasComplete) {
-        lines.push(`${feature.slug} · validation complète, la branche peut être fermée`)
+      if (isFinalized(plan) && (previous === null || !isFinalized(previous))) {
+        lines.push(`${feature.slug} · plan finalisé`)
       }
     }
   }
   return lines
 }
 
-/** The name of a timeline step: `Spec`, `Plan`, `Stage 2 — web`, `Revue finale`, `Clôture de la branche`. */
+/** The name of a timeline step: `Spec`, `Plan`, `Stage 2 — web`, `Revue finale`. */
 export function stepTitle(feature: FactoryBoardFeature | undefined, step: FactoryBoardStep): string {
   if (step === 'spec') return 'Spec'
   if (step === 'plan') return 'Plan'
   if (step === 'review') return 'Revue finale'
-  if (step === 'close') return 'Clôture de la branche'
   const number = /^stage:(\d+)$/.exec(step)?.[1]
   if (number === undefined) return step
   const stage = feature?.plan?.stages.find(s => String(s.number) === number)
@@ -391,7 +395,7 @@ export function describeRun(run: FactoryBoardRun, feature: FactoryBoardFeature |
     case 'review':
       return `${run.step === 'plan' ? 'Revue du plan' : 'Revue'} · ${run.feature}`
     case 'implement': {
-      const isStep = /^stage:\d+$/.test(run.step) || run.step === 'review' || run.step === 'close'
+      const isStep = /^stage:\d+$/.test(run.step) || run.step === 'review'
       return `${isStep ? stepTitle(feature, run.step) : 'Implémentation'} · ${run.feature}`
     }
     default:

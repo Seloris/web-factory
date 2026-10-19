@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, committed, describeRun, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, sessionRequest, stamp, withPlan } from '../hooks/planning'
+import { activeStep, afterCommit, committed, describeRun, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runStep, sessionRequest, stamp, withPlan } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -173,12 +173,33 @@ test('parsePlan reads the stages, their commits and the validation', () => {
   expect(plan.stages[1]?.total).toBe(3)
   expect(plan.validationDone).toBe(0)
   expect(plan.validationTotal).toBe(2)
+  expect(plan.reviewDone).toBe(false)
 })
 
 test('parsePlan counts a declined validation item as settled', () => {
   const plan = parsePlan('## Validation\n\n- [x] Review: done\n- [-] Browser test: not run (declined)\n- [ ] Tests: suite green\n')
   expect(plan.validationDone).toBe(2)
   expect(plan.validationTotal).toBe(3)
+  expect(plan.reviewDone).toBe(true)
+})
+
+test('a plan is finalized once its stages and its Review are ticked, whatever the optional items', () => {
+  const finished = (validation: string) => {
+    const parsed = parsePlan(`## Progress\n\n### Stage 1 — api\n- [x] Domain: done\n\n## Validation\n\n${validation}`)
+    return { ...parsed, title: 'Demo', folder: PLAN_FOLDER, isDraft: false }
+  }
+  expect(featureState(true, finished('- [x] Review: done\n- [ ] Browser test: not run\n- [-] Tests: declined\n'))).toBe('done')
+  expect(featureState(true, finished('- [ ] Review: pending\n- [x] Tests: green\n'))).toBe('review')
+  expect(featureState(true, finished('- [x] Tests: green\n'))).toBe('review')
+  expect(featureState(true, finished('- [-] Review: declined\n'))).toBe('review')
+  expect(featureState(true, finished('- [x] Revue : faite\n'))).toBe('done')
+  const board = (validation: string): FactoryBoard => {
+    const plan = finished(validation)
+    const feature: FactoryBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [plan], plan, state: featureState(true, plan) }
+    return { root: ROOT, branch: 'feat/demo', features: [feature], runs: [], scannedAt: 0, error: null }
+  }
+  expect(committed(board('- [ ] Review: pending\n'), board('- [x] Review: done\n- [ ] Browser test: not run\n'))).toEqual(['demo · plan finalisé'])
+  expect(committed(board('- [x] Review: done\n'), board('- [x] Review: done\n'))).toEqual([])
 })
 
 test('parseSpec reads the title without the PRD suffix and the status', () => {
@@ -222,7 +243,7 @@ test('nextAction follows the feature state', () => {
   })
   expect(nextAction(feature('running', { ...plan, isDraft: true }))?.prompt).toBe('/factory:write-plan demo')
   expect(nextAction(feature('review'))?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — final review`)
-  expect(nextAction(feature('done'))?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — close the branch`)
+  expect(nextAction(feature('done'))).toBeNull()
 })
 
 test('the review checkbox adds its marker to the stage prompts only', () => {
@@ -307,7 +328,7 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect((await ui.find({ key: 'step:demo:stage:1' }))?.text).toContain('b71e04')
     expect((await ui.find({ key: 'step:demo:stage:2' }))?.text).toContain('1/3')
     expect((await ui.find({ key: 'step:demo:review' }))?.text).toContain('0/2')
-    expect(await ui.find({ key: 'step:demo:close' })).toBeDefined()
+    expect(await ui.find({ key: 'step:demo:close' })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: new RegExp(`/factory:implement ${PLAN_FOLDER}`) })).toBeDefined()
     expect(await ui.find({ key: 'copy:demo' })).toBeDefined()
     expect(await ui.find({ key: 'review:demo' })).toBeDefined()
@@ -319,7 +340,8 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     await ui.press({ key: 'new-plan:demo' })
     expect(filled.at(-1)).toBe('/factory:write-plan demo')
     await ui.select({ key: 'plan:demo', value: OLD_PLAN_FOLDER })
-    expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Fermer la branche')
+    expect(await ui.find({ key: 'prepare:demo' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /plan finalisé/ })).toBeDefined()
     expect((await ui.find({ key: 'step:demo:stage:1' }))?.text).toContain('non committé')
     expect(await ui.find({ key: 'step:demo:stage:2' })).toBeUndefined()
     expect((await ui.find({ key: 'step:demo:spec' }))?.text).toContain('brouillon')
@@ -407,12 +429,11 @@ test('the timeline steps follow the feature: active step, done steps, the step a
   expect(activeStep(demo)).toBe('stage:2')
   expect(activeStep(empty)).toBe('spec')
   expect(activeStep({ ...demo, plan: { ...plan, isDraft: true } })).toBe('plan')
-  expect(['spec', 'plan', 'stage:1', 'stage:2', 'review', 'close'].map(s => isStepDone(demo, s))).toEqual([true, true, true, false, false, false])
+  expect(['spec', 'plan', 'stage:1', 'stage:2', 'review'].map(s => isStepDone(demo, s))).toEqual([true, true, true, false, false])
   expect(isStepDone(empty, 'spec')).toBe(false)
   const command = (text: string) => parseFactoryCommand(text)!
   expect(runStep(command(`/factory:implement ${PLAN_FOLDER}`), demo)).toBe('stage:2')
   expect(runStep(command(`/factory:implement ${PLAN_FOLDER} — final review`), demo)).toBe('review')
-  expect(runStep(command(`/factory:implement ${PLAN_FOLDER} — close the branch`), demo)).toBe('close')
   expect(runStep(command(`/factory:review plan ${PLAN_FOLDER}`), demo)).toBe('plan')
   expect(runStep(command(`/factory:implement ${PLAN_FOLDER} — stage 1 (api)`), demo)).toBe('stage:1')
   const chained = command(`/factory:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained`)
@@ -512,7 +533,8 @@ test('describeRun names the skill, the feature and the stage at hand', () => {
   expect(describeRun(run('implement'), feature)).toBe('Stage 2 — web · demo')
   expect(describeRun(run('write-plan'), feature)).toBe('Plan · demo')
   expect(describeRun(run('write-spec'), undefined)).toBe('Spec · demo')
-  expect(describeRun(run('implement', 'close'), feature)).toBe('Clôture de la branche · demo')
+  // A run stored before the close step went away.
+  expect(describeRun(run('implement', 'close'), feature)).toBe('Implémentation · demo')
   expect(describeRun(run('implement', 'review'), feature)).toBe('Revue finale · demo')
   expect(describeRun(run('review', 'plan'), feature)).toBe('Revue du plan · demo')
   // Stage 1 fully ticked, its commit not made yet: its session still finishes stage 1, not the plan's next stage.

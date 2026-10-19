@@ -1,6 +1,6 @@
 # webapp-factory
 
-A Claude Code plugin that runs a web-application project through one disciplined workflow: a business spec per feature, a dev-plan precise enough to implement without guessing, test-first implementation one stage per session, a read-only review on request and before the branch closes, and a squashed branch at the end. Stack-agnostic: the project describes itself in a `factory.yaml` manifest, the workflow reads it.
+A Claude Code plugin that runs a web-application project through one disciplined workflow: a business spec per feature, a dev-plan precise enough to implement without guessing, test-first implementation one stage per session, a read-only review on request and before the plan is finalized, and a squashed branch at the end. Stack-agnostic: the project describes itself in a `factory.yaml` manifest, the workflow reads it.
 
 This repository is the plugin and its marketplace. A project installs the plugin and uses it: the plugin is the shared base (agents, skills, templates), the project the specific context (its `CLAUDE.md` files, its manifest, its own skills). Useful to two projects or more goes to the plugin; specific to one project stays with the project.
 
@@ -36,8 +36,10 @@ Then the loop, each step ending with the prompt of the next one ready to copy:
 /factory:write-spec {feature}        business spec, .planning/features/{slug}/00_spec.md
 /factory:write-plan {slug}           dev-plan, committed on the feature branch
 /factory:implement {plan folder}     one stage per session, reviewed, one commit per stage
-/factory:implement {plan folder} — close the branch
+/factory:implement {plan folder} — final review    while the plan's Review is open
 ```
+
+Once every stage and the `Review` are ticked, the plan is finalized: the step that got there proposes the squash of the branch.
 
 Or, for a small change, straight to `/factory:implement {request}`. `/factory:grill-me {slug}` settles open decisions before a spec or a plan; `/factory:review` reviews the branch, `/factory:review plan {plan folder}` a plan.
 

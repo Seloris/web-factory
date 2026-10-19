@@ -37,11 +37,11 @@ The session model is the lead: it plans, decides and writes the code. High-volum
 
 ## Validation of a plan
 
-The plan's Validation checklist records the checks run on the finished implementation: `Review` (always), `Tests` (the full `test` command of every touched component that has one), `Browser test`, `Integration tests`. The last stage ticks what it ran: the whole-plan review, the full suites, the browser test if the person said yes. `implement … — final review` settles what is left: the review if still open, then the optional items, each run only on the person's yes in the session; a declined one is marked `[-]` with the reason. An unticked item means the check was not run.
+The plan's Validation checklist records the checks run on the finished implementation: `Review` (always, the only one the plan's finalization waits for), `Tests` (the full `test` command of every touched component that has one), `Browser test`, `Integration tests`. The last stage ticks what it ran: the whole-plan review, the full suites, the browser test if the person said yes. `implement … — final review` settles what is left: the review if still open, then the optional items, each run only on the person's yes in the session; a declined one is marked `[-]` with the reason. An unticked item means the check was not run; an optional one may stay so.
 
-## Closing a branch
+## Plan finalized
 
-A branch reaches `base_branch` as one commit. Stages keep their own commits while the work goes on; once every item of the plan's Validation checklist is ticked or marked `[-]` (or, without a plan, the last stage is committed), `implement … — close the branch` squashes them, on the person's yes, after checking that nothing is uncommitted, nothing is pushed and every commit is the feature's.
+A plan is finalized once every stage of its Progress and its `Review` are ticked (without a plan, once the last stage is committed); the optional Validation items do not hold it back. A branch reaches `base_branch` as one commit: the step that finalizes the plan (the last stage, the final review, `review {plan folder}`) proposes the squash after its own commit, and makes it on the person's yes, after checking that nothing is uncommitted, nothing is pushed and every commit is the feature's. The board does not track the squash; one put off runs later with `implement … — close the branch`.
 
 ## Planning conventions
 

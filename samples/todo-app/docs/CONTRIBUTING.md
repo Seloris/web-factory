@@ -1,8 +1,8 @@
 # Development process
 
 1. Cut a branch from `main`: `{type}/{slug}-{name}` (e.g. `feat/orders-cutoff-time`).
-2. Work on the branch: one commit per implementation stage, each reviewed by the `reviewer` agent before it is made.
-3. Close the branch: its commits are squashed into one (`/factory:implement … — close the branch`).
+2. Work on the branch: one commit per implementation stage, reviewed by the `reviewer` agent when asked (` — with review`); the review of the plan's last stage, or its final review, covers the whole branch and finalizes the plan.
+3. Plan finalized: its commits are squashed into one, proposed at the step that finalizes it (later: `/factory:implement … — close the branch`).
 4. Push (a human, never an agent), open a PR to `main`, merge after another person's approval.
 
 # Commit conventions

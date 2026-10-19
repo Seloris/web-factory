@@ -23,7 +23,7 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 /factory:implement Add a cutoff time on order publication
 ```
 
-One stage per session, in the manifest's component order. Each stage: tests first, build + tests + lint, one commit. Add ` — with review` to a stage prompt to run the reviewer after it (the pane's review checkbox). Done: `/factory:implement close the branch {branch}`.
+One stage per session, in the manifest's component order. Each stage: tests first, build + tests + lint, one commit. Add ` — with review` to a stage prompt to run the reviewer after it (the pane's review checkbox). The last stage proposes the squash (later: `/factory:implement close the branch {branch}`).
 
 ## With a plan
 
@@ -32,8 +32,8 @@ One stage per session, in the manifest's component order. Each stage: tests firs
 3. Read the summary and the commit messages it proposes (the plan's and each stage's), say **yes** to commit it (silence is not approval)
 4. Optional: `/factory:review plan {plan folder}`
 5. New session per stage: `/factory:implement {plan folder} — stage {N} ({component})`, or all the remaining ones in one session: `/factory:implement {plan folder} — stages {N}-{M} ({components}), chained`
-6. When an item of the plan's Validation is still `[ ]`: `/factory:implement {plan folder} — final review` (review, then the full tests, the browser test and the integration tests you say yes to; a declined one is marked `[-]`)
-7. `/factory:implement {plan folder} — close the branch`
+6. When the plan's `Review` is still `[ ]`: `/factory:implement {plan folder} — final review` (review, then the full tests, the browser test and the integration tests you say yes to; a declined one is marked `[-]`)
+7. Plan finalized (every stage and `Review` ticked): the step that finalized it proposes the squash; later: `/factory:implement {plan folder} — close the branch`
 
 Each step ends with the next prompt ready to copy.
 

@@ -29,6 +29,8 @@ export type FactoryBoardPlan = {
   stages: FactoryBoardStage[]
   validationDone: number
   validationTotal: number
+  /** The Validation's `Review` item ticked: with every stage ticked, the plan is finalized. */
+  reviewDone: boolean
   /** True while `plan.md` is untracked: a draft `write-plan` is still iterating on. */
   isDraft: boolean
 }
@@ -42,9 +44,9 @@ export type FactoryBoardFeatureState =
   | 'plan'
   /** Some steps ticked, some left. */
   | 'running'
-  /** Every stage ticked, the Validation checklist not yet. */
+  /** Every stage ticked, the Validation's `Review` not yet. */
   | 'review'
-  /** Every stage and every validation item ticked (or declined, `[-]`): ready to close. */
+  /** Plan finalized: every stage and the Validation's `Review` ticked; the optional items may be left. */
   | 'done'
 
 export type FactoryBoardFeature = {
@@ -66,7 +68,7 @@ export type FactoryBoardRunStatus = 'running' | 'waiting' | 'done' | 'interrupte
 
 /**
  * The step of a feature's timeline a run works on: `spec`, `plan`,
- * `stage:{N}`, `review` (the final review) or `close` (the branch).
+ * `stage:{N}` or `review` (the final review).
  */
 export type FactoryBoardStep = string
 

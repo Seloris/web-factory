@@ -1,8 +1,8 @@
 # Development process
 
 1. Cut a branch from `{{base_branch}}`: `{type}/{slug}-{name}` (e.g. `feat/orders-cutoff-time`).
-2. Work on the branch: one commit per implementation stage, reviewed by the `reviewer` agent when asked (` — with review`); the plan's final review covers the whole branch before it is closed.
-3. Close the branch: its commits are squashed into one (`/factory:implement … — close the branch`).
+2. Work on the branch: one commit per implementation stage, reviewed by the `reviewer` agent when asked (` — with review`); the review of the plan's last stage, or its final review, covers the whole branch and finalizes the plan.
+3. Plan finalized: its commits are squashed into one, proposed at the step that finalizes it (later: `/factory:implement … — close the branch`).
 4. Push (a human, never an agent), open a PR to `{{base_branch}}`, merge after another person's approval.
 
 # Commit conventions
@@ -32,7 +32,7 @@ A simplified Conventional Commits.
 
 - `<slug>`: the feature slug from `.planning/features/`, or `tooling` / `shared` (optional for `chore`, `ops`, `style`).
 - A stage commit names its stage before the description: `feat(orders): api — cutoff time per site`.
-- The squashed commit that closes a branch has no stage marker.
+- The squashed commit of a branch has no stage marker.
 
 ## Examples
 

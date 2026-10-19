@@ -116,9 +116,9 @@ The checks made once every stage is done, one checkbox each, in a section of the
 - **Browser test:** only when a touched component declares a `url`. Ticked when every scenario passed.
 - **Integration tests:** only when the Tests section names integration tests of a component that declares `commands.integration_tests`, listed in the item. Ticked when the person asked for the run and every test passed.
 
-The checklist is the only record of these checks: an item absent or unticked means the check was not done. Review is never skipped; the other items are optional, and an item the person declined is marked `[-]` with the reason, e.g. `- [-] Browser test: not run (declined by the person)`, so the plan says it was not run and why. The tick or the mark goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.
+The checklist is the only record of these checks: an item absent or unticked means the check was not done. Review is never skipped; the other items are optional: each stays `[ ]` (not run), is ticked (run and green) or is marked `[-]` with the reason when the person declined it, e.g. `- [-] Browser test: not run (declined by the person)`, so the plan says it was not run and why. The tick or the mark goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.
 
-Once every Validation item is ticked or marked `[-]`, the branch is closed: `implement` squashes its commits (the plan's, each stage's, the review's and the validations') into one, on the person's yes (`/factory:implement {plan folder} — close the branch`). The checklist needs no item for it.
+The plan is **finalized** once every stage of Progress and `Review` are ticked; the optional items do not hold it back. The step that finalizes it (the last stage, the final review, `/factory:review {plan folder}`) then proposes to squash the branch's commits (the plan's, each stage's, the review's and the validations') into one, on the person's yes; a squash put off runs later with `/factory:implement {plan folder} — close the branch`. The checklist needs no item for it.
 
 ## Plan header
 

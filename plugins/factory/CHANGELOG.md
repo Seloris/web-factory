@@ -2,6 +2,12 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-19 — Plan finalized replaces the branch close
+
+- **A plan is finalized on its own.** The board's last step, « Clôture de la branche », waited for a prompt the person had to send, and the board could not see the squash happen: on `samples/todo-app`, a home plan with every check done stayed « à fermer ». The person wanted the end of a plan to be automatic and named after the plan, not the branch. A plan is now finalized once every stage of its Progress and its Validation's `Review` are ticked; the board reads it from `plan.md` (`plan finalisé`), and its timeline ends at « Revue finale ».
+- **The optional items no longer hold a plan back.** `Tests`, `Browser test` and `Integration tests` may stay `[ ]` (not run), be ticked, or be marked `[-]` (declined): the checklist still records which. Only `Review` is never skipped.
+- **The squash is proposed by the step that finalizes the plan.** The last stage (when its review ticks `Review`), the final review or `/factory:review {plan folder}` proposes it after its own commit, with the same checks and the message in a code block, on the person's yes; without a plan, the last stage does. The procedure moved to the workflow rules (`## Plan finalized`), shared by `implement` and `review`. The board does not track it; `— close the branch` stays for a squash the person put off. Projects initialised earlier get the rule by updating `.claude/rules/planning.md` and `docs/CONTRIBUTING.md` from the templates; `samples/todo-app` has it.
+
 ## 2026-10-19 — The docs catch up with the skills
 
 A review of the repository before its first real project found rules the skills had left behind.

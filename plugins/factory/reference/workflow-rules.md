@@ -68,7 +68,24 @@ At the end of each workflow step (spec written, plan written, stage implemented,
 /factory:implement .planning/features/menu/dev-plans/20261001-093000-add-cutoff/
 ```
 
-The last step of a branch is its close: `/factory:implement {plan folder} — close the branch` (without a plan, `/factory:implement close the branch {branch}`).
+A finalized plan needs no next prompt: its squash is proposed in the same turn (see **Plan finalized**). Only a squash the person declined or put off gets one: `/factory:implement {plan folder} — close the branch` (without a plan, `/factory:implement close the branch {branch}`).
+
+## Plan finalized
+
+A plan is **finalized** once every stage of its Progress is ticked and its Validation's `Review` is ticked. The optional items (`Tests`, `Browser test`, `Integration tests`) do not hold it back: each may stay `[ ]` (not run), be ticked (run and green) or be marked `[-]` (declined, with the reason). Without a plan, the work is finalized once its last stage is committed.
+
+Whichever step finalizes it (the last stage, the final review, `/factory:review {plan folder}`) proposes the squash at the end of its turn, after its own commit. A branch reaches the base branch as **one commit**: the stages keep their own commits while the work goes on (a new session resumes from them), the squash folds them. The board does not track it. The same squash runs later on the prompt above.
+
+1. **Range.** `base=$(git merge-base {baseBranch} HEAD)` (`origin/{baseBranch}` when there is no local one), never the base branch itself: if it moved since the branch was cut, a reset onto it would revert its new commits. List `git log --oneline $base..HEAD`.
+2. **Check, and stop on any failure, saying why:**
+   - the working tree is clean of the branch's own work (`git status`): every change to squash is committed. Unrelated uncommitted files stay as they are and stay out of the commit;
+   - nothing is staged (`git diff --cached --quiet`): the reset keeps the index, and a staged file would land in the squash;
+   - nothing of the range is pushed: when `git rev-parse @{u}` succeeds, `git log @{u}..HEAD` must list every commit of the range. A pushed commit means a force push, a human's call;
+   - every commit of the range belongs to the feature (`{type}({slug}): …`, the plan's slug, or without a plan the one the branch's commits name): a branch carrying another feature's commits is not squashed; list them and let the person decide;
+   - the range holds more than one commit. One alone is already squashed: propose nothing and say nothing.
+3. **Propose** the commit, its full message (subject and body) in a code block, and wait for the person's explicit yes, in this session, every time: it rewrites the branch's history. Message: `{type}({slug}): {summary}`, with no stage marker, the type the plan's (see `planning.md`) or without a plan the stage commits' (`feat` over `fix` over `refactor` over `chore`), the summary the plan's title or the request, and a body listing the squashed subjects, one per line. The turn ends on this question: the done footer of the turn's own commit waits for the squash's report, or for the no. A no leaves the branch as it is.
+4. **Squash:** note the current `HEAD` hash, then `git reset --soft $base` and `git commit` of the index as it stands, never `git add -A` or `git add .`: an unrelated uncommitted file stays out.
+5. **Report:** the new commit, the squashed subjects, and the old `HEAD` hash to get the branch back (`git reset --hard {old hash}`) if needed; then the done footer. The branch is ready for the human to push.
 
 ## Done footer
 
