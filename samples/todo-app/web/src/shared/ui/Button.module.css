@@ -53,6 +53,10 @@
   color: var(--text);
 }
 
+.quiet:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-2), var(--text) 8%);
+}
+
 /* A row action (delete), quiet until hovered. */
 .ghost {
   height: auto;

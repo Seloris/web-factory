@@ -30,10 +30,11 @@
   text-transform: var(--title-transform);
 }
 
-/* The error paragraph keeps ErrorMessage's colour. */
+/* The error paragraph keeps ErrorMessage's colour. The message holds the todo's name: a long one wraps. */
 .dialog > p:not([role="alert"]) {
   margin: 0;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .actions {

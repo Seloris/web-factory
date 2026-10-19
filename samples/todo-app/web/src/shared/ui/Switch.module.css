@@ -44,3 +44,8 @@
   transform: translateX(16px);
   background: var(--accent-text);
 }
+
+.switch input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

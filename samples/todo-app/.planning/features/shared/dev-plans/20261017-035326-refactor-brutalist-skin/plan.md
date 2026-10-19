@@ -206,7 +206,9 @@ Unit and integration tests: none, because `web/CLAUDE.md` forbids front tests. T
 - `Button.module.css` ports the `.btn` recipe → it also has `.btn:focus-visible { box-shadow: 0 0 0 3px var(--focus); }`. `.btn`'s own `box-shadow` has the same specificity as `base.css`'s `:focus-visible` and loads after it (the route's CSS chunk), so buttons had no focus ring (review finding; Tests › web 7).
 - `List.module.css` ports `.item` and `.item-text` → `.item` also wraps (`flex-wrap: wrap`) and `.itemText` is `flex: 1 1 120px`. At 360px a 30-character tag pushed the list past the panel and the page scrolled sideways, and a long name narrowed to a column a few characters wide (review finding; Tests › web 6).
 - `ConfirmDialog.module.css` ports `.dialog h2` → it also has `text-transform: var(--title-transform)`, since `SKIN.md` sets the dialog headings in uppercase (review finding).
-- `ListItem`'s `flex-wrap` and the `.btn:focus-visible` ring are also missing from the plugin's `recipes.css`, and so are the quiet button's hover and the switch's disabled state: plugin follow-up.
+- `ListItem`'s `flex-wrap` and the `.btn:focus-visible` ring were also missing from the plugin's `recipes.css`, and so were the quiet button's hover and the switch's disabled state. The recipe caught up in `fix(factory): the recipes keep the focus ring and fit a phone`; the final review ported the last two: `.quiet:hover:not(:disabled)` in `Button.module.css` and `.switch input:disabled` in `Switch.module.css` (review findings).
+- `ConfirmDialog.module.css` ports `.dialog p` → it also has `overflow-wrap: anywhere`. The message holds the todo's name: a 200-character name without spaces widened the dialog's grid, and the dialog scrolled sideways with its buttons out of view (review finding; Tests › web 6). The recipe lacks it: plugin follow-up.
+- Retry on a failed load → while the refetch runs, the status is not `error`. When no load ever succeeded, TanStack Query sets the status back to `pending`: the page shows `LoadingState` instead of a disabled button. The `disabled={todosQuery.isFetching}` only shows when a background refetch fails with data in the cache. Code unchanged; the pages section's "the status stays `error`" is wrong (review finding).
 
 ## Progress
 
@@ -221,5 +223,5 @@ Commit: `refactor(shared): web — brutalist skin on shared/ui components`
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web
