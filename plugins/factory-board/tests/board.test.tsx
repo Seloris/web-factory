@@ -5,6 +5,8 @@ import { activeStep, afterCommit, committed, describeRun, featureState, isRunOfP
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
+/** The repository's git common dir, the same from every worktree. */
+const REPO = '/repo/.git'
 const PLAN_FOLDER = '.planning/features/demo/dev-plans/20261016-120000-add-counter'
 
 const SPEC = `# Demo counter (Compteur de démo) — PRD
@@ -108,6 +110,7 @@ function mockProject(on: On, options: { log?: string; range?: string; files?: Re
     const ok = (stdout: string) => ({
       value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     })
+    if (argv.startsWith('git rev-parse --git-common-dir')) return ok('.git\n')
     if (argv.startsWith('git rev-parse')) return ok('feat/demo\n')
     if (argv === 'git log --format=%s develop..HEAD') return ok(options.range ?? 'feat(demo): api — counter endpoint\ndocs(demo): plan\ndocs(demo): spec\n')
     if (argv.startsWith('git status')) return ok(' M api/src/app.ts\n?? notes.md\n')
@@ -272,6 +275,7 @@ test('committed names a stage whose commit reached the branch', () => {
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
   const board = (sha: string | null): FactoryBoard => ({
     root: ROOT,
+    repo: REPO,
     branch: 'feat/demo', baseBranch: 'main', aheadCount: 2, changedCount: 0,
     runs: [],
     scannedAt: 0,
@@ -379,7 +383,7 @@ test('a /factory: prompt records the run, the turn end marks it waiting, a commi
 
   await $.prompt.submit({ text: `/factory:implement ${PLAN_FOLDER}`, wait: false, origin: { kind: 'composer' } })
   const started = store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
-  expect(started).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'implement', step: 'stage:2', status: 'running', root: ROOT })
+  expect(started).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'implement', step: 'stage:2', status: 'running', root: ROOT, repo: REPO })
 
   await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
   const ended = store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
@@ -424,6 +428,41 @@ test('a session that ends while its run waits leaves it interrupted in the histo
   await ui.press({ key: 'row:tags' })
   expect(await ui.find({ key: 'step:tags:plan', text: /Plan.*interrompue/ })).toBeDefined()
   expect((await ui.find({ key: 'prepare:tags' }))?.text).toBe('Écrire le plan')
+  await ui.unmount()
+})
+
+test('a factory skill called through the Skill tool records the run like a typed prompt', async ($, on) => {
+  const store = mockProject(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('tool.call', { tool: 'Skill' }, () => ({ result: {} as never }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  // A subagent's call records nothing; the bare name and the prefixed one both count.
+  await $.tool.call({ tool: 'Skill', skill: 'factory:write-plan', args: 'tags', agentId: 'agent-1' } as never)
+  expect([...store.keys()]).toEqual([])
+  await $.tool.call({ tool: 'Skill', skill: 'factory:implement', args: `${PLAN_FOLDER} — stages 1-2 (api, web), chained — with review` } as never)
+  expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'implement', step: 'stage:1', lastStep: 'stage:2', status: 'running', repo: REPO })
+  await $.tool.call({ tool: 'Skill', skill: 'write-plan', args: 'tags' } as never)
+  expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'tags', command: 'write-plan', step: 'plan' })
+  await $.tool.call({ tool: 'Skill', skill: 'commit' } as never)
+  expect([...store.keys()]).toHaveLength(1)
+})
+
+test('a run from another worktree of the same repository is listed, a run of another repository is not', async ($, on) => {
+  const store = mockProject(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  const run = (sessionId: string, root: string, repo?: string) => ({ sessionId, root, ...(repo && { repo }), feature: 'demo', folder: PLAN_FOLDER, command: 'implement', step: 'stage:2', status: 'waiting' as const, since: 900_000, updatedAt: 900_000 })
+  store.set('run:worktree-1111:900000', run('worktree-1111', '/repo/.claude/worktrees/wt', REPO))
+  store.set('run:other-2222:900000', run('other-2222', '/other', '/other/.git'))
+  store.set('run:legacy-3333:900000', run('legacy-3333', ROOT))
+  store.set('run:legacy-4444:900000', run('legacy-4444', '/repo/.claude/worktrees/wt'))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ key: 'live:worktree-1111:900000' })).toBeDefined()
+  expect(await ui.find({ key: 'live:legacy-3333:900000' })).toBeDefined()
+  expect(await ui.find({ key: 'live:other-2222:900000' })).toBeUndefined()
+  expect(await ui.find({ key: 'live:legacy-4444:900000' })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -493,7 +532,7 @@ test('withPlan follows a feature on one of its plans, and its runs with it', () 
   expect(isRunOfPlan(writing, onNew as FactoryBoardFeature)).toBe(true)
   expect(isRunOfPlan(run('plan', null), onNew as FactoryBoardFeature)).toBe(false)
 
-  const board = (plans: typeof demo.plans): FactoryBoard => ({ root: ROOT, branch: null, baseBranch: 'main', aheadCount: null, changedCount: 0, features: [{ ...demo, plans }], runs: [], scannedAt: 0, error: null })
+  const board = (plans: typeof demo.plans): FactoryBoard => ({ root: ROOT, repo: null, branch: null, baseBranch: 'main', aheadCount: null, changedCount: 0, features: [{ ...demo, plans }], runs: [], scannedAt: 0, error: null })
   expect(newPlans(null, board([latest, old]))).toEqual([])
   expect(newPlans(board([old]), board([old]))).toEqual([])
   expect(newPlans(board([old]), board([latest, old]))).toEqual(['demo'])

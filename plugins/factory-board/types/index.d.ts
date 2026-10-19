@@ -75,8 +75,10 @@ export type FactoryBoardStep = string
 /** One session working on one step of one feature, kept as history once over. */
 export type FactoryBoardRun = {
   sessionId: string
-  /** The project root the session runs in. */
+  /** The project root the session runs in: the worktree's path when it runs in one. */
   root: string
+  /** The repository's git common dir, absolute: the same from every worktree. Absent on records written before it existed. */
+  repo?: string
   feature: string
   /** The plan folder the command named, when it named one. */
   folder: string | null
@@ -103,6 +105,8 @@ export type FactoryBoardFilter = 'running' | 'review' | 'no-plan' | 'done'
 
 export type FactoryBoard = {
   root: string
+  /** The repository's git common dir, absolute; null when git did not answer. */
+  repo: string | null
   branch: string | null
   /** The manifest's `base_branch` (`main` without one): the branch features are squashed into. */
   baseBranch: string

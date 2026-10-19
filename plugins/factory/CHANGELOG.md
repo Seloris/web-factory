@@ -18,6 +18,10 @@ A review of the repository before its first real project found rules the skills 
 - **One model per role instead of a `premium` preset.** The premium set (Fable for planning and review, Opus for the code) fitted nobody as a block; `factory-init` now asks for each role with the `standard` preset as the recommended answers, and writes the map of the changed roles only. `premium` is no longer a known preset.
 - **No stack word in the plugin's docs.** `docs/manifest.md` showed a `.NET` component and `factory-init` named its files, against the rule of this repository's `CLAUDE.md`; the examples are now the `react-express` pack's commands.
 - **The sample carries the current contract.** `samples/todo-app` was initialised before `serve` and `serve_url` and before the `Tests` Validation item; it has them now.
+## 2026-10-19 — The board follows sessions driven by a brief
+
+- **A skill called through the `Skill` tool records a run.** A session started by another session with a prose brief ran `/factory:write-plan` then `/factory:implement … — stages 1-2 (api, web), chained — with review` through the `Skill` tool, never from a typed prompt, and the board showed nothing running: it only listened to `prompt.submit`. The board now hooks the `Skill` tool call too (`factory:write-spec`, `factory:write-plan`, `factory:implement`, `factory:review`, with or without the prefix, main loop only) and records the same run from the same text.
+- **Runs are matched by repository, not by root.** That session ran in a git worktree of the project, so its run's root was the worktree path and a board opened at the main checkout never listed it. A run now carries the repository's git common dir (`git rev-parse --git-common-dir`, absolute), read once per refresh, and the board lists the runs whose common dir is its own; a record written before the field existed is still matched on its root. The plan folder lives on the worktree's branch, so the main checkout may not have the feature's row: such a run is listed with the live sessions only, as a run of an unknown feature already was.
 
 ## 2026-10-17 — The browser test starts the servers
 
