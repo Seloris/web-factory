@@ -42,4 +42,4 @@ Each step ends with the next prompt ready to copy.
 - Agents **never push**. You push.
 - Integration tests run only when you ask, by name.
 - `✅ JOB DONE` footer = a commit was made, on the branch named.
-- The session's model is yours to pick: the manifest's preset says which one each role is meant for.
+- The session's model is yours to pick: the manifest's `models` says which one each role is meant for.

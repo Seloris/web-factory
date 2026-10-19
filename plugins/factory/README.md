@@ -13,8 +13,6 @@ skills/
   review/               runs the reviewer agent and relays its findings
   test-in-browser/      click through a front component locally
 agents/
-  architect.md          spec + plan (planner model)
-  senior-dev.md         implementation (implementer model)
   reviewer.md           read-only review (reviewer model)
   runner.md             mechanical work: builds, tests, lint, searches (runner model)
 scripts/

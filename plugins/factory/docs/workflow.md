@@ -2,14 +2,14 @@
 
 `flow.md` draws the whole path in one diagram.
 
-Four phases, each a skill, chained as needed and usable in any session opened at a project's root with the plugin loaded (see `reference/workflow-rules.md`). The agents are thin wrappers around the skills for those who prefer a fixed role.
+Four phases, each a skill, chained as needed and usable in any session opened at a project's root with the plugin loaded (see `reference/workflow-rules.md`). The session runs them: a spec, a plan or an implementation asks the person at every decision, which a subagent cannot. Two agents serve them: `reviewer` (every review, always a subagent: it has no stake in the code) and `runner` (the commands whose output would flood the session).
 
-| Phase | Skill | Agent | Output |
-|---|---|---|---|
-| Spec | `write-spec` | `architect` | `.planning/features/{slug}/00_spec.md`: business-level PRD. The only writer of the spec. |
-| Plan | `write-plan` | `architect` | `.planning/features/{slug}/dev-plans/{YYYYMMDD}-{HHmmss}-{type}-{name}/plan.md`, committed on the feature branch |
-| Code | `implement` | `senior-dev` | from a plan or straight from a request: code + tests, verified, reviewed when asked, one stage per session, one commit per stage |
-| Review | `review` | `reviewer` (always a subagent) | ranked findings on code or on a plan, no edits |
+| Phase | Skill | Output |
+|---|---|---|
+| Spec | `write-spec` | `.planning/features/{slug}/00_spec.md`: business-level PRD. The only writer of the spec. |
+| Plan | `write-plan` | `.planning/features/{slug}/dev-plans/{YYYYMMDD}-{HHmmss}-{type}-{name}/plan.md`, committed on the feature branch |
+| Code | `implement` | from a plan or straight from a request: code + tests, verified, reviewed when asked, one stage per session, one commit per stage |
+| Review | `review` | ranked findings on code or on a plan, by the `reviewer` agent; a clean review of a plan's implementation ticks its Validation |
 
 `factory-init` comes first, once per project: it writes the manifest and the instruction files and, for a component whose stack pack ships a code skeleton, copies that skeleton into the empty folder so the first stage starts on green `build` and `test` commands. A front component gets a skin (`modern` by default, one of the plugin's `skins/`): its tokens copied into the component, its fonts installed when the stack pack maps them (the pack's skeleton also ships the shared components that port the skin's element recipes), its design rules read in place by every skill that plans, implements or reviews its UI, and the component's `## Design` section and `overrides.css` above both; `/factory:factory-init skin {component} {skin}` switches it. `grill-me` sits before a spec or a plan: an interview that settles every open decision, offered by `write-spec` and `write-plan`, never started on its own. The skills are invoked under the plugin's prefix: `/factory:write-spec`, `/factory:implement`…
 
@@ -33,7 +33,7 @@ A development request (feature, change, bug fix) goes straight to `implement` wi
 
 ## Model tiering
 
-The session model is the lead: it plans, decides and writes the code. High-volume mechanical work goes to cheaper subagents when the lead judges it worth it. Which model plays which role comes from the manifest's `models` preset (see `manifest.md`): a subagent is spawned with its role's model. The session's own model is the person's choice; the preset says which one each role is meant for.
+The session model is the lead: it plans, decides and writes the code. High-volume mechanical work goes to cheaper subagents when the lead judges it worth it. Which model plays which role comes from the manifest's `models`, one per role (see `manifest.md`): a subagent is spawned with its role's model. The session's own model is the person's choice; the manifest says which one each role is meant for.
 
 ## Validation of a plan
 

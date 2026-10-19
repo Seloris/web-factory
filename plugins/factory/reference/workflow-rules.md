@@ -24,10 +24,11 @@ The `CLAUDE.md` of a component is loaded by Claude Code when you work under its 
 
 The session's model leads: it plans, decides and writes. Subagents are tools it picks when they help, each spawned with the `model:` of its role from the manifest's `models`:
 
-- `reviewer` (`models.reviewer`): the review before every stage commit, always a subagent (it has no stake in the code).
+- `reviewer` (`models.reviewer`): every review (a stage's when asked with ` — with review`, a plan's final review, `/factory:review`), always a subagent (it has no stake in the code).
 - `runner` (`models.runner`): a command whose output would flood your context (a full test suite, a build, a lint run) and a long read or search; it reports the errors with `file:line`. A quick command or a single read runs inline.
 - `Explore` (`models.explorer`): a broad search across the code. For a task that needs judgment (analysing an existing feature, comparing implementations), spawn `general-purpose` on `models.implementer`.
-- `architect` (`models.planner`) and `senior-dev` (`models.implementer`): a whole spec, plan or implementation on the role's model.
+
+A spec, a plan or an implementation is never a subagent's job: their skills ask the person (the grill offer, the commit's message, the explicit yes), and a subagent cannot. The session runs them, on the model the person picked (the manifest's `models` says which one each role is meant for).
 
 Never hand a decision, a code change or a review to `runner` or `Explore`. A subagent cannot spawn subagents: as one, run commands yourself, filtered to the errors.
 

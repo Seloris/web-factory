@@ -1,6 +1,6 @@
 ---
 name: factory-init
-description: "Set up the current repository as a factory project: interview the person (name, base branch, language, model preset, sign-in, then each component: name, path, kind, description, stack, commands, skin, url, the stack pack's placeholders), write its factory.yaml manifest and CLAUDE.md, one autonomous CLAUDE.md per component (from the stack pack when one exists), .planning/, .claude/settings.json (the plugin enabled, push denied), the planning and memory rules and docs/CONTRIBUTING.md. Also adds a component (factory-init component {component}), switches the model preset (factory-init models {preset}), switches a front component's skin (factory-init skin {component} {skin}) or re-applies a stack pack (factory-init stack {component} {stack}). Writes no application code of its own: a component whose stack pack ships a code skeleton gets it copied, installed and checked (build and test green) when its folder is empty, and a front gets its skin's tokens copied and, when its pack has a font table, the skin's fonts installed."
+description: "Set up the current repository as a factory project: interview the person (name, base branch, language, one model per role, sign-in, then each component: name, path, kind, description, stack, commands, skin, url, the stack pack's placeholders), write its factory.yaml manifest and CLAUDE.md, one autonomous CLAUDE.md per component (from the stack pack when one exists), .planning/, .claude/settings.json (the plugin enabled, push denied), the planning and memory rules and docs/CONTRIBUTING.md. Also adds a component (factory-init component {component}), changes the models (factory-init models {role=model …}), switches a front component's skin (factory-init skin {component} {skin}) or re-applies a stack pack (factory-init stack {component} {stack}). Writes no application code of its own: a component whose stack pack ships a code skeleton gets it copied, installed and checked (build and test green) when its folder is empty, and a front gets its skin's tokens copied and, when its pack has a font table, the skin's fonts installed."
 ---
 
 # Init a project
@@ -22,7 +22,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, lan
 
 ### 1. Look around first
 
-Facts you collect yourself, never ask: `git rev-parse --abbrev-ref HEAD` and `git branch -a` (base branch candidates), the top-level folders and the obvious component roots (a `*.sln`, `package.json`, `angular.json`, `nx.json`, `pyproject.toml`, `go.mod`… under a folder), existing `CLAUDE.md`, `AGENTS.md`, `.claude/`, `docs/CONTRIBUTING.md` (never overwrite them silently: show what you would change). List the stack packs available: the folders of `${CLAUDE_PLUGIN_ROOT}/stacks/`, each with the `README.md` first line as its description.
+Facts you collect yourself, never ask: `git rev-parse --abbrev-ref HEAD` and `git branch -a` (base branch candidates), the top-level folders and the obvious component roots (a build tool's root file under a folder: `package.json`, `pyproject.toml`, `go.mod`, a solution or workspace file…), existing `CLAUDE.md`, `AGENTS.md`, `.claude/`, `docs/CONTRIBUTING.md` (never overwrite them silently: show what you would change). List the stack packs available: the folders of `${CLAUDE_PLUGIN_ROOT}/stacks/`, each with the `README.md` first line as its description.
 
 ### 2. Interview
 
@@ -31,7 +31,7 @@ In the `grill-me` format (numbered questions, each with a recommended answer phr
 1. **Name** (recommended: the repository folder name) and a one-line description.
 2. **Base branch** (recommended: the current one if it is `main`, `master` or `develop`, else `main`).
 3. **Languages**: chat (recommended: the one they are writing in) and repository (recommended: `en`); the application's own UI language.
-4. **Model preset**: `standard` (planner/reviewer Opus, implementer Sonnet with Opus advisor, runner Haiku) or `premium` (planner/reviewer Fable, implementer Opus with Fable advisor, runner Haiku); recommended: `standard`.
+4. **Models**, one per role, each `opus`, `sonnet`, `haiku` or `fable`: planner (spec, plan), implementer (code), advisor (consulted by the implementer), reviewer, runner (mechanical work), explorer (searches); recommended: the `standard` preset (opus, sonnet, opus, opus, haiku, haiku), shown as the six answers so the person changes a role by name (`planner fable`). Every recommendation accepted writes `models: standard`; otherwise a map with `preset: standard` and the changed roles only.
 5. **Components**: the list, from what you found (recommended: one per detected root, named `api`, `web`, `db`, `worker`… by kind), with their order of implementation (which needs which).
 6. **Sign-in**: whether the application has accounts to sign in with (recommended: from the description). It decides the `logins` file and the packs' authentication placeholders.
 
@@ -40,7 +40,7 @@ Round 2, one round per component (merge small ones):
 1. **Path** (relative to the root), **kind** (`api`, `front`, `db`, `worker`, `lib`) and a one-line **description** (the title of its `CLAUDE.md`: `# {{name}} — {{description}}`).
 2. **Stack**: one of the packs, or free text for a stack with no pack.
 3. **Layers**, in implementation order (recommended from the pack, else a sensible default for the kind: `[Domain, Application, Infrastructure, Api]` for an API, `[data, pages, ui]` for a front).
-4. **Commands**: `build`, `test`, `lint` (with `{files}` where the changed files go), and when relevant `prepare`, `handoff` with the handoff file, `integration_tests` with `{filter}`; recommended from the pack, else from the detected tool (`dotnet build`, `npm run build`…). Leave out what the component does not have (a front with no unit tests has no `test`).
+4. **Commands**: `build`, `test`, `lint` (with `{files}` where the changed files go), and when relevant `prepare`, `handoff` with the handoff file, `integration_tests` with `{filter}`; recommended from the pack, else from the detected tool (`npm run build`, `make build`…). Leave out what the component does not have (a front with no unit tests has no `test`).
 5. **Skin** for a front: one of `${CLAUDE_PLUGIN_ROOT}/skins/`, each with its one-line look from the table of `skins/README.md` (recommended: `modern`).
 6. **Url** for a front (recommended: the one its dev server uses) and, when the application has a sign-in, the **logins** file (recommended: `.claude/local/test-logins.md`); no `logins` otherwise.
 7. **Local run**: how to start it and its dependencies, for the component's `CLAUDE.md`; for a component that runs a server, its `serve` command (recommended from the pack, with any prerequisite chained before it, else the detected dev script) and, when it has no `url`, its `serve_url` (where it answers locally), so `test-in-browser` can start it.
@@ -57,7 +57,7 @@ Into the project, from the plugin's `${CLAUDE_PLUGIN_ROOT}/templates/`, filling 
 | `factory.yaml` | `templates/factory.yaml` | the manifest. |
 | `CLAUDE.md` | `templates/CLAUDE.md` | description, hard rules, glossary table (empty), local development (the components' Local run sections condensed in stage order: what to start first, on which url, what each needs). An existing `CLAUDE.md` or `AGENTS.md`: keep its content below the template's, and show the merge before writing. |
 | `{path}/CLAUDE.md` per component | the pack's `templates/{kind}.CLAUDE.md` when the stack has a pack and a template for that kind, else `templates/component/CLAUDE.md` | the `component` block, structure, conventions, testing, local run. |
-| `.claude/settings.json` | `templates/settings.json` | the `webapp-factory` marketplace known and the plugin enabled (`{{factory_marketplace}}`: the folder holding the marketplace's `.claude-plugin/marketplace.json`, or its repository: the value an existing `.claude/settings.json` already has, else walk up from `${CLAUDE_PLUGIN_ROOT}` to that file; the plugin's own folder is not the marketplace), push denied, timestamp and manifest scripts allowed, `CLAUDE_CODE_SUBAGENT_MODEL` = the preset's runner model. Merge into an existing file, never replace it. |
+| `.claude/settings.json` | `templates/settings.json` | the `webapp-factory` marketplace known and the plugin enabled (`{{factory_marketplace}}`: the folder holding the marketplace's `.claude-plugin/marketplace.json`, or its repository: the value an existing `.claude/settings.json` already has, else walk up from `${CLAUDE_PLUGIN_ROOT}` to that file; the plugin's own folder is not the marketplace), push denied, timestamp and manifest scripts allowed, `CLAUDE_CODE_SUBAGENT_MODEL` = the `runner` role's model. Merge into an existing file, never replace it. |
 | `.claude/rules/planning.md`, `.claude/rules/memory.md` | `templates/rules/` | as is. |
 | `.planning/technical-debt.md`, `.planning/features/.gitkeep` | `templates/technical-debt.md` | |
 | `docs/CONTRIBUTING.md` | `templates/docs/CONTRIBUTING.md` | base branch filled in. An existing one is kept and shown for the person to reconcile. |
@@ -73,7 +73,7 @@ A pack's skills are not copied: they stay in `${CLAUDE_PLUGIN_ROOT}/stacks/{stac
 
 ### 4. Verify
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` and show the resolved manifest's summary (name, base branch, preset, stages with their commands). Fix whatever it reports. Then, for each component that received a skeleton, run its `build` and `test` commands as the resolved manifest gives them, from the component's path: both must pass with the skeleton alone. A failure is a defect of the pack, not of the project: report it with the output and stop short of patching the skeleton in the project.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` and show the resolved manifest's summary (name, base branch, the model of each role, stages with their commands). Fix whatever it reports. Then, for each component that received a skeleton, run its `build` and `test` commands as the resolved manifest gives them, from the component's path: both must pass with the skeleton alone. A failure is a defect of the pack, not of the project: report it with the output and stop short of patching the skeleton in the project.
 
 ### 5. Commit
 

@@ -17,7 +17,7 @@ base_branch: main              # the branch features are cut from and squashed i
 language:
   chat: fr                     # what agents speak to the user
   repo: en                     # everything written to the repository
-models: standard               # a preset name, or a map of roles (below)
+models: standard               # the preset, or a map with one model per role (below)
 components:                    # the order is the order of the stages; paths relative to this file
   - name: api
     path: src/api
@@ -30,22 +30,21 @@ components:                    # the order is the order of the stages; paths rel
 
 ### Models
 
-A preset name or an explicit map. Roles: `planner` (spec, plan), `implementer` (code), `advisor` (consulted by the implementer at decision points), `reviewer`, `runner` (mechanical work), `explorer` (code searches).
+One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `advisor` (consulted by the implementer at decision points), `reviewer`, `runner` (mechanical work), `explorer` (code searches). The one preset, `standard`, is the recommended set; `factory-init` asks for each role with it as the answer, and writes the map only for the roles the person changed:
 
-| Role | `standard` | `premium` |
-|---|---|---|
-| planner | opus | fable |
-| implementer | sonnet | opus |
-| advisor | opus | fable |
-| reviewer | opus | fable |
-| runner | haiku | haiku |
-| explorer | haiku | haiku |
-
-An explicit map overrides roles one by one:
+| Role | `standard` |
+|---|---|
+| planner | opus |
+| implementer | sonnet |
+| advisor | opus |
+| reviewer | opus |
+| runner | haiku |
+| explorer | haiku |
 
 ```yaml
 models:
   preset: standard
+  planner: fable
   reviewer: fable
 ```
 
@@ -55,18 +54,18 @@ The plugin's agents carry no `model` in their frontmatter: the skill that spawns
 
 ```yaml
 kind: api                      # api | front | db | worker | lib
-stack: dotnet                  # free text; matches a stacks/{stack}/ pack when one exists
+stack: react-express           # free text; matches a stacks/{stack}/ pack when one exists
 skin: modern                   # a front's look: one of the plugin's skins/ (optional; an unknown name is an error)
-layers: [Domain, Application, Infrastructure, Api]   # the plan's sections for this component
+layers: [db, services, routes] # the plan's sections for this component
 commands:
-  build: dotnet build
-  test: dotnet test MyApp.UnitTests          # the fast suite, run in full at the end of a stage
+  build: npm run build
+  test: npm test                             # the fast suite, run in full at the end of a stage
   lint: npx eslint {files}                   # {files} = the files the stage changed
   handoff: npm run export-openapi            # produces the manifest's handoff file (api stage end)
   prepare: npm run generate-client           # front stage start, from the previous handoff
-  integration_tests: dotnet test MyApp.IntegrationTests --filter "{filter}"   # never run unasked
-  serve: dotnet run --project MyApp.Api      # starts the local server, run in the background by test-in-browser
-serve_url: http://localhost:5000             # where the server answers once started (default: the component's url)
+  integration_tests: npm run test:integration -- --filter "{filter}"   # never run unasked
+  serve: npm run dev                         # starts the local server, run in the background by test-in-browser
+serve_url: http://localhost:3000             # where the server answers once started (default: the component's url)
 logins: .claude/local/test-logins.md         # accounts for test-in-browser (git-ignored)
 ```
 

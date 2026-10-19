@@ -9,6 +9,7 @@ commands:
   build: npm run build
   lint: npx eslint {files}
   prepare: npx openapi-typescript ../api/openapi.json --output src/api/schema.d.ts
+  serve: npm run dev
 ```
 
 All commands run from this component's path. The front has no unit tests: never create a `*.test.tsx`. Lint only the files a stage changed, never the whole app.
@@ -68,5 +69,5 @@ None on the front. The `test-in-browser` skill checks a change in the real app o
 ## Local run
 
 - Prerequisites: Node 22, `npm ci`.
-- Run: `npm run dev` → http://localhost:5173; the API must be running on http://localhost:3000.
+- Run: `npm run dev` → http://localhost:5173; the API must be running on http://localhost:3000 (`test-in-browser` starts both when they do not answer).
 - `prepare` regenerates `src/api/schema.d.ts` from the API's committed handoff file; run it at the start of every front stage.

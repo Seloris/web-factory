@@ -60,8 +60,8 @@ test("fencedBlock: picks the right language", () => {
 
 test("resolveModels: presets and overrides", () => {
   assert.equal(resolveModels(undefined).planner, "opus");
-  assert.equal(resolveModels("premium").implementer, "opus");
-  assert.equal(resolveModels("premium").planner, "fable");
+  assert.throws(() => resolveModels("premium"), /Unknown models preset/);
+  assert.equal(resolveModels({ preset: "standard", planner: "fable" }).planner, "fable");
   const custom = resolveModels({ preset: "standard", reviewer: "fable" });
   assert.equal(custom.reviewer, "fable");
   assert.equal(custom.implementer, "sonnet");

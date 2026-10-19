@@ -2,6 +2,17 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-19 — The docs catch up with the skills
+
+A review of the repository before its first real project found rules the skills had left behind.
+
+- **The review per stage is optional everywhere.** `implement` ran the reviewer only on ` — with review` since 2026-10-17, but the workflow rules, the project `CONTRIBUTING.md` template and the root README still said "before every stage commit". The three now say what the skill does: on request after a stage, always at the plan's final review.
+- **A clean `/factory:review` counts.** It never ticked the plan's `Review` item, so the final review ran the reviewer again on the same code. `/factory:review {plan folder}` now reviews the plan's implementation and, when nothing is left, ticks `Review` and proposes its commit; the final review then settles only the other items. The findings still live in the session only: the fix prompt runs there, or gets them pasted.
+- **`architect` and `senior-dev` are gone.** They wrapped `write-spec`, `write-plan` and `implement` in a subagent, and those skills ask the person at every decision (the grill offer, the commit's message, the explicit yes), which a subagent cannot: they either stalled or skipped the yes. Their reason, the model guard, went on 2026-10-16; the session runs the skills on the model the person picked. `reviewer` and `runner` stay.
+- **One model per role instead of a `premium` preset.** The premium set (Fable for planning and review, Opus for the code) fitted nobody as a block; `factory-init` now asks for each role with the `standard` preset as the recommended answers, and writes the map of the changed roles only. `premium` is no longer a known preset.
+- **No stack word in the plugin's docs.** `docs/manifest.md` showed a `.NET` component and `factory-init` named its files, against the rule of this repository's `CLAUDE.md`; the examples are now the `react-express` pack's commands.
+- **The sample carries the current contract.** `samples/todo-app` was initialised before `serve` and `serve_url` and before the `Tests` Validation item; it has them now.
+
 ## 2026-10-17 — The browser test starts the servers
 
 - **`test-in-browser` starts the local servers that do not answer.** At the browser test of `samples/todo-app`'s home plan both servers (api, web) were down; the skill could only hand the start commands over and wait, so the person had to authorise the start by hand, and asked for the default to be reversed. The skill now checks the tested component and the components it `needs`, starts each silent one in the background in stage order, waits for it to answer (bounded, then reports its error and stops), never touches a server that already answers, and says in its report which servers it started and left running.

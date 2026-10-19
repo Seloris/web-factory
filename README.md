@@ -1,6 +1,6 @@
 # webapp-factory
 
-A Claude Code plugin that runs a web-application project through one disciplined workflow: a business spec per feature, a dev-plan precise enough to implement without guessing, test-first implementation one stage per session, a read-only review before every commit, and a squashed branch at the end. Stack-agnostic: the project describes itself in a `factory.yaml` manifest, the workflow reads it.
+A Claude Code plugin that runs a web-application project through one disciplined workflow: a business spec per feature, a dev-plan precise enough to implement without guessing, test-first implementation one stage per session, a read-only review on request and before the branch closes, and a squashed branch at the end. Stack-agnostic: the project describes itself in a `factory.yaml` manifest, the workflow reads it.
 
 This repository is the plugin and its marketplace. A project installs the plugin and uses it: the plugin is the shared base (agents, skills, templates), the project the specific context (its `CLAUDE.md` files, its manifest, its own skills). Useful to two projects or more goes to the plugin; specific to one project stays with the project.
 
@@ -9,9 +9,12 @@ Born from the tooling of a .NET / Angular project, rewritten generic.
 ## Layout
 
 ```
-.claude-plugin/marketplace.json the marketplace: factory
-plugins/factory/                the workflow plugin: agents, skills, scripts, templates, stacks, docs, tests
+.claude-plugin/marketplace.json the marketplace: factory, factory-board
+plugins/factory/                the workflow plugin: agents, skills, scripts, templates, stacks, skins, docs, tests
   CHANGELOG.md                  why each rule of the process exists
+plugins/factory-board/          the board mod: a pane that follows the features and prepares the next prompt
+samples/todo-app/               a sample project built by the workflow itself
+docs/                           two HTML films: factory-init, then the whole workflow on the todo app
 CLAUDE.md                       rules for working on this repository
 ```
 

@@ -9,6 +9,8 @@ commands:
   test: npx vitest run
   lint: npx eslint {files}
   handoff: npx tsx scripts/export-openapi.ts openapi.json
+  serve: npm run db:migrate && npm run dev
+serve_url: http://localhost:3000
 ```
 
 All commands run from this component's path. The `test` command runs every test, route tests included: they use an in-memory PGlite database and touch no external system. Narrow it while iterating with `npx vitest run {file or folder}` or `-t "{test name}"`.
@@ -105,6 +107,6 @@ The `write-api-tests` skill reads this table.
 
 - Prerequisites: Node 22, `npm ci`. Nothing else: the database is PGlite, created in `.data/pglite` on first start.
 - First run and after every new migration: `npm run db:migrate`.
-- Run: `npm run dev` → http://localhost:3000.
+- Run: `npm run dev` → http://localhost:3000. The `serve` command applies the pending migrations first: `test-in-browser` runs it only when the API does not answer, so PGlite's folder is free.
 - PGlite allows one process per data folder: stop the API before `npm run db:migrate` or `drizzle-kit studio`, and say so in the report.
 - Reset the local database: stop the API, delete `.data/pglite`, `npm run db:migrate`.

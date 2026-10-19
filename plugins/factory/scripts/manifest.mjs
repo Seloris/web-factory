@@ -14,7 +14,6 @@ import { fileURLToPath } from "node:url";
 
 export const PRESETS = {
   standard: { planner: "opus", implementer: "sonnet", advisor: "opus", reviewer: "opus", runner: "haiku", explorer: "haiku" },
-  premium: { planner: "fable", implementer: "opus", advisor: "fable", reviewer: "fable", runner: "haiku", explorer: "haiku" },
 };
 export const ROLES = Object.keys(PRESETS.standard);
 export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests", "serve"];
