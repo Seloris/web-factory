@@ -42,8 +42,12 @@ async function closePane($: EngineInterface): Promise<void> {
   await update($, isPaneOpen, () => false)
 }
 
-/** Every run of the project, oldest first; prunes the old ones and interrupts the silent ones on the way. */
-async function readRuns($: EngineInterface, root: string, now: number): Promise<FactoryBoardRun[]> {
+/**
+ * Every run of the repository, oldest first; prunes the old ones and interrupts the silent ones on the way.
+ * A run from another worktree of the same repository counts: its `repo` is the same git common dir.
+ * A record without `repo` (written before it existed) is kept on its root.
+ */
+async function readRuns($: EngineInterface, root: string, repo: string | null, now: number): Promise<FactoryBoardRun[]> {
   const runs: FactoryBoardRun[] = []
   for (const key of await $.store.keys()) {
     if (!key.startsWith(RUN_PREFIX)) continue
@@ -57,7 +61,7 @@ async function readRuns($: EngineInterface, root: string, now: number): Promise<
       run = { ...run, status: 'interrupted' }
       await $.store.set(key, run)
     }
-    if (run.root === root) runs.push(run)
+    if (run.repo === undefined || repo === null ? run.root === root : run.repo === repo) runs.push(run)
   }
   return runs.sort((a, b) => a.since - b.since)
 }
@@ -72,7 +76,7 @@ async function refresh($: EngineInterface): Promise<FactoryBoard> {
   const root = await $.session.root()
   const now = await $.clock.now()
   const scanned = await scanBoard($, root, now)
-  const runs = await readRuns($, root, now)
+  const runs = await readRuns($, root, scanned.repo, now)
   const next: FactoryBoard = { ...scanned, runs }
   const appeared = newPlans(await read($, board), next)
   await update($, board, () => next)
@@ -85,8 +89,22 @@ async function startRun($: EngineInterface, run: Pick<FactoryBoardRun, 'feature'
   const sessionId = await $.session.id()
   const now = await $.clock.now()
   const root = await $.session.root()
+  const repo = (await read($, board))?.repo ?? null
   const record: FactoryBoardRun = { sessionId, root, status: 'running', since: now, updatedAt: now, ...run }
+  if (repo !== null) record.repo = repo
   await $.store.set(`${RUN_PREFIX}${sessionId}:${now}`, record)
+}
+
+/** The skills whose call, typed or through the Skill tool, starts a run. */
+const RUN_SKILLS = new Set(['write-spec', 'write-plan', 'implement', 'review'])
+
+/** A `/factory:…` text that names a feature records a run on the step it lands on. */
+async function recordRun($: EngineInterface, text: string): Promise<void> {
+  const command = parseFactoryCommand(text)
+  if (command === null || command.feature === null) return
+  const feature = (await read($, board))?.features.find(f => f.slug === command.feature)
+  await startRun($, { feature: command.feature, folder: command.folder, command: command.skill, step: runStep(command, feature && withPlan(feature, command.folder)), lastStep: runLastStep(command) })
+  refreshQuietly($)
 }
 
 /** The runs a session recorded, newest first, with their keys. */
@@ -287,12 +305,14 @@ export const register: Register = on => {
   })
 
   on('prompt.submit', async ($, e, next) => {
-    const command = parseFactoryCommand(e.text)
-    if (command !== null && command.feature !== null) {
-      const feature = (await read($, board))?.features.find(f => f.slug === command.feature)
-      await startRun($, { feature: command.feature, folder: command.folder, command: command.skill, step: runStep(command, feature && withPlan(feature, command.folder)), lastStep: runLastStep(command) })
-      refreshQuietly($)
-    }
+    await recordRun($, e.text)
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  // A session driven by a brief calls the skills through the Skill tool, never from a typed prompt.
+  on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
+    const skill = e.skill.replace(/^factory:/, '')
+    if (e.agentId === undefined && RUN_SKILLS.has(skill)) await recordRun($, `/factory:${skill} ${e.args ?? ''}`)
     return next(e)
   }).catch(($, e, next) => next(e))
 

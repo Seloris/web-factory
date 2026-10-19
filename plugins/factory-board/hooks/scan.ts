@@ -18,6 +18,8 @@ type Git = {
   branchSubjects: string[] | null
   /** Paths with an uncommitted change (modified, staged or untracked), the whole repository. */
   changedCount: number
+  /** The git common dir, absolute, forward slashes: the same from every worktree of the repository. */
+  repo: string | null
   /** Untracked paths, relative to the repository, forward slashes. */
   untracked: Set<string>
   /** Short SHA by commit subject; the newest commit with that subject wins. */
@@ -47,6 +49,9 @@ async function readGit($: EngineInterface, root: string): Promise<Git> {
   // `base..HEAD` starts at the merge base: the branch's own commits. No local base branch: its remote one.
   const range = (await git($, root, ['log', '--format=%s', `${baseBranch}..HEAD`])) ?? (await git($, root, ['log', '--format=%s', `origin/${baseBranch}..HEAD`]))
   const branchSubjects = range === null ? null : range.split(/\r?\n/).filter(Boolean)
+  const commonDir = (await git($, root, ['rev-parse', '--git-common-dir']))?.trim().split('\\').join('/') || null
+  // Relative (`.git`) in a main checkout, absolute in a worktree.
+  const repo = commonDir === null ? null : /^([A-Za-z]:)?\//.test(commonDir) ? commonDir : join(root.split('\\').join('/'), commonDir)
   const status = (await git($, root, ['status', '--porcelain', '--untracked-files=all'])) ?? ''
   const lines = status.split(/\r?\n/).filter(line => line.length > 3)
   const untracked = new Set<string>()
@@ -62,7 +67,7 @@ async function readGit($: EngineInterface, root: string): Promise<Git> {
     const subject = line.slice(tab + 1).trim()
     if (!shaBySubject.has(subject)) shaBySubject.set(subject, line.slice(0, tab))
   }
-  return { branch, baseBranch, branchSubjects, changedCount: lines.length, untracked, shaBySubject }
+  return { branch, baseBranch, branchSubjects, changedCount: lines.length, repo, untracked, shaBySubject }
 }
 
 /** Every plan of a feature, newest first: the folder names start with their timestamp. */
@@ -100,7 +105,7 @@ async function readPlans($: EngineInterface, featureDir: string, relFeatureDir: 
 
 /** Reads every feature under `{root}/.planning/features`, its plans, and git. */
 export async function scanBoard($: EngineInterface, root: string, now: number): Promise<FactoryBoard> {
-  const base: FactoryBoard = { root, branch: null, baseBranch: 'main', aheadCount: null, branchFeature: null, changedCount: 0, features: [], runs: [], scannedAt: now, error: null }
+  const base: FactoryBoard = { root, repo: null, branch: null, baseBranch: 'main', aheadCount: null, branchFeature: null, changedCount: 0, features: [], runs: [], scannedAt: now, error: null }
   const featuresDir = join(root, '.planning', 'features')
   if (!(await $.fs.exists(featuresDir))) {
     return { ...base, error: 'Pas de dossier .planning/features dans ce projet.' }
@@ -132,11 +137,11 @@ export async function scanBoard($: EngineInterface, root: string, now: number): 
         state: featureState(spec !== null, plan),
       })
     }
-    const { branch, baseBranch, branchSubjects, changedCount } = state
+    const { branch, baseBranch, branchSubjects, changedCount, repo } = state
     // The commit scope `{type}({slug}): …` names the feature; the newest commit naming one of the board's wins.
     const scopes = (branchSubjects ?? []).map(subject => /^\w+\(([^)]+)\)!?:/.exec(subject)?.[1])
     const branchFeature = scopes.find(scope => features.some(f => f.slug === scope)) ?? null
-    return { ...base, branch, baseBranch, aheadCount: branchSubjects?.length ?? null, branchFeature, changedCount, features }
+    return { ...base, repo, branch, baseBranch, aheadCount: branchSubjects?.length ?? null, branchFeature, changedCount, features }
   } catch (error) {
     return { ...base, error: `Lecture impossible : ${error instanceof Error ? error.message : String(error)}` }
   }
