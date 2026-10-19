@@ -98,6 +98,9 @@ export type FactoryBoardRun = {
   updatedAt: number
 }
 
+/** The pane's filter chips: which features the cards show; null, all of them. */
+export type FactoryBoardFilter = 'running' | 'review' | 'no-plan' | 'done'
+
 export type FactoryBoard = {
   root: string
   branch: string | null
@@ -128,6 +131,10 @@ declare module 'claude-code' {
       reviewStage: boolean
       /** True while the pane is open, so the band's button says which way it toggles. */
       isPaneOpen: boolean
+      /** The filter chip pressed in the pane; null shows every feature. */
+      stateFilter: FactoryBoardFilter | null
+      /** The step (`{slug}:{step}`) whose earlier runs are unfolded in the timeline. */
+      openHistory: string | null
     }
   }
 }
