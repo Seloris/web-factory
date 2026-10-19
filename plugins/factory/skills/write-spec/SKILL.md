@@ -1,6 +1,6 @@
 ---
 name: write-spec
-description: "Draft or update a feature's business spec (.planning/features/{slug}/00_spec.md) with the person: problem, non-goals, functional requirements, business rules, plus the user stories and the glossary when they add something. The only way 00_spec.md is ever written. Use for a new business idea, to update the spec of an existing feature, when a feature is planned or coded without a spec (derived from the plan or the code), or when planning or implementing reveals a business behaviour change."
+description: "Draft or update a feature's business spec (.planning/features/{slug}/00_spec.md) with the person: problem, non-goals, functional requirements, business rules, plus the user stories and the glossary when they add something. The only way 00_spec.md is ever written. Use for a new business idea, to update the spec of an existing feature, when a feature is planned or coded without a spec (derived from the plan or the code), or when planning or implementing reveals a business behaviour change. With — autonomous (under autopilot): no question, grill-me run in autonomous mode, defaults taken and recorded, committed without asking."
 ---
 
 # Write or update a feature spec
@@ -39,13 +39,23 @@ When `write-plan` or `implement` calls this skill for a business behaviour chang
    **Delta the person did not ask for** (a business behaviour change discovered while planning or coding): propose it in chat and wait for the person's yes before editing.
 3. Do not commit: the calling skill commits `00_spec.md` with its own work. Return to it: no next prompts.
 
+## Autonomous mode
+
+The prompt ends with ` — autonomous` (sent by `autopilot`, see the workflow rules' **Autonomous mode**): the Procedure runs with no question to the person.
+
+- Step 1: the slug is the proposed one (an existing one first), without confirmation. Step 2: uncommitted changes on an existing spec stop the step: report them, write nothing.
+- Step 3: run `grill-me` on the spec, in ` — autonomous` mode, without offering it, and draft from its decisions. Its open questions stop the step before any write: report them.
+- Step 4: one pass into the file, no iteration; the message is the report. Add a `## Decisions taken autonomously` section at the end of the spec: one line per question, `- {question} → {answer taken} ({reason})`, the grill's answers and the slug among them.
+- Step 5: no confirmation. On the base branch, create `feat/{slug}`; set `Status` to `Approved`; commit with the Rules' subject. Say the branch and the commit in the report; no next prompt when `autopilot` called this skill.
+- Called mode under autopilot (a plan or a stage changing the spec, or deriving it): the caller's yes is given; every delta the person did not ask for is applied and listed in the caller's `## Decisions taken autonomously`.
+
 ## Procedure
 
 1. **Slug.** List `.planning/features/` and propose a slug, reusing an existing one first: *"Suggested feature slug: **`{slug}`** (existing | new) — {rationale}. Confirm, or suggest another?"* Wait for confirmation.
 2. **New or update.** For an update, read the current spec and edit it in place. If it already holds uncommitted changes (`git diff` on the file is not empty), say so and ask the person what to do with them before drafting: they would end up in the spec's commit. Read the code to understand current behaviour, but never copy technical detail into the spec.
 3. **Offer the grill.** Before drafting, always offer it in one line, in `language.chat`: *"I can challenge you first on the business rules and edge cases (`grill-me`). Shall we?"* On yes, run the `grill-me` skill on the spec, then draft from its decisions. On no, go on.
 4. **Draft the whole spec in one pass**, straight into `00_spec.md`, uncommitted, with only the sections that earn their place (Template below). The spec's text is produced once, in the file: never paste a section in chat. Then post one message: a link to the file, the gist of each section in a line, the Domain Glossary table in full when there is one (every future plan uses these names), and the questions left open. Iterate until the person is satisfied: apply each refinement with a targeted `Edit` and say what changed in a line. Never rewrite the whole file.
-5. **Confirm and commit.** Ask *"Commit `.planning/features/{slug}/00_spec.md`?"* with the message in a code block, and say that the commit approves the spec. On yes, set `Status` to `Approved` and commit it (see Rules). If the person drops it instead, delete the draft of a new spec, or take your own edits back out of an existing one (never `git checkout` the file: it may hold other uncommitted changes), and say so. Unless another skill called this one, end with the next prompt: `/factory:write-plan {slug}` in a new session.
+5. **Confirm and commit.** One confirmation, which always names the branch and shows the message in a code block: *"Commit `.planning/features/{slug}/00_spec.md` on branch `{branch}`?"*, and say that the commit approves the spec. On the base branch, the branch is a new `feat/{slug}` (see `planning.md`), proposed in that question so the person validates its name with the commit; on another branch, that branch. On yes, on the base branch create the branch (the uncommitted draft follows), then set `Status` to `Approved` and commit it (see Rules). If the person drops it instead, delete the draft of a new spec, or take your own edits back out of an existing one (never `git checkout` the file: it may hold other uncommitted changes), and say so. Unless another skill called this one, end with the branch and the next prompt: `/factory:write-plan {slug}` in a new session.
 6. **Images** the person shares are saved in `.planning/features/{slug}/assets/` and referenced from the relevant section (usually UX Flow or Problem).
 
 ## Template
@@ -61,6 +71,7 @@ Required: the header block, TL;DR, Problem, Non-goals, Functional Requirements. 
 | Business Rules | a policy or constraint an implementation could silently break, and which is not already a non-goal |
 | UX Flow | the feature has a user interface |
 | Open Questions | a decision is still open |
+| Decisions taken autonomously | the spec was written in autonomous mode (every question, the answer taken, its reason) |
 
 ```markdown
 # {Feature name} ({feature name in the person's language, if different}) — PRD

@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: "Grill the person on a spec, a dev-plan, a request or a project setup: rounds of numbered questions, each with a recommended answer, until every open decision is settled, then hand the decisions to write-spec, write-plan, implement or init. Writes nothing itself. Run it only when the person types /grill-me or accepts the offer: write-spec, write-plan, init and any agent facing an ambiguous request offer it, never start it on their own."
+description: "Grill the person on a spec, a dev-plan, a request or a project setup: rounds of numbered questions, each with a recommended answer, until every open decision is settled, then hand the decisions to write-spec, write-plan, implement or init. Writes nothing itself. Run it only when the person types /grill-me or accepts the offer: write-spec, write-plan, init and any agent facing an ambiguous request offer it, never start it on their own. With — autonomous (under autopilot), every question takes its recommended answer, and one with no recommendation stops the pipeline."
 ---
 
 # Grill me
@@ -26,7 +26,7 @@ Run only on `/factory:grill-me` or after the person said yes to the offer. Offer
 ## Rounds
 
 1. Build the decision tree: each decision opens the ones that depend on it. The frontier is every question answerable now.
-2. Ask the whole frontier in one message, at most 7 questions, numbered. Each question gives a recommended answer phrased so that "yes" accepts it, and the reason in a few words. Ask in `language.chat`.
+2. Ask the whole frontier in one message, at most 7 questions, numbered. Each question gives a recommended answer phrased so that "yes" accepts it, and the reason in a few words. A question with no clear recommendation says so explicitly instead (`no recommendation possible: {reason}`); never a vague one. Ask in `language.chat`.
 3. Wait. The person answers per number (`1 yes, 2 no: …, 3 ?`). A `?` means explain, then ask again.
 4. Each answer may open new questions: recompute the frontier and run the next round.
 5. Stop when the frontier is empty, or when the person says stop: the questions left become open questions.
@@ -41,3 +41,9 @@ Write nothing, commit nothing. End with a summary in chat:
 - **Setup target:** the manifest values, then resume `factory-init`.
 
 When a skill called this one, return to it with the summary: no next prompts.
+
+## Autonomous mode
+
+Called with ` — autonomous` (by `write-spec` or `write-plan` running under `autopilot`): same rounds, same rigour, nobody to answer. Build every round as above and answer each question with its recommended answer, until the frontier is empty: no stop by the person, no question skipped. Hand the result off exactly as in interactive mode, plus the list of every question with the answer taken and its reason, which the caller records in its `## Decisions taken autonomously`.
+
+One question with `no recommendation possible` stops everything: write nothing, return the list of the open questions (every question of the frontier that was not answered) to the caller, which stops the pipeline with it. A technical question parked for the plan is not open: it is parked as in interactive mode.

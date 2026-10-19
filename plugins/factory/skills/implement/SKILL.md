@@ -1,6 +1,6 @@
 ---
 name: implement
-description: "Implement an approved dev-plan, or a development request directly without a plan (feature, change, bug fix): one stage per component in the manifest's order, layer by layer, test-first, one stage per session, verified by the component's build, test and lint commands and checked by the reviewer agent when asked (the review is optional per stage). Also runs a plan's final review and, once the plan is finalized, proposes the branch's squash. Use for any request to code, with a plan folder under .planning/features/{slug}/dev-plans/ or without one."
+description: "Implement an approved dev-plan, or a development request directly without a plan (feature, change, bug fix): one stage per component in the manifest's order, layer by layer, test-first, one stage per session, verified by the component's build, test and lint commands and checked by the reviewer agent when asked (the review is optional per stage). Also runs a plan's final review and, once the plan is finalized, proposes the branch's squash. Use for any request to code, with a plan folder under .planning/features/{slug}/dev-plans/ or without one. With — autonomous (under autopilot): no question, the stage committed with its announced subject, the final review settled without asking, never a squash."
 ---
 
 # Implement a plan or a request
@@ -39,6 +39,17 @@ Each stage is **one commit**, made at the end of the stage. A plan or request to
 
 The prompt may name what it runs, after the plan folder: `— stage {N} ({component})` for one stage, `— stages {N}-{M} ({component}, {component}), chained` for several in one session (that is the explicit request to chain). The named stage must be the one Progress picks, or the range must start there: otherwise stop before coding and say which stage Progress is at, never skip or redo a stage.
 A stage prompt may end with ` — with review` (the pane's review checkbox): it asks for the reviewer after each stage of the prompt (step 9). Without it, no stage is reviewed unless the person says so in this session. The marker changes nothing else: `— final review` and `— close the branch` never carry it.
+
+## Autonomous mode
+
+The prompt ends with ` — autonomous` (sent by `autopilot`, one subagent per stage, see the workflow rules' **Autonomous mode**): the stage, the final review or the fix of findings runs with no question to the person. The markers it carries keep their meaning (`— stage {N}`, `— with review`, `— final review`), plus ` — with browser test`, the only yes to a browser test.
+
+- Workflow step 1: the branch is created from the base branch without validation, named as `planning.md` says. Step 4: no browser-test question; it runs only with ` — with browser test`.
+- No approach to validate (without a plan: take the defaults and record them). An ambiguity is settled with the plan's and the spec's reading, recorded in the plan's `## Decisions taken autonomously` (`- {question} → {answer taken} ({reason})`), never asked; one with no defensible answer stops the step, nothing committed.
+- A spec change goes through `write-spec` in called mode, autonomous: every delta applied and recorded.
+- Step 12: the stage commit is made with the Progress subject, as always. Step 13: the report lists the decisions taken, the `[-]` items and what is left open; no next prompt, no squash proposal (`autopilot` reports it).
+- **Final review**: no question. `Review` runs; `Tests` runs; `Browser test` runs only with ` — with browser test`, else `[-]` (not run: autopilot without browser test); `Integration tests` always `[-]` (not run: never without the person's request). Commit as step 7 says. The squash is never run: `autopilot` gives its prompt to the person.
+- Never ` — close the branch` in autonomous mode: a squash rewrites history and waits for the person's yes.
 
 ## Final review
 

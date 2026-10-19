@@ -9,6 +9,7 @@ skills/
   write-spec/           the only writer of 00_spec.md
   write-plan/           plan.md, one section per component touched
   implement/            stages, verification, review, commit, final review, squash of a finalized plan
+  autopilot/            spec → plan → stages → final review with no question, one fresh subagent per step
   grill-me/             the interview that settles decisions
   review/               runs the reviewer agent and relays its findings
   test-in-browser/      click through a front component locally

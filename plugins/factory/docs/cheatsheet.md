@@ -12,6 +12,7 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | Code a small or medium change, a fix | `/factory:implement {request}` (no plan) |
 | Design a new feature or a big change | `/factory:write-spec {feature}` if business behaviour is new, then `/factory:write-plan {slug}` (a feature with no spec gets one offered from the plan) |
 | Implement an existing plan | `/factory:implement {plan folder}` |
+| Run everything with no click: spec, plan, stages, final review | `/factory:autopilot {request}` (or `{slug}`, or `{plan folder}` to resume); ` — until spec`, ` — until plan`, ` — with browser test` |
 | Review the branch | `/factory:review` |
 | Review a plan before coding | `/factory:review plan {plan folder}` |
 | Settle open decisions first | `/factory:grill-me {slug}` |
@@ -36,6 +37,14 @@ One stage per session, in the manifest's component order. Each stage: tests firs
 7. Plan finalized (every stage and `Review` ticked): the step that finalized it proposes the squash; later: `/factory:implement {plan folder} — close the branch`
 
 Each step ends with the next prompt ready to copy.
+
+## Autopilot
+
+```
+/factory:autopilot Add a cutoff time on order publication
+```
+
+The whole path above, each step a fresh subagent, no question: every `grill-me` question takes its recommended answer, every default is taken, and the spec and the plan list them under `## Decisions taken autonomously`. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; relaunch the same command to resume. Ends with the commits, the decisions, the `[-]` items and the squash prompt (never run).
 
 ## Remember
 

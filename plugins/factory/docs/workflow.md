@@ -2,11 +2,11 @@
 
 `flow.md` draws the whole path in one diagram.
 
-Four phases, each a skill, chained as needed and usable in any session opened at a project's root with the plugin loaded (see `reference/workflow-rules.md`). The session runs them: a spec, a plan or an implementation asks the person at every decision, which a subagent cannot. Two agents serve them: `reviewer` (every review, always a subagent: it has no stake in the code) and `runner` (the commands whose output would flood the session).
+Four phases, each a skill, chained as needed and usable in any session opened at a project's root with the plugin loaded (see `reference/workflow-rules.md`). The session runs them: a spec, a plan or an implementation asks the person at every decision, which a subagent cannot; `autopilot` is the one exception, chaining them in autonomous mode (below). Two agents serve them: `reviewer` (every review, always a subagent: it has no stake in the code) and `runner` (the commands whose output would flood the session).
 
 | Phase | Skill | Output |
 |---|---|---|
-| Spec | `write-spec` | `.planning/features/{slug}/00_spec.md`: business-level PRD. The only writer of the spec. |
+| Spec | `write-spec` | `.planning/features/{slug}/00_spec.md`: business-level PRD, committed on the feature branch (proposed and created at that commit when on the base branch). The only writer of the spec. |
 | Plan | `write-plan` | `.planning/features/{slug}/dev-plans/{YYYYMMDD}-{HHmmss}-{type}-{name}/plan.md`, committed on the feature branch |
 | Code | `implement` | from a plan or straight from a request: code + tests, verified, reviewed when asked, one stage per session, one commit per stage |
 | Review | `review` | ranked findings on code or on a plan, by the `reviewer` agent; a clean review of a plan's implementation ticks its Validation |
@@ -16,6 +16,10 @@ Four phases, each a skill, chained as needed and usable in any session opened at
 ## Default path
 
 A development request (feature, change, bug fix) goes straight to `implement` without a plan. Planning is for large, risky or multi-stage changes, and only when the person asks for it. Questions are answered directly.
+
+## Autopilot
+
+`/factory:autopilot {request | slug | plan folder}` runs the whole path with no question: the spec (`grill-me` included), the plan, every stage in the manifest's order with its review, the final review, each as a fresh-context subagent on its role's model (`planner`, `implementer`, `reviewer`, `runner`), each committed. What exists under `.planning/features/{slug}/` says where it starts; a plan folder resumes at its Progress. ` — until spec` and ` — until plan` stop it earlier; ` — with browser test` is the only yes to a browser test (else `[-]`); integration tests are always `[-]`; the squash is proposed as a prompt, never run. The skills run in **autonomous mode** (` — autonomous`, sent only by `autopilot`): every question takes its recommended answer, every default is taken, and the spec or the plan records them in a `## Decisions taken autonomously` section. A question with no recommendation, a red suite after one fix or a broken build stops the pipeline, the branch left as it is; the same command resumes it. The session needs the `auto` or `acceptEdits` permission mode with the components' commands allowed, else the subagents stall on their first prompt.
 
 ## Rules that hold everywhere
 

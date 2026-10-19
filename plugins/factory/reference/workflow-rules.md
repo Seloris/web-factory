@@ -28,9 +28,13 @@ The session's model leads: it plans, decides and writes. Subagents are tools it 
 - `runner` (`models.runner`): a command whose output would flood your context (a full test suite, a build, a lint run) and a long read or search; it reports the errors with `file:line`. A quick command or a single read runs inline.
 - `Explore` (`models.explorer`): a broad search across the code. For a task that needs judgment (analysing an existing feature, comparing implementations), spawn `general-purpose` on `models.implementer`.
 
-A spec, a plan or an implementation is never a subagent's job: their skills ask the person (the grill offer, the commit's message, the explicit yes), and a subagent cannot. The session runs them, on the model the person picked (the manifest's `models` says which one each role is meant for).
+A spec, a plan or an implementation is never a subagent's job: their skills ask the person (the grill offer, the commit's message, the explicit yes), and a subagent cannot. The session runs them, on the model the person picked (the manifest's `models` says which one each role is meant for). The one exception is **Autonomous mode** below, where nobody is asked.
 
-Never hand a decision, a code change or a review to `runner` or `Explore`. A subagent cannot spawn subagents: as one, run commands yourself, filtered to the errors.
+Never hand a decision, a code change or a review to `runner` or `Explore`. A subagent without the Agent tool cannot spawn subagents: as one, run commands yourself, filtered to the errors, and say in your report what you could not delegate.
+
+## Autonomous mode
+
+Only `autopilot` turns it on, by ending the prompt of a step's subagent with ` — autonomous`; a person never types it, and a skill never assumes it. In this mode a skill asks nothing: every question takes its recommended answer, every default of the skill is taken, and each is recorded in a `## Decisions taken autonomously` section of the spec or the plan (`- {question} → {answer taken} ({reason})`), the person's record of what was decided without them. A question with no defensible answer stops the step, and the pipeline with it, with nothing written. The hard rules do not move: never push, never `integration_tests` (marked `[-]`), never a squash (its prompt is proposed, not run), commits made with the subject announced beforehand (the skill's own subject for a spec or a plan, the Progress line for a stage).
 
 ## Language
 

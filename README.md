@@ -41,6 +41,8 @@ Then the loop, each step ending with the prompt of the next one ready to copy:
 
 Once every stage and the `Review` are ticked, the plan is finalized: the step that got there proposes the squash of the branch.
 
+Or the whole loop in one command, with no question: `/factory:autopilot {feature}` (the spec with `grill-me`, the plan, every stage reviewed, the final review, each a fresh subagent; the recommended answers are taken and recorded; needs the `auto` or `acceptEdits` permission mode).
+
 Or, for a small change, straight to `/factory:implement {request}`. `/factory:grill-me {slug}` settles open decisions before a spec or a plan; `/factory:review` reviews the branch, `/factory:review plan {plan folder}` a plan.
 
 Read `plugins/factory/docs/workflow.md` for the whole loop, `docs/manifest.md` for the manifest, `docs/cheatsheet.md` for the one-page version.

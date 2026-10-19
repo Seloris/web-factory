@@ -61,6 +61,7 @@ Feature: `{slug}` · Components: `api`, `web` · Spec: US-03, FR-02, BR-05
 | Header line | Feature slug, the components touched (manifest names, in stage order), spec ids covered. |
 | Context | Why this iteration and what it changes. Optional: a Mermaid `flowchart TD` when the interactions are non-trivial. |
 | Decisions | Each question the person answered while planning, and each decision spanning several steps: `- {question or decision} → {answer} ({impact})`. |
+| Decisions taken autonomously | Written only in autonomous mode (`autopilot`): each question answered without the person, `- {question} → {answer taken} ({reason})`. Absent otherwise. |
 | One section per component touched | Named after the component, in stage order, with one `###` subsection per layer of that component's `layers` that the plan touches, in the component's order. Each subsection says what to create or change, precisely enough to implement without guessing: entities, use cases, contracts (routes, request and response fields, authorization), persistence, state and actions, pages and components. Reference the previous component's handoff instead of duplicating its contract. |
 | Conventions | Changes to `CLAUDE.md` files, `.claude/` (rules, settings) or the factory plugin: file, change, rationale. Required whenever the plan introduces or changes a convention. |
 | Tests | **Mandatory.** Per component: the unit tests to write and the integration tests to add or update, following that component's testing conventions, or "none" with the reason. The implementation writes exactly these tests. |
@@ -126,7 +127,7 @@ Infer the header instead of asking for it, and state it at the top of the plan p
 
 - **Feature slug:** list `.planning/features/` and reuse an existing slug first; say whether it is existing or new.
 - **Components:** the manifest components the plan touches, in stage order (none for `tooling` unless it touches a component).
-- **Branch:** on the base branch, a new `{commit type}/{slug}-{name}` (commit type as above); on another branch, that branch. Whoever creates the branch (`write-plan` for a plan, `implement` for a request without a plan) has the person validate its name first.
+- **Branch:** on the base branch, a new `{commit type}/{slug}-{name}` (commit type as above), or `feat/{slug}` for a spec written before any plan; on another branch, that branch. Whoever creates the branch (`write-spec` for a spec on its own, `write-plan` for a plan, `implement` for a request without a plan) has the person validate its name first.
 
 ## Reserved slugs
 

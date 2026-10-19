@@ -1,6 +1,6 @@
 ---
 name: write-plan
-description: "Write a dev-plan under .planning/features/{slug}/dev-plans/: one plan.md with one section per component touched (sub-divided by its layers) and the test strategy, committed on the feature branch. Use when the person explicitly asks to plan a new feature, a change or refactor of an existing one, or a tooling change (reserved tooling slug). Plans only: never source code."
+description: "Write a dev-plan under .planning/features/{slug}/dev-plans/: one plan.md with one section per component touched (sub-divided by its layers) and the test strategy, committed on the feature branch. Use when the person explicitly asks to plan a new feature, a change or refactor of an existing one, or a tooling change (reserved tooling slug). Plans only: never source code. With — autonomous (under autopilot): no question, grill-me run in autonomous mode, defaults taken and recorded, committed without asking."
 ---
 
 # Write a dev-plan
@@ -10,6 +10,15 @@ A plan precise enough to implement without guessing. This skill writes `plan.md`
 Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, manifest, subagents, language, commits, next prompts), then the project's `.claude/rules/planning.md`: it defines the folder layout, the `plan.md` structure and naming. Ask rather than assume when a requirement is ambiguous.
 
 The prompt names the feature: `/factory:write-plan {slug}` (or `/factory:write-plan {slug}: {request}`). The plan lives under `.planning/features/{slug}/dev-plans/`.
+
+## Autonomous mode
+
+The prompt ends with ` — autonomous` (sent by `autopilot`, see the workflow rules' **Autonomous mode**): the Procedure runs with no question to the person. Ambiguity is settled by `grill-me`, not by a question.
+
+- Step 1: a feature with no spec gets it derived from the plan (`write-spec` in called mode, autonomous), without the offer. Step 2: every spec delta is applied and recorded.
+- Step 3: run `grill-me` on the plan, in ` — autonomous` mode, without offering it. Its open questions stop the step before any write: report them.
+- Step 4: a never-committed plan folder of this slug is deleted, not resumed; the plan is drafted once, no iteration, no review offer; the message is the report. The defaults: the stage order of the manifest, a review after every stage (`autopilot` sends ` — with review`), the branch name of `planning.md`. Add a `## Decisions taken autonomously` section after Decisions: `- {question} → {answer taken} ({reason})`, the grill's answers and every default among them.
+- Step 5: no confirmation. On the base branch, create the branch; mark a `Draft` spec `Approved`; commit with the subject of step 5. Step 6: the report gives the branch, the plan folder and the stages; no next prompt when `autopilot` called this skill.
 
 ## Procedure
 
