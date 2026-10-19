@@ -46,8 +46,8 @@ describe("GET /v1/todos", () => {
     // Assert
     expect(res.status).toBe(200);
     expect(todoListSchema.parse(res.body)).toEqual([
-      { id: newest?.id, name: "Newest", tag: null, isCompleted: false, createdAt: "2026-10-17T10:00:00.000Z" },
-      { id: oldest?.id, name: "Oldest", tag: null, isCompleted: false, createdAt: "2026-10-16T10:00:00.000Z" },
+      { id: newest?.id, name: "Newest", tag: null, isCompleted: false, isPinned: false, createdAt: "2026-10-17T10:00:00.000Z" },
+      { id: oldest?.id, name: "Oldest", tag: null, isCompleted: false, isPinned: false, createdAt: "2026-10-16T10:00:00.000Z" },
     ]);
   });
 
@@ -80,6 +80,7 @@ describe("POST /v1/todos", () => {
       name: "Buy bread",
       tag: null,
       isCompleted: false,
+      isPinned: false,
       createdAt: "2026-10-17T09:00:00.000Z",
     });
     expect(await findTodo(todo.id)).toMatchObject({ name: "Buy bread", tag: null, isCompleted: false });
@@ -194,6 +195,56 @@ describe("PATCH /v1/todos/{id}", () => {
     // Assert
     expect(res.status).toBe(400);
     expect(problemDetailsSchema.parse(res.body).errors).toHaveProperty([field]);
+  });
+});
+
+describe("PATCH /v1/todos/{id}/pin", () => {
+  it("pins a todo, then unpins it", async () => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy bread" });
+    const id = seeded?.id ?? UNKNOWN_ID;
+
+    // Act
+    const pinned = await request(ctx.app).patch(`/v1/todos/${id}/pin`).send({ isPinned: true });
+    const isPinnedAfterFirst = (await findTodo(id))?.isPinned;
+    const unpinned = await request(ctx.app).patch(`/v1/todos/${id}/pin`).send({ isPinned: false });
+
+    // Assert
+    expect(pinned.status).toBe(200);
+    expect(todoSchema.parse(pinned.body)).toMatchObject({ id, name: "Buy bread", isPinned: true });
+    expect(isPinnedAfterFirst).toBe(true);
+    expect(unpinned.status).toBe(200);
+    expect(todoSchema.parse(unpinned.body)).toMatchObject({ id, isPinned: false });
+    expect((await findTodo(id))?.isPinned).toBe(false);
+  });
+
+  it("returns 404 when the todo does not exist", async () => {
+    // Act
+    const res = await request(ctx.app).patch(`/v1/todos/${UNKNOWN_ID}/pin`).send({ isPinned: true });
+
+    // Assert
+    expect(res.status).toBe(404);
+    expect(problemDetailsSchema.parse(res.body).code).toBe("not_found");
+  });
+
+  it.each([
+    { label: "the id is not a number", id: "abc", body: { isPinned: true }, field: "params.id" },
+    { label: "the id is zero", id: "0", body: { isPinned: true }, field: "params.id" },
+    { label: "the id is not an integer", id: "1.5", body: { isPinned: true }, field: "params.id" },
+    { label: "the id exceeds the integer range", id: "2147483648", body: { isPinned: true }, field: "params.id" },
+    { label: "isPinned is missing", id: "1", body: {}, field: "body.isPinned" },
+    { label: "isPinned is not a boolean", id: "1", body: { isPinned: "yes" }, field: "body.isPinned" },
+  ])("returns 400 when $label", async ({ id, body, field }) => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy bread" });
+
+    // Act
+    const res = await request(ctx.app).patch(`/v1/todos/${id}/pin`).send(body);
+
+    // Assert
+    expect(res.status).toBe(400);
+    expect(problemDetailsSchema.parse(res.body).errors).toHaveProperty([field]);
+    expect((await findTodo(seeded?.id ?? UNKNOWN_ID))?.isPinned).toBe(false);
   });
 });
 

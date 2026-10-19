@@ -19,7 +19,7 @@ describe("TodoService", () => {
     await ctx.reset();
   });
 
-  it("creates the todo not completed, at the clock's time", async () => {
+  it("creates the todo not completed and not pinned, at the clock's time", async () => {
     // Arrange
     ctx.clock.set("2026-10-17T08:30:00.000Z");
 
@@ -32,10 +32,12 @@ describe("TodoService", () => {
       name: "Buy milk",
       tag: null,
       isCompleted: false,
+      isPinned: false,
       createdAt: "2026-10-17T08:30:00.000Z",
     });
     const [row] = await ctx.db.select().from(todos).where(eq(todos.id, todo.id));
     expect(row?.createdAt.toISOString()).toBe("2026-10-17T08:30:00.000Z");
+    expect(row?.isPinned).toBe(false);
   });
 
   it("reuses the casing of an existing tag typed with another casing", async () => {
@@ -96,6 +98,48 @@ describe("TodoService", () => {
   it("throws NotFoundError when marking an unknown todo completed", async () => {
     // Act
     const act = service.setTodoCompleted(999999, true);
+
+    // Assert
+    await expect(act).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("pins a todo, then unpins it", async () => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy milk" });
+    const id = seeded?.id ?? 999999;
+
+    // Act
+    const pinned = await service.setTodoPinned(id, true);
+    const isPinnedAfterFirst = (await ctx.db.select().from(todos).where(eq(todos.id, id)))[0]?.isPinned;
+    const unpinned = await service.setTodoPinned(id, false);
+
+    // Assert
+    expect(pinned).toMatchObject({ id, name: "Buy milk", isPinned: true });
+    expect(isPinnedAfterFirst).toBe(true);
+    expect(unpinned).toMatchObject({ id, isPinned: false });
+    const [row] = await ctx.db.select().from(todos).where(eq(todos.id, id));
+    expect(row?.isPinned).toBe(false);
+  });
+
+  it("keeps a pinned todo pinned when marking it completed, then back to not completed", async () => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy milk", isPinned: true });
+    const id = seeded?.id ?? 999999;
+
+    // Act
+    const completed = await service.setTodoCompleted(id, true);
+    const reopened = await service.setTodoCompleted(id, false);
+
+    // Assert
+    expect(completed).toMatchObject({ id, isCompleted: true, isPinned: true });
+    expect(reopened).toMatchObject({ id, isCompleted: false, isPinned: true });
+    const [row] = await ctx.db.select().from(todos).where(eq(todos.id, id));
+    expect(row).toMatchObject({ isCompleted: false, isPinned: true });
+  });
+
+  it("throws NotFoundError when pinning an unknown todo", async () => {
+    // Act
+    const act = service.setTodoPinned(999999, true);
 
     // Assert
     await expect(act).rejects.toBeInstanceOf(NotFoundError);

@@ -3,6 +3,7 @@ import { inputOf, validate } from "../../shared/validate.js";
 import {
   createTodoBodySchema,
   setTodoCompletedBodySchema,
+  setTodoPinnedBodySchema,
   todoIdParamsSchema,
   type Todo,
 } from "./todos.schema.js";
@@ -10,6 +11,7 @@ import type { TodoService } from "./todos.service.js";
 
 const createSchemas = { body: createTodoBodySchema };
 const setCompletedSchemas = { params: todoIdParamsSchema, body: setTodoCompletedBodySchema };
+const setPinnedSchemas = { params: todoIdParamsSchema, body: setTodoPinnedBodySchema };
 const deleteSchemas = { params: todoIdParamsSchema };
 
 // Public: no sign-in on these routes.
@@ -30,6 +32,12 @@ export function todosRoutes({ service }: { service: TodoService }): Router {
   router.patch("/v1/todos/:id", validate(setCompletedSchemas), async (_req, res) => {
     const { params, body } = inputOf<typeof setCompletedSchemas>(res);
     const todo: Todo = await service.setTodoCompleted(params.id, body.isCompleted);
+    res.json(todo);
+  });
+
+  router.patch("/v1/todos/:id/pin", validate(setPinnedSchemas), async (_req, res) => {
+    const { params, body } = inputOf<typeof setPinnedSchemas>(res);
+    const todo: Todo = await service.setTodoPinned(params.id, body.isPinned);
     res.json(todo);
   });
 

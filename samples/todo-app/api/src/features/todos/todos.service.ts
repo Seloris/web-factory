@@ -26,6 +26,12 @@ export function createTodoService({ todos, clock }: { todos: TodoRepository; clo
       return todo;
     },
 
+    async setTodoPinned(id: number, isPinned: boolean): Promise<Todo> {
+      const todo = await todos.setPinned(id, isPinned);
+      if (todo === null) throw new NotFoundError("Todo", id);
+      return todo;
+    },
+
     async deleteTodo(id: number): Promise<void> {
       if (!(await todos.remove(id))) throw new NotFoundError("Todo", id);
     },

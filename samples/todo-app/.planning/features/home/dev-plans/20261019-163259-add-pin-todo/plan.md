@@ -106,11 +106,11 @@ None: `web/CLAUDE.md` forbids front tests. The browser test of the Validation co
 
 ### Stage 1 — api
 Commit: `feat(home): api — pin and unpin a todo`
-- [ ] db: `isPinned` column, migration `add_todo_is_pinned`
-- [ ] services: `isPinned` in `todoSchema` and the repository columns, `setPinned`, `setTodoPinned`, `buildTodo` default, service tests
-- [ ] routes: `setTodoPinnedBodySchema`, `PATCH /v1/todos/{id}/pin` registered and routed, route tests, existing expectations updated
-- [ ] Conventions: `api/CLAUDE.md` and root `CLAUDE.md` titles
-- [ ] Handoff: `api/openapi.json` exported, `Todo.isPinned` required, the new path referencing `Todo` and `ProblemDetails`
+- [x] db: `isPinned` column, migration `add_todo_is_pinned`
+- [x] services: `isPinned` in `todoSchema` and the repository columns, `setPinned`, `setTodoPinned`, `buildTodo` default, service tests
+- [x] routes: `setTodoPinnedBodySchema`, `PATCH /v1/todos/{id}/pin` registered and routed, route tests, existing expectations updated
+- [x] Conventions: `api/CLAUDE.md` and root `CLAUDE.md` titles
+- [x] Handoff: `api/openapi.json` exported, `Todo.isPinned` required, the new path referencing `Todo` and `ProblemDetails`
 
 ### Stage 2 — web
 Commit: `feat(home): web — pinned todos at the top of the list`

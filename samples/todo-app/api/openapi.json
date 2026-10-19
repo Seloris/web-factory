@@ -24,6 +24,9 @@
           "isCompleted": {
             "type": "boolean"
           },
+          "isPinned": {
+            "type": "boolean"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -34,6 +37,7 @@
           "name",
           "tag",
           "isCompleted",
+          "isPinned",
           "createdAt"
         ]
       },
@@ -266,6 +270,73 @@
           },
           "400": {
             "description": "The id is invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The todo does not exist",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/todos/{id}/pin": {
+      "patch": {
+        "summary": "Pin or unpin a todo",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "isPinned": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "isPinned"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated todo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id or the body is invalid",
             "content": {
               "application/problem+json": {
                 "schema": {

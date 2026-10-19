@@ -5,6 +5,7 @@ export const todos = pgTable("todos", {
   name: varchar({ length: 200 }).notNull(),
   tag: varchar({ length: 30 }),
   isCompleted: boolean().notNull().default(false),
+  isPinned: boolean().notNull().default(false),
   // No database default: the service sets it from the clock.
   createdAt: timestamp({ withTimezone: true }).notNull(),
 });

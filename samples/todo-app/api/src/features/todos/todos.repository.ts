@@ -8,6 +8,7 @@ const todoColumns = {
   name: todos.name,
   tag: todos.tag,
   isCompleted: todos.isCompleted,
+  isPinned: todos.isPinned,
   createdAt: todos.createdAt,
 };
 
@@ -40,6 +41,11 @@ export function createTodoRepository(db: Database) {
 
     async setCompleted(id: number, isCompleted: boolean): Promise<Todo | null> {
       const [updated] = await db.update(todos).set({ isCompleted }).where(eq(todos.id, id)).returning(todoColumns);
+      return updated === undefined ? null : toTodo(updated);
+    },
+
+    async setPinned(id: number, isPinned: boolean): Promise<Todo | null> {
+      const [updated] = await db.update(todos).set({ isPinned }).where(eq(todos.id, id)).returning(todoColumns);
       return updated === undefined ? null : toTodo(updated);
     },
 

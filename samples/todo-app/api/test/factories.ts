@@ -6,6 +6,7 @@ export function buildTodo(overrides: Partial<NewTodoRow> = {}): NewTodoRow {
     name: "Buy milk",
     tag: null,
     isCompleted: false,
+    isPinned: false,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
   };

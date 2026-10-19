@@ -9,6 +9,7 @@ export const todoSchema = z
     name: z.string(),
     tag: z.string().nullable(),
     isCompleted: z.boolean(),
+    isPinned: z.boolean(),
     createdAt: z.iso.datetime(),
   })
   .meta({ id: "Todo" });
@@ -29,6 +30,10 @@ export const todoIdParamsSchema = z.object({
 
 export const setTodoCompletedBodySchema = z.object({
   isCompleted: z.boolean(),
+});
+
+export const setTodoPinnedBodySchema = z.object({
+  isPinned: z.boolean(),
 });
 
 const problemContent = { "application/problem+json": { schema: problemDetailsSchema } };
@@ -60,6 +65,21 @@ registry.registerPath({
   request: {
     params: todoIdParamsSchema,
     body: { required: true, content: { "application/json": { schema: setTodoCompletedBodySchema } } },
+  },
+  responses: {
+    200: { description: "The updated todo", content: { "application/json": { schema: todoSchema } } },
+    400: { description: "The id or the body is invalid", content: problemContent },
+    404: { description: "The todo does not exist", content: problemContent },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/v1/todos/{id}/pin",
+  summary: "Pin or unpin a todo",
+  request: {
+    params: todoIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: setTodoPinnedBodySchema } } },
   },
   responses: {
     200: { description: "The updated todo", content: { "application/json": { schema: todoSchema } } },
