@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardFilter, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStage, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, committed, describeRun, isFinalized, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, stamp, stepTitle, steps, tickReview, withPlan } from './planning'
+import { activeStep, afterCommit, commitFeature, committed, describeRun, isFinalized, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, stamp, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -29,10 +29,12 @@ const expanded = atom({ plugin: 'factory-board', key: 'expanded' } as const, nul
 const isPaneOpen = atom({ plugin: 'factory-board', key: 'isPaneOpen' } as const, false)
 const pickedPlans = atom({ plugin: 'factory-board', key: 'pickedPlans' } as const, {})
 const reviewStage = atom({ plugin: 'factory-board', key: 'reviewStage' } as const, false)
+const browserTest = atom({ plugin: 'factory-board', key: 'browserTest' } as const, false)
 const stateFilter = atom({ plugin: 'factory-board', key: 'stateFilter' } as const, null)
 const openHistory = atom({ plugin: 'factory-board', key: 'openHistory' } as const, null)
 
 const isLive = (run: FactoryBoardRun): boolean => run.status === 'running' || run.status === 'waiting'
+const isPilot = (run: FactoryBoardRun): boolean => run.command === 'autopilot'
 
 async function openPane($: EngineInterface, focus = false): Promise<void> {
   await $.ui.open(focus ? { id: PANE, title: 'Factory', focus: true } : { id: PANE, title: 'Factory' })
@@ -98,12 +100,14 @@ async function startRun($: EngineInterface, run: Pick<FactoryBoardRun, 'feature'
 }
 
 /** The skills whose call, typed or through the Skill tool, starts a run. */
-const RUN_SKILLS = new Set(['write-spec', 'write-plan', 'implement', 'review'])
+const RUN_SKILLS = new Set(['write-spec', 'write-plan', 'implement', 'review', 'autopilot'])
+/** The skills that take a free request: their run starts with no feature, named at the spec's commit. */
+const REQUEST_SKILLS = new Set(['write-spec', 'autopilot'])
 
 /** A `/factory:…` text that names a feature records a run on the step it lands on; `agentId` names the subagent it runs in. */
 async function recordRun($: EngineInterface, text: string, agentId?: string): Promise<void> {
   const command = parseFactoryCommand(text)
-  if (command === null || command.feature === null) return
+  if (command === null || (command.feature === null && !REQUEST_SKILLS.has(command.skill))) return
   const feature = (await read($, board))?.features.find(f => f.slug === command.feature)
   await startRun($, { feature: command.feature, folder: command.folder, command: command.skill, step: runStep(command, feature && withPlan(feature, command.folder)), lastStep: runLastStep(command), agentId })
   refreshQuietly($)
@@ -132,15 +136,54 @@ async function loopRun($: EngineInterface, agentId: string | undefined): Promise
   return (await sessionRuns($, await $.session.id())).find(([, run]) => run.agentId === agentId)
 }
 
-/** A loop of this session committed: its live run is done, or, chained, moves to its next stage. */
-async function commitRun($: EngineInterface, b: FactoryBoard | null, agentId: string | undefined): Promise<void> {
+/** The live autopilot of this session's main loop, with its key; undefined without one. */
+async function livePilot($: EngineInterface): Promise<[string, FactoryBoardRun] | undefined> {
+  const latest = await loopRun($, undefined)
+  return latest !== undefined && isPilot(latest[1]) && isLive(latest[1]) ? latest : undefined
+}
+
+/**
+ * The pipeline follows its subagents: it moves to the step of the one it just
+ * spawned (`moveStep`), and takes the feature and the plan folder it had not yet
+ * (a pipeline from a free request learns its slug at the spec's commit).
+ */
+async function steerPilot($: EngineInterface, from: Pick<FactoryBoardRun, 'feature' | 'folder' | 'step'>, moveStep: boolean): Promise<void> {
+  const pilot = await livePilot($)
+  if (pilot === undefined) return
+  const [key, run] = pilot
+  await $.store.set(key, { ...run, step: moveStep ? from.step : run.step, feature: run.feature ?? from.feature, folder: run.folder ?? from.folder, updatedAt: await $.clock.now() })
+}
+
+/** A loop of this session committed: its live run is done, or, chained, moves to its next stage. A run without a feature takes the commit's scope. */
+async function commitRun($: EngineInterface, b: FactoryBoard | null, agentId: string | undefined, command: string): Promise<void> {
   const latest = await loopRun($, agentId)
   if (latest === undefined) return
   const [key, run] = latest
   if (!isLive(run)) return
-  const feature = b?.features.find(f => f.slug === run.feature)
+  const slug = run.feature ?? commitFeature(command)
+  const feature = b?.features.find(f => f.slug === slug)
   const moved = afterCommit(run, feature && withPlan(feature, run.folder))
-  await $.store.set(key, { ...run, ...moved, updatedAt: await $.clock.now() })
+  await $.store.set(key, { ...run, ...moved, feature: slug, updatedAt: await $.clock.now() })
+  if (agentId !== undefined && slug !== null) await steerPilot($, { feature: slug, folder: run.folder, step: run.step }, false)
+}
+
+/**
+ * A turn of a loop ended: its run waits for the person. An autopilot runs its
+ * whole pipeline in one turn, so the end of its turn is the end of the pipeline:
+ * done when its last subagent committed, interrupted otherwise (a blocker, an
+ * abort), and its subagents left waiting are interrupted with it.
+ */
+async function endTurn($: EngineInterface, agentId: string | undefined): Promise<void> {
+  const latest = await loopRun($, agentId)
+  if (latest === undefined || !isLive(latest[1]) || !isPilot(latest[1])) {
+    await touchRun($, 'waiting', agentId)
+    return
+  }
+  const [key, run] = latest
+  const now = await $.clock.now()
+  const subagents = (await sessionRuns($, run.sessionId)).filter(([, r]) => r.agentId !== undefined && r.since >= run.since)
+  await $.store.set(key, { ...run, status: subagents[0]?.[1].status === 'done' ? 'done' : 'interrupted', updatedAt: now })
+  for (const [k, r] of subagents) if (isLive(r)) await $.store.set(k, { ...r, status: 'interrupted', updatedAt: now })
 }
 
 /** Updates the latest run of a loop of this session, when it has one. A finished run stays so until a new `/factory:` prompt. */
@@ -197,6 +240,9 @@ const RUN_LABEL: Record<FactoryBoardRunStatus, string> = {
   interrupted: 'interrompue',
 }
 
+/** An autopilot that did not finish stopped on a blocker or was aborted: it resumes with the same command. */
+const runLabel = (run: FactoryBoardRun): string => (isPilot(run) && run.status === 'interrupted' ? 'arrêté · à reprendre' : RUN_LABEL[run.status])
+
 /** The tinted ground of a pill, by its theme key; the terminal draws none. */
 const PILL_BG: Record<string, string> = {
   success: 'rgba(79,191,122,0.18)',
@@ -231,7 +277,11 @@ const SKILL_LABEL: Record<string, string> = {
   'write-plan': 'Plan',
   'write-spec': 'Spec',
   review: 'Revue',
+  autopilot: 'Autopilot',
 }
+
+/** The prompt that resumes an autopilot where its Progress is: from its plan folder, else its slug. */
+const resumePrompt = (run: FactoryBoardRun): string | null => (run.feature === null ? null : `/factory:autopilot ${run.folder ?? run.feature}`)
 
 const SPEC_STATUS_LABEL: Record<string, string> = {
   Draft: 'brouillon',
@@ -393,7 +443,12 @@ export const register: Register = on => {
   on('agent.spawn', async ($, e, next) => {
     const started = await next(e)
     const line = factoryLine(e.prompt)
-    if (e.parentAgentId === undefined && started.agentId !== undefined && line !== null) await recordRun($, line, started.agentId)
+    if (e.parentAgentId === undefined && started.agentId !== undefined && line !== null) {
+      await recordRun($, line, started.agentId)
+      // An autopilot's step is the one its subagent at work is on.
+      const subagent = await loopRun($, started.agentId)
+      if (subagent !== undefined) await steerPilot($, subagent[1], true)
+    }
     return started
   }).catch(($, e, next) => next(e))
 
@@ -403,7 +458,7 @@ export const register: Register = on => {
   })
 
   on('turn.complete', async ($, e, next) => {
-    await touchRun($, 'waiting', e.agentId)
+    await endTurn($, e.agentId)
     refreshQuietly($)
     return next(e)
   })
@@ -414,7 +469,7 @@ export const register: Register = on => {
     if (isCommit && ran.deny === undefined && ran.isError !== true) {
       // Every factory skill ends its job with its commit (spec, plan, stage, squash).
       const before = await read($, board)
-      await commitRun($, before, e.agentId)
+      await commitRun($, before, e.agentId, e.command)
       const after = await refresh($)
       for (const line of committed(before, after)) $.ui.toast(line, { timeoutMs: 8000 })
     }
@@ -436,14 +491,19 @@ export const register: Register = on => {
     const picked = await read($, pickedPlans)
     const reviewOn = await read($, reviewStage)
     const sessionId = await $.session.id()
-    const run = b.runs.filter(r => r.sessionId === sessionId).at(-1)
+    const mine = b.runs.filter(r => r.sessionId === sessionId)
+    const main = mine.filter(r => r.agentId === undefined).at(-1)
+    // An autopilot session shows its pipeline, at the step its subagent works on, not that subagent's run.
+    const run = main !== undefined && isPilot(main) ? main : mine.at(-1)
     const found = run ? b.features.find(f => f.slug === run.feature) : undefined
     const feature = found && run ? withPlan(found, run.folder) : undefined
     const others = b.runs.filter(r => r.sessionId !== sessionId && isLive(r)).length
     const tokens = await sessionTokens($)
     const detail = run && feature ? stepDetail(feature, run.step) : ''
     // The run is over (its commit made): the band offers the plan's next step, so the pane need not be opened.
-    const after = run && !isLive(run) && found ? nextAction(withPlan(found, picked[found.slug]), { review: reviewOn }) : null
+    // An autopilot that stopped offers its own resume, where the Progress is.
+    const resume = run && isPilot(run) && run.status === 'interrupted' ? resumePrompt(run) : null
+    const after = resume !== null ? { label: "Reprendre l'autopilot", prompt: resume } : run && !isLive(run) && found ? nextAction(withPlan(found, picked[found.slug]), { review: reviewOn }) : null
     const pill = (color: string, label: string) => (
       <Text color={color} backgroundColor={e.surface === 'terminal' ? undefined : PILL_BG[color]} weight="semibold">
         {` ${label} `}
@@ -462,9 +522,9 @@ export const register: Register = on => {
               <Text weight="semibold">{runTitle(run, feature)}</Text>
               {detail ? <Text dimColor mono tabular>{` ${detail}`}</Text> : ''}
               <Text dimColor>{SEP}</Text>
-              {run.feature}
+              {run.feature ?? <Text dimColor>nouvelle feature</Text>}
               <Text dimColor>{SEP}</Text>
-              {pill(RUN_COLOR[run.status], `${RUN_GLYPH[run.status]} ${RUN_LABEL[run.status]}${isLive(run) ? ` · ${age(b.scannedAt, run.since)}` : ''}`)}
+              {pill(RUN_COLOR[run.status], `${RUN_GLYPH[run.status]} ${runLabel(run)}${isLive(run) ? ` · ${age(b.scannedAt, run.since)}` : ''}`)}
             </Text>
           ) : (
             <Text dimColor>{`${SEP}aucune étape factory dans cette session`}</Text>
@@ -491,9 +551,22 @@ export const register: Register = on => {
     const open = await read($, expanded)
     const picked = await read($, pickedPlans)
     const reviewOn = await read($, reviewStage)
+    const browserOn = await read($, browserTest)
     const filtering = await read($, stateFilter)
     const history = await read($, openHistory)
     const toggleReview = async () => void update($, reviewStage, ticked => !ticked)
+    const toggleBrowser = async () => void update($, browserTest, ticked => !ticked)
+    /** The header's button: the autopilot of a feature that does not exist yet, its request typed after the command. */
+    const newFeature = async (press: UiPressArgument) => {
+      const text = '/factory:autopilot '
+      const filled = await $.prompt.fill({ text, mode: 'replace' })
+      if (filled.isFilled) {
+        $.ui.toast('Décris la feature à la suite du prompt, puis Entrée : spec, plan, stages et revue, sans un clic.', { timeoutMs: 8000 })
+      } else {
+        const copied = await $.ui.copy({ text, surface: press.surface })
+        $.ui.toast(copied.isCopied ? 'Commande copiée : colle-la et décris la feature à sa suite.' : 'Impossible de préparer le prompt ici.')
+      }
+    }
     const sessionId = await $.session.id()
     const now = b?.scannedAt ?? 0
     const prepare = (prompt: string) => preparePrompt($, prompt)
@@ -504,7 +577,7 @@ export const register: Register = on => {
         {` ${label} `}
       </Text>
     )
-    const runPill = (run: FactoryBoardRun) => pill(RUN_COLOR[run.status], `${RUN_GLYPH[run.status]} ${RUN_LABEL[run.status]}${isLive(run) ? ` · ${age(now, run.since)}` : ''}`)
+    const runPill = (run: FactoryBoardRun) => pill(RUN_COLOR[run.status], `${RUN_GLYPH[run.status]} ${runLabel(run)}${isLive(run) ? ` · ${age(now, run.since)}` : ''}`)
 
     if (b === null) {
       return (
@@ -527,7 +600,9 @@ export const register: Register = on => {
     // A live `write-plan` writing a new plan wins over the pick: the card shows the plan on its way.
     const features = b.features.map(f => onNewPlan(f, b.runs) ?? withPlan(f, picked[f.slug]))
     const project = b.root.split(/[\\/]/).filter(Boolean).at(-1) ?? b.root
-    const live = b.runs.filter(isLive).sort((a, b2) => b2.since - a.since)
+    const pilots = b.runs.filter(r => isPilot(r) && isLive(r))
+    // A live autopilot stands for its subagents: the session list shows the pipeline, each step row its subagent's run.
+    const live = b.runs.filter(r => isLive(r) && !(r.agentId !== undefined && pilots.some(p => p.sessionId === r.sessionId))).sort((a, b2) => b2.since - a.since)
     const noPlan = features.filter(f => f.plan === null).length
     const stagesLeft = features.reduce((n, f) => n + (f.plan?.stages.filter(s => !isStageDone(s)).length ?? 0), 0)
     // `HEAD` is a detached head: no branch to squash.
@@ -561,8 +636,9 @@ export const register: Register = on => {
       const plan = feature.plan
       const runs = b.runs.filter(r => r.feature === feature.slug)
       const isNewPlan = plan === null && feature.plans.length > 0
-      // Its session writes it: no prompt to prepare until its folder is there.
-      const action = isNewPlan ? null : nextAction(feature, { review: reviewOn })
+      const pilot = pilots.find(r => r.feature === feature.slug)
+      // Its session writes it: no prompt to prepare until its folder is there. Nor while an autopilot works on the feature.
+      const action = isNewPlan || pilot ? null : nextAction(feature, { review: reviewOn, browser: browserOn })
       // The review checkbox only means something on a stage prompt (`— stage N`, `— stages N-M`).
       const isStageAction = action !== null && /^\/factory:implement .* — stages? \d/.test(action.prompt)
       const isOpen = open === feature.slug
@@ -577,9 +653,10 @@ export const register: Register = on => {
       const row = (step: FactoryBoardStep, isLast: boolean) => {
         const isDone = isStepDone(feature, step)
         const isActive = step === active
-        const stepRuns = runs.filter(r => r.step === step && isRunOfPlan(r, feature)).sort((a, b2) => b2.since - a.since)
+        // An autopilot's own run moves along the steps: each row keeps the run of the subagent that worked on it.
+        const stepRuns = runs.filter(r => r.step === step && !isPilot(r) && isRunOfPlan(r, feature)).sort((a, b2) => b2.since - a.since)
         const [latest, ...older] = stepRuns
-        const marker: Marker = stepRuns.some(isLive) ? 'running' : isDone ? 'done' : isActive ? 'next' : 'pending'
+        const marker: Marker = stepRuns.some(isLive) || pilot?.step === step ? 'running' : isDone ? 'done' : isActive ? 'next' : 'pending'
         const detail = stepDetail(feature, step)
         const historyKey = `${feature.slug}:${step}`
         const isHistoryOpen = history === historyKey
@@ -652,6 +729,11 @@ export const register: Register = on => {
               <Button key={`history:${feature.slug}:${step}`} plain dimColor label={`${isHistoryOpen ? '▾' : '▸'} ${older.length} essai(s) précédent(s)`} onPress={() => update($, openHistory, h => (h === historyKey ? null : historyKey))} />
             )}
             {isHistoryOpen && older.map(line)}
+            {isActive && pilot && (
+              <Text size="caption" dimColor wrap="truncate-end">
+                ⚡ Autopilot en cours sur cette feature : les prompts reviennent quand il s’arrête.
+              </Text>
+            )}
             {isActive && action && (
               <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="claude" paddingX={1}>
                 <Box gap={1} flexWrap="wrap" alignItems="center">
@@ -666,6 +748,15 @@ export const register: Register = on => {
                   )}
                   <Button key={`copy:${feature.slug}`} plain dimColor label="⧉ Copier" onPress={copy(action.prompt)} />
                 </Box>
+                {action.autopilot && (
+                  <Box gap={1} flexWrap="wrap" alignItems="center">
+                    <Button key={`autopilot:${feature.slug}`} label={action.autopilot.label} onPress={prepare(action.autopilot.prompt)} />
+                    <Button key={`browser-test:${feature.slug}`} plain label={`${browserOn ? '☑' : '☐'} Test navigateur`} onPress={toggleBrowser} />
+                    <Text size="caption" dimColor wrap="truncate-end">
+                      le reste de la feature sans un clic, chaque étape committée
+                    </Text>
+                  </Box>
+                )}
                 <Text size="caption" dimColor mono wrap="truncate-end">
                   {action.prompt}
                 </Text>
@@ -692,6 +783,7 @@ export const register: Register = on => {
                 <Text weight="semibold">{feature.slug}</Text>
               </Button>
               {pill(stateColor, `${stateLabel}${plan?.isDraft ? ' · brouillon' : ''}`)}
+              {pilot && pill('claude', `⚡ autopilot · ${stepTitle(feature, pilot.step)}`)}
               {plan ? (
                 <Box gap={1} alignItems="center">
                   {Svg ? (
@@ -766,6 +858,7 @@ export const register: Register = on => {
             )}
           </Text>
           <Box gap={1} alignItems="center">
+            <Button key="new-autopilot" label="⚡ Nouvelle feature" onPress={newFeature} />
             {/* The squash skill checks the range, proposes the message and waits for a yes: the button only prepares it. */}
             {canSquash && !isPlanOpen && <Button key="squash" label="Squasher" onPress={prepare(squashPrompt)} />}
             {canSquash && isPlanOpen && (
@@ -804,14 +897,16 @@ export const register: Register = on => {
               const stepAt = plan && /^stage:\d+$|^review$/.test(run.step) && feature ? stepDetail(feature, run.step) : ''
               // A click unfolds the feature on the run's plan.
               const follow = async () => {
-                await update($, expanded, () => run.feature)
-                if (plan) await update($, pickedPlans, m => ({ ...m, [run.feature]: plan.folder }))
+                const slug = run.feature
+                if (slug === null) return
+                await update($, expanded, () => slug)
+                if (plan) await update($, pickedPlans, m => ({ ...m, [slug]: plan.folder }))
               }
               return (
                 <Box key={`card:${run.sessionId}:${run.since}`} justifyContent="space-between" gap={1} alignItems="center" borderStyle="round" borderColor={RUN_COLOR[run.status]} borderDimColor paddingX={1}>
                   <Button key={`live:${run.sessionId}:${run.since}`} plain onPress={follow}>
                     <Text color={RUN_COLOR[run.status]}>{`${RUN_GLYPH[run.status]} `}</Text>
-                    <Text weight="semibold">{run.feature}</Text>
+                    <Text weight="semibold">{run.feature ?? 'nouvelle feature'}</Text>
                     <Text dimColor>{`  ${runTitle(run, feature)}`}</Text>
                     {stepAt ? <Text dimColor mono tabular>{` ${stepAt}`}</Text> : ''}
                   </Button>
@@ -829,7 +924,7 @@ export const register: Register = on => {
           <Box flexDirection="column" marginTop={1} paddingX={1}>
             <Text dimColor>Aucune feature sous .planning/features.</Text>
             <Text dimColor>
-              Lance <Text mono>/factory:write-spec</Text> pour en créer une.
+              Lance <Text mono>/factory:write-spec</Text> pour en créer une, ou <Text mono>/factory:autopilot {'{demande}'}</Text> pour tout faire d’un coup.
             </Text>
           </Box>
         )}

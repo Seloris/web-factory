@@ -116,12 +116,13 @@ export type FactoryCommand = {
 
 const COMMAND = /^\s*\/factory:([a-z-]+)\b\s*([\s\S]*)$/
 const PLAN_PATH = /\.planning[\\/]features[\\/]([A-Za-z0-9_.-]+)(?:[\\/]dev-plans[\\/]([A-Za-z0-9_.-]+))?/
-const BARE_SLUG = /^`?([a-z0-9][a-z0-9_-]*)`?(?:\s|$)/i
+// One token, alone or before an option (` — autonomous`): a free request (`add a counter`) names no slug.
+const BARE_SLUG = /^`?([a-z0-9][a-z0-9_-]*)`?\s*(?:—|$)/i
 
 /**
  * Reads a `/factory:…` prompt: the skill and the feature it works on.
  * The feature comes from a `.planning/features/{slug}` path, or, for
- * `write-plan` and `write-spec`, from a bare slug as first argument.
+ * `write-plan`, `write-spec` and `autopilot`, from a bare slug as the argument.
  */
 export function parseFactoryCommand(text: string): FactoryCommand | null {
   const m = COMMAND.exec(text)
@@ -131,10 +132,15 @@ export function parseFactoryCommand(text: string): FactoryCommand | null {
   const path = PLAN_PATH.exec(args)
   let feature = path?.[1] ?? null
   const folder = path?.[2] ? `.planning/features/${path[1]}/dev-plans/${path[2]}` : null
-  if (feature === null && (skill === 'write-plan' || skill === 'write-spec')) {
+  if (feature === null && (skill === 'write-plan' || skill === 'write-spec' || skill === 'autopilot')) {
     feature = BARE_SLUG.exec(args)?.[1] ?? null
   }
   return { skill, args, feature, folder }
+}
+
+/** The feature a commit command names in its scope (`-m "docs(demo): spec — …"`), when it does. */
+export function commitFeature(command: string): string | null {
+  return /\b[a-z]+\(([A-Za-z0-9_.-]+)\)!?:/.exec(command)?.[1] ?? null
 }
 
 export function stagesDone(plan: FactoryBoardPlan): boolean {
@@ -210,6 +216,8 @@ export type NextAction = {
   prompt: string
   /** When several stages remain: the prompt that chains them all in one session. */
   all?: { label: string; prompt: string }
+  /** The prompt that runs the rest of the feature with no click, from this step to the final review. */
+  autopilot?: { label: string; prompt: string }
 }
 
 const stageName = (stage: FactoryBoardStage): string => `Stage ${stage.number}${stage.title ? ` — ${stage.title}` : ''}`
@@ -240,28 +248,40 @@ export function tickReview(text: string): string | null {
 
 /** The marker a stage prompt carries when the person asked for the reviewer after the stage (the pane's checkbox). */
 export const REVIEW_MARKER = ' — with review'
+/** The marker an autopilot prompt carries when the person asked for the browser test (the pane's checkbox). */
+export const BROWSER_MARKER = ' — with browser test'
+
+/** The autopilot prompt of a feature: the rest of it from its plan (its stages, the final review), or from its spec. */
+function autopilotAction(feature: FactoryBoardFeature, browser: boolean | undefined): NextAction['autopilot'] {
+  const target = feature.plan?.folder ?? feature.slug
+  return { label: '⚡ Autopilot', prompt: `/factory:autopilot ${target}${browser ? BROWSER_MARKER : ''}` }
+}
 
 /**
  * The one thing to do next on a feature, and the prompt that does it.
  * `review`: the stage prompts ask for the reviewer after each stage (`REVIEW_MARKER`); off by default.
+ * `browser`: the autopilot prompt asks for the browser test (`BROWSER_MARKER`); off by default.
  */
-export function nextAction(feature: FactoryBoardFeature, options: { review?: boolean } = {}): NextAction | null {
+export function nextAction(feature: FactoryBoardFeature, options: { review?: boolean; browser?: boolean } = {}): NextAction | null {
   const { slug, plan } = feature
   const marker = options.review ? REVIEW_MARKER : ''
+  const autopilot = autopilotAction(feature, options.browser)
   switch (feature.state) {
     case 'empty':
+      // No spec to start from: the autopilot takes a request, typed from the header's button.
       return { label: 'Écrire la spec', prompt: `/factory:write-spec ${slug}` }
     case 'spec':
-      return { label: 'Écrire le plan', prompt: `/factory:write-plan ${slug}` }
+      return { label: 'Écrire le plan', prompt: `/factory:write-plan ${slug}`, autopilot }
     case 'plan':
     case 'running': {
       if (plan === null) return null
-      if (plan.isDraft) return { label: 'Reprendre le plan (brouillon)', prompt: `/factory:write-plan ${slug}` }
+      if (plan.isDraft) return { label: 'Reprendre le plan (brouillon)', prompt: `/factory:write-plan ${slug}`, autopilot }
       const stage = nextStage(plan)
-      if (stage === null) return { label: 'Implémenter', prompt: `/factory:implement ${plan.folder}${marker}` }
+      if (stage === null) return { label: 'Implémenter', prompt: `/factory:implement ${plan.folder}${marker}`, autopilot }
       const action: NextAction = {
         label: stageName(stage),
         prompt: `/factory:implement ${plan.folder} — stage ${stage.number}${stage.title ? ` (${stage.title})` : ''}${marker}`,
+        autopilot,
       }
       const remaining = plan.stages.filter(s => s.number >= stage.number)
       const last = remaining.at(-1)
@@ -275,7 +295,7 @@ export function nextAction(feature: FactoryBoardFeature, options: { review?: boo
       return action
     }
     case 'review':
-      return plan ? { label: 'Revue finale', prompt: `/factory:implement ${plan.folder} — final review` } : null
+      return plan ? { label: 'Revue finale', prompt: `/factory:implement ${plan.folder} — final review`, autopilot } : null
     case 'done':
       // The squash is proposed by the step that finalized the plan: nothing left to prepare.
       return null
@@ -326,8 +346,12 @@ export function runStep(command: FactoryCommand, feature: FactoryBoardFeature | 
       return 'plan'
     case 'review':
       return /^plan\b/.test(command.args) ? 'plan' : 'review'
+    case 'autopilot':
+      // The pipeline starts at the feature's step; from a request, at the spec. Moved at each of its subagents.
+      return feature ? activeStep(feature) : 'spec'
     default:
-      if (/final review\s*$/i.test(command.args)) return 'review'
+      // `— final review`, followed or not by an option (` — autonomous`).
+      if (/final review\b/i.test(command.args)) return 'review'
       // `— stage 2 (web)`, or the first of `— stages 2-3 (web, e2e), chained`.
       if (/\bstages?\s+\d+/i.test(command.args)) return `stage:${/\bstages?\s+(\d+)/i.exec(command.args)?.[1]}`
       // An implement on a feature the board does not know lands on no row: listed with the sessions only.
@@ -403,7 +427,7 @@ export function stepTitle(feature: FactoryBoardFeature | undefined, step: Factor
  * stage: once a stage's boxes are ticked, its session is still finishing it.
  */
 export function describeRun(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): string {
-  return `${runTitle(run, feature)} · ${run.feature}`
+  return `${runTitle(run, feature)} · ${run.feature ?? 'nouvelle feature'}`
 }
 
 /** What a session does, without its feature: the title of a live session's card. */
@@ -415,6 +439,8 @@ export function runTitle(run: FactoryBoardRun, feature: FactoryBoardFeature | un
       return 'Plan'
     case 'review':
       return run.step === 'plan' ? 'Revue du plan' : 'Revue'
+    case 'autopilot':
+      return `Autopilot · ${stepTitle(feature, run.step)}`
     case 'implement': {
       const isStep = /^stage:\d+$/.test(run.step) || run.step === 'review'
       return isStep ? stepTitle(feature, run.step) : 'Implémentation'

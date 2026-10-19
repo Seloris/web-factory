@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, committed, describeRun, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runPlan, runStep, runTitle, stamp, tickReview, withPlan } from '../hooks/planning'
+import { activeStep, afterCommit, commitFeature, committed, describeRun, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runPlan, runStep, runTitle, stamp, tickReview, withPlan } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -77,8 +77,8 @@ const GIT_LOG = ['b71e04\tfeat(demo): api — counter endpoint', '9c0d1e\tchore:
 /** The engine resolves a path against the host before the hooks see it: back to the test's spelling. */
 const norm = (path: string): string => path.split('\\').join('/').replace(/^[A-Za-z]:/, '')
 
-/** A project on disk, git included, answered from memory. Returns the store the mod writes to. */
-function mockProject(on: On, options: { log?: string; range?: string; files?: Record<string, string> } = {}): Map<string, unknown> {
+/** A project on disk, git included, answered from memory. Returns the store the mod writes to, its mocked clock on it. */
+function mockProject(on: On, options: { log?: string; range?: string; files?: Record<string, string> } = {}): Map<string, unknown> & { clock: ReturnType<typeof mock.clock> } {
   const files = options.files ?? BASE_FILES
   const isDir = (path: string) => Object.keys(files).some(p => p.startsWith(`${path}/`))
   on('session.root', () => ({ value: ROOT }))
@@ -131,8 +131,8 @@ function mockProject(on: On, options: { log?: string; range?: string; files?: Re
     return { value: undefined }
   })
   on('store.keys', () => ({ value: [...store.keys()] }))
-  mock.clock(on, { now: 1_000_000 })
-  return store
+  const clock = mock.clock(on, { now: 1_000_000 })
+  return Object.assign(store, { clock })
 }
 
 const PANE = {
@@ -224,6 +224,13 @@ test('parseFactoryCommand finds the feature and the plan folder', () => {
   )
   expect(parseFactoryCommand('/factory:implement Add a cutoff time')?.feature).toBeNull()
   expect(parseFactoryCommand('fix the tests')).toBeNull()
+  // A bare slug stands alone or before an option; a free request names no feature yet.
+  expect(parseFactoryCommand('/factory:autopilot demo — until plan')?.feature).toBe('demo')
+  expect(parseFactoryCommand(`/factory:autopilot ${PLAN_FOLDER} — with browser test`)?.folder).toBe(PLAN_FOLDER)
+  expect(parseFactoryCommand('/factory:write-spec add tags to the todos — autonomous')?.feature).toBeNull()
+  expect(parseFactoryCommand('/factory:autopilot add tags to the todos')?.feature).toBeNull()
+  expect(commitFeature('git commit -m "docs(tags): spec — tags on todos"')).toBe('tags')
+  expect(commitFeature('git commit -m "chore: notes"')).toBeNull()
 })
 
 test('nextAction follows the feature state', () => {
@@ -238,16 +245,21 @@ test('nextAction follows the feature state', () => {
     plan: p,
     state,
   })
-  expect(nextAction(feature('spec', null as never))?.prompt).toBe('/factory:write-plan demo')
-  expect(nextAction(feature('running'))).toEqual({ label: 'Stage 2 — web', prompt: `/factory:implement ${PLAN_FOLDER} — stage 2 (web)` })
+  const autopilot = { label: '⚡ Autopilot', prompt: `/factory:autopilot ${PLAN_FOLDER}` }
+  expect(nextAction(feature('spec', null as never))).toEqual({ label: 'Écrire le plan', prompt: '/factory:write-plan demo', autopilot: { label: '⚡ Autopilot', prompt: '/factory:autopilot demo' } })
+  expect(nextAction(feature('running'))).toEqual({ label: 'Stage 2 — web', prompt: `/factory:implement ${PLAN_FOLDER} — stage 2 (web)`, autopilot })
   const untouched = { ...plan, stages: plan.stages.map(s => ({ ...s, done: 0 })) }
   expect(nextAction(feature('plan', untouched))).toEqual({
     label: 'Stage 1 — api',
     prompt: `/factory:implement ${PLAN_FOLDER} — stage 1 (api)`,
     all: { label: "Tout d'un coup (stages 1–2)", prompt: `/factory:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained` },
+    autopilot,
   })
   expect(nextAction(feature('running', { ...plan, isDraft: true }))?.prompt).toBe('/factory:write-plan demo')
   expect(nextAction(feature('review'))?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — final review`)
+  // The browser test is the autopilot's option only; a feature without a spec has no autopilot.
+  expect(nextAction(feature('review'), { browser: true })?.autopilot?.prompt).toBe(`/factory:autopilot ${PLAN_FOLDER} — with browser test`)
+  expect(nextAction({ ...feature('empty', null as never), hasSpec: false })?.autopilot).toBeUndefined()
   expect(nextAction(feature('done'))).toBeNull()
 })
 
@@ -261,6 +273,7 @@ test('the review checkbox adds its marker to the stage prompts only', () => {
     label: 'Stage 1 — api',
     prompt: `/factory:implement ${PLAN_FOLDER} — stage 1 (api) — with review`,
     all: { label: "Tout d'un coup (stages 1–2)", prompt: `/factory:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained — with review` },
+    autopilot: { label: '⚡ Autopilot', prompt: `/factory:autopilot ${PLAN_FOLDER}` },
   })
   expect(runStep(parseFactoryCommand(reviewed!.prompt)!, demo)).toBe('stage:1')
   expect(runLastStep(parseFactoryCommand(reviewed!.all!.prompt)!)).toBe('stage:2')
@@ -351,6 +364,15 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
 
     await ui.press({ key: 'prepare:demo' })
     expect(filled.at(-1)).toBe(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`)
+    // The autopilot of the rest of the feature, with the browser test when ticked; a new feature from the header.
+    await ui.press({ key: 'autopilot:demo' })
+    expect(filled.at(-1)).toBe(`/factory:autopilot ${PLAN_FOLDER}`)
+    await ui.press({ key: 'browser-test:demo' })
+    await ui.press({ key: 'autopilot:demo' })
+    expect(filled.at(-1)).toBe(`/factory:autopilot ${PLAN_FOLDER} — with browser test`)
+    await ui.press({ key: 'browser-test:demo' })
+    await ui.press({ key: 'new-autopilot' })
+    expect(filled.at(-1)).toBe('/factory:autopilot ')
 
     expect(await ui.find({ type: 'Text', text: /· 2 plans$/ })).toBeDefined()
     expect(await ui.find({ key: 'plan:demo' })).toBeDefined()
@@ -482,6 +504,105 @@ test('a subagent that returns without committing leaves its run waiting', async 
   expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'tags', step: 'spec', status: 'waiting', agentId: 'agent-1' })
 })
 
+test('an autopilot from a plan folder is one run moved along its subagents, done once the last one committed', async ($, on) => {
+  const store = mockProject(on)
+  let spawned = 0
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('agent.spawn', () => ({ agentId: `agent-${++spawned}`, model: 'sonnet' }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+  on('prompt.fill', () => ({ isFilled: true }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  await $.prompt.submit({ text: `/factory:autopilot ${PLAN_FOLDER}`, wait: false, origin: { kind: 'composer' } })
+  const pilot = () => store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
+  expect(pilot()).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'autopilot', step: 'stage:2', status: 'running' })
+
+  // The stage's subagent: its run on the stage row, the pipeline at that step.
+  await store.clock.advance(1000)
+  await $.agent.spawn({ prompt: `Read the skill, then act as if the person typed:\n/factory:implement ${PLAN_FOLDER} — stage 2 (web) — with review — autonomous\nReport the commit.` })
+  expect(store.get('run:session-aaaa-1111:1001000')).toMatchObject({ feature: 'demo', command: 'implement', step: 'stage:2', status: 'running', agentId: 'agent-1' })
+  expect(pilot().step).toBe('stage:2')
+
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await band.find({ type: 'Text', text: /^Autopilot · Stage 2 — web$/ })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /● en cours · 0 min/ })).toBeDefined()
+  expect(await band.find({ key: 'next-step' })).toBeUndefined()
+  const pane = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  // The session list shows the pipeline, not its subagent; the card wears the autopilot pill and offers no prompt.
+  expect(await pane.find({ key: 'live:session-aaaa-1111:1000000', text: /Autopilot · Stage 2 — web/ })).toBeDefined()
+  expect(await pane.find({ key: 'live:session-aaaa-1111:1001000' })).toBeUndefined()
+  expect(await pane.find({ type: 'Text', text: /⚡ autopilot · Stage 2 — web/ })).toBeDefined()
+  expect(await pane.find({ key: 'prepare:demo' })).toBeUndefined()
+  await pane.press({ key: 'row:demo' })
+  expect(await pane.find({ key: 'autopilot:demo' })).toBeUndefined()
+  expect(await pane.find({ type: 'Text', text: /Autopilot en cours sur cette feature/ })).toBeDefined()
+  expect(await pane.find({ key: 'run:session-aaaa-1111:1001000', text: /cette session/ })).toBeDefined()
+  expect(await pane.find({ key: 'run:session-aaaa-1111:1000000' })).toBeUndefined()
+
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "feat(demo): web — counter page"', agentId: 'agent-1' } as never)
+  expect((store.get('run:session-aaaa-1111:1001000') as Record<string, unknown>).status).toBe('done')
+  expect(pilot().status).toBe('running')
+
+  // The final review's subagent moves the pipeline to its last step; the main turn's end ends it, done.
+  await store.clock.advance(1000)
+  await $.agent.spawn({ prompt: `/factory:implement ${PLAN_FOLDER} — final review — autonomous` })
+  expect(pilot().step).toBe('review')
+  await $.turn.complete({ answer: 'reviewed', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer', agentId: 'agent-2' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "chore(demo): validation — review"', agentId: 'agent-2' } as never)
+  await $.turn.complete({ answer: 'report', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  expect(pilot().status).toBe('done')
+  expect(await band.find({ type: 'Text', text: /✓ terminé/ })).toBeDefined()
+  expect(await pane.find({ key: 'live:session-aaaa-1111:1000000' })).toBeUndefined()
+  await band.unmount()
+  await pane.unmount()
+})
+
+test('an autopilot from a request takes its feature at the spec commit, and stops as interrupted with a resume button', async ($, on) => {
+  const store = mockProject(on)
+  let spawned = 0
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('agent.spawn', () => ({ agentId: `agent-${++spawned}`, model: 'sonnet' }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+  const filled: string[] = []
+  on('prompt.fill', ($, e) => {
+    filled.push(e.text)
+    return { isFilled: true }
+  })
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  await $.prompt.submit({ text: '/factory:autopilot add tags to the todos', wait: false, origin: { kind: 'composer' } })
+  const pilot = () => store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
+  expect(pilot()).toMatchObject({ feature: null, folder: null, command: 'autopilot', step: 'spec', status: 'running' })
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await band.find({ type: 'Text', text: /nouvelle feature/ })).toBeDefined()
+
+  await store.clock.advance(1000)
+  await $.agent.spawn({ prompt: '/factory:write-spec add tags to the todos — autonomous' })
+  expect(store.get('run:session-aaaa-1111:1001000')).toMatchObject({ feature: null, command: 'write-spec', step: 'spec', agentId: 'agent-1' })
+  // The spec's commit names the feature: the subagent's run and the pipeline take it.
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "docs(tags): spec — tags on todos"', agentId: 'agent-1' } as never)
+  expect(store.get('run:session-aaaa-1111:1001000')).toMatchObject({ feature: 'tags', status: 'done' })
+  expect(pilot()).toMatchObject({ feature: 'tags', step: 'spec', status: 'running' })
+
+  // The plan's subagent stops without committing: the pipeline is interrupted with it, and resumes from its slug.
+  await store.clock.advance(1000)
+  await $.agent.spawn({ prompt: '/factory:write-plan tags — autonomous' })
+  expect(pilot().step).toBe('plan')
+  await $.turn.complete({ answer: 'blocked', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer', agentId: 'agent-2' } as never)
+  await $.turn.complete({ answer: 'stopped', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  expect(pilot()).toMatchObject({ status: 'interrupted', step: 'plan' })
+  expect((store.get('run:session-aaaa-1111:1002000') as Record<string, unknown>).status).toBe('interrupted')
+  expect(await band.find({ type: 'Text', text: /arrêté · à reprendre/ })).toBeDefined()
+  expect((await band.find({ key: 'next-step' }))?.text).toBe("Reprendre l'autopilot")
+  await band.press({ key: 'next-step' })
+  expect(filled.at(-1)).toBe('/factory:autopilot tags')
+  await band.unmount()
+})
+
 test('a run from another worktree of the same repository is listed, a run of another repository is not', async ($, on) => {
   const store = mockProject(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -533,6 +654,9 @@ test('the timeline steps follow the feature: active step, done steps, the step a
   expect(afterCommit({ ...run, step: 'stage:2', lastStep: 'stage:2' }, demo)).toEqual({ step: 'stage:2', status: 'done' })
   expect(afterCommit({ ...run, step: 'stage:2', lastStep: null }, demo)).toEqual({ step: 'stage:2', status: 'done' })
   expect(runStep(command('/factory:write-spec new'), undefined)).toBe('spec')
+  // An autopilot starts at the feature's step, or at the spec from a request.
+  expect(runStep(command(`/factory:autopilot ${PLAN_FOLDER}`), demo)).toBe('stage:2')
+  expect(runStep(command('/factory:autopilot add tags'), undefined)).toBe('spec')
   expect(stamp(Date.now())).toMatch(/^\d\d\/\d\d \d\d:\d\d$/)
 })
 
@@ -676,6 +800,8 @@ test('describeRun names the skill, the feature and the stage at hand', () => {
   expect(describeRun(run('implement', 'close'), feature)).toBe('Implémentation · demo')
   expect(describeRun(run('implement', 'review'), feature)).toBe('Revue finale · demo')
   expect(describeRun(run('review', 'plan'), feature)).toBe('Revue du plan · demo')
+  expect(describeRun(run('autopilot'), feature)).toBe('Autopilot · Stage 2 — web · demo')
+  expect(describeRun({ ...run('autopilot', 'spec'), feature: null }, undefined)).toBe('Autopilot · Spec · nouvelle feature')
   // Stage 1 fully ticked, its commit not made yet: its session still finishes stage 1, not the plan's next stage.
   expect(describeRun(run('implement', 'stage:1'), feature)).toBe('Stage 1 — api · demo')
 })

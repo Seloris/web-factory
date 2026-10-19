@@ -79,12 +79,13 @@ export type FactoryBoardRun = {
   root: string
   /** The repository's git common dir, absolute: the same from every worktree. Absent on records written before it existed. */
   repo?: string
-  feature: string
-  /** The plan folder the command named, when it named one. */
+  /** The feature's slug; null while a spec or an autopilot started from a free request has not committed its spec (the commit's scope names it). */
+  feature: string | null
+  /** The plan folder the command named, when it named one; an autopilot takes the one its stages name. */
   folder: string | null
-  /** The factory skill the session was started with (`implement`, `write-plan`…). */
+  /** The factory skill the session was started with (`implement`, `write-plan`, `autopilot`…). */
   command: string
-  /** The timeline step the run works on: frozen at its start, moved only by a chained run's stage commits. */
+  /** The timeline step the run works on: frozen at its start, moved only by a chained run's stage commits, or, for an autopilot, by each subagent it spawns. */
   step: FactoryBoardStep
   /** The last stage of a chained run (`— stages 2-3 (…), chained`); absent otherwise. */
   lastStep?: FactoryBoardStep | null
@@ -94,6 +95,8 @@ export type FactoryBoardRun = {
    * `running` while a turn runs, `waiting` once it ended and the person is asked,
    * `done` once the session's main loop committed: the skill's job is over,
    * `interrupted` when the session ended or went silent for a day before that.
+   * An autopilot runs its pipeline in one turn: at its end it is `done` when its
+   * last subagent committed, `interrupted` otherwise (stopped on a blocker, aborted).
    */
   status: FactoryBoardRunStatus
   /** When the run was recorded (ms since the epoch). */
@@ -135,6 +138,8 @@ declare module 'claude-code' {
       pickedPlans: Record<string, string>
       /** The pane's review checkbox: when on, the stage prompts carry `— with review` and the reviewer runs after each stage. */
       reviewStage: boolean
+      /** The pane's browser-test checkbox: when on, the autopilot prompts carry `— with browser test`. */
+      browserTest: boolean
       /** True while the pane is open, so the band's button says which way it toggles. */
       isPaneOpen: boolean
       /** The filter chip pressed in the pane; null shows every feature. */
