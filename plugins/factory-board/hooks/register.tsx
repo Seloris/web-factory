@@ -87,7 +87,7 @@ async function refresh($: EngineInterface): Promise<FactoryBoard> {
   return next
 }
 
-async function startRun($: EngineInterface, run: Pick<FactoryBoardRun, 'feature' | 'folder' | 'command' | 'step' | 'lastStep'>): Promise<void> {
+async function startRun($: EngineInterface, run: Pick<FactoryBoardRun, 'feature' | 'folder' | 'command' | 'step' | 'lastStep' | 'agentId'>): Promise<void> {
   const sessionId = await $.session.id()
   const now = await $.clock.now()
   const root = await $.session.root()
@@ -100,13 +100,19 @@ async function startRun($: EngineInterface, run: Pick<FactoryBoardRun, 'feature'
 /** The skills whose call, typed or through the Skill tool, starts a run. */
 const RUN_SKILLS = new Set(['write-spec', 'write-plan', 'implement', 'review'])
 
-/** A `/factory:…` text that names a feature records a run on the step it lands on. */
-async function recordRun($: EngineInterface, text: string): Promise<void> {
+/** A `/factory:…` text that names a feature records a run on the step it lands on; `agentId` names the subagent it runs in. */
+async function recordRun($: EngineInterface, text: string, agentId?: string): Promise<void> {
   const command = parseFactoryCommand(text)
   if (command === null || command.feature === null) return
   const feature = (await read($, board))?.features.find(f => f.slug === command.feature)
-  await startRun($, { feature: command.feature, folder: command.folder, command: command.skill, step: runStep(command, feature && withPlan(feature, command.folder)), lastStep: runLastStep(command) })
+  await startRun($, { feature: command.feature, folder: command.folder, command: command.skill, step: runStep(command, feature && withPlan(feature, command.folder)), lastStep: runLastStep(command), agentId })
   refreshQuietly($)
+}
+
+/** The first `/factory:…` line of a subagent's brief, from the command on; null without one. */
+function factoryLine(prompt: string): string | null {
+  const line = prompt.split(/\r?\n/).find(l => l.includes('/factory:'))
+  return line === undefined ? null : line.slice(line.indexOf('/factory:'))
 }
 
 /** The runs a session recorded, newest first, with their keys. */
@@ -121,9 +127,14 @@ async function sessionRuns($: EngineInterface, sessionId: string): Promise<[stri
   return found.sort((a, b) => b[1].since - a[1].since)
 }
 
-/** This session committed: its live run is done, or, chained, moves to its next stage. */
-async function commitRun($: EngineInterface, b: FactoryBoard | null): Promise<void> {
-  const [latest] = await sessionRuns($, await $.session.id())
+/** The latest run of a loop of this session: the main loop's (no `agentId`) or a subagent's. */
+async function loopRun($: EngineInterface, agentId: string | undefined): Promise<[string, FactoryBoardRun] | undefined> {
+  return (await sessionRuns($, await $.session.id())).find(([, run]) => run.agentId === agentId)
+}
+
+/** A loop of this session committed: its live run is done, or, chained, moves to its next stage. */
+async function commitRun($: EngineInterface, b: FactoryBoard | null, agentId: string | undefined): Promise<void> {
+  const latest = await loopRun($, agentId)
   if (latest === undefined) return
   const [key, run] = latest
   if (!isLive(run)) return
@@ -132,9 +143,9 @@ async function commitRun($: EngineInterface, b: FactoryBoard | null): Promise<vo
   await $.store.set(key, { ...run, ...moved, updatedAt: await $.clock.now() })
 }
 
-/** Updates this session's latest run, when it has one. A finished run stays so until a new `/factory:` prompt. */
-async function touchRun($: EngineInterface, status: FactoryBoardRunStatus): Promise<void> {
-  const [latest] = await sessionRuns($, await $.session.id())
+/** Updates the latest run of a loop of this session, when it has one. A finished run stays so until a new `/factory:` prompt. */
+async function touchRun($: EngineInterface, status: FactoryBoardRunStatus, agentId: string | undefined): Promise<void> {
+  const latest = await loopRun($, agentId)
   if (latest === undefined) return
   const [key, run] = latest
   if (run.status === status || !isLive(run)) return
@@ -377,16 +388,23 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // A subagent whose brief carries a `/factory:` command (the autopilot's steps) is a run of its own,
+  // followed by its loop's id: its turns, its commit and its end are its run's, not the main loop's.
+  on('agent.spawn', async ($, e, next) => {
+    const started = await next(e)
+    const line = factoryLine(e.prompt)
+    if (e.parentAgentId === undefined && started.agentId !== undefined && line !== null) await recordRun($, line, started.agentId)
+    return started
+  }).catch(($, e, next) => next(e))
+
   on('turn.start', async ($, e, next) => {
-    if (e.agentId === undefined) await touchRun($, 'running')
+    await touchRun($, 'running', e.agentId)
     return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId === undefined) {
-      await touchRun($, 'waiting')
-      refreshQuietly($)
-    }
+    await touchRun($, 'waiting', e.agentId)
+    refreshQuietly($)
     return next(e)
   })
 
@@ -396,7 +414,7 @@ export const register: Register = on => {
     if (isCommit && ran.deny === undefined && ran.isError !== true) {
       // Every factory skill ends its job with its commit (spec, plan, stage, squash).
       const before = await read($, board)
-      if (e.agentId === undefined) await commitRun($, before)
+      await commitRun($, before, e.agentId)
       const after = await refresh($)
       for (const line of committed(before, after)) $.ui.toast(line, { timeoutMs: 8000 })
     }

@@ -448,6 +448,40 @@ test('a factory skill called through the Skill tool records the run like a typed
   expect([...store.keys()]).toHaveLength(1)
 })
 
+test('a /factory: brief given to a subagent through the Agent tool is a run of that subagent, done at its commit', async ($, on) => {
+  const store = mockProject(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('agent.spawn', () => ({ agentId: 'agent-1', model: 'sonnet' }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  // A brief without a /factory: line records nothing, nor does a spawn from inside a subagent.
+  await $.agent.spawn({ prompt: 'Read README.md and report.' })
+  await $.agent.spawn({ prompt: `/factory:write-plan tags`, parentAgentId: 'agent-0' } as never)
+  expect([...store.keys()]).toEqual([])
+  await $.agent.spawn({ prompt: `Implement the stage:\n\`/factory:implement ${PLAN_FOLDER} — stage 2 (web) — with review\`\nCommit it, then report.` })
+  expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'implement', step: 'stage:2', status: 'running', agentId: 'agent-1' })
+
+  // The main loop's turn end and commit are not the subagent's.
+  await $.turn.complete({ answer: 'spawned', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "docs: notes"' } as never)
+  expect((store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>).status).toBe('running')
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "feat(demo): web — counter page"', agentId: 'agent-1' } as never)
+  expect((store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>).status).toBe('done')
+})
+
+test('a subagent that returns without committing leaves its run waiting', async ($, on) => {
+  const store = mockProject(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('agent.spawn', () => ({ agentId: 'agent-1', model: 'sonnet' }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  await $.agent.spawn({ prompt: `/factory:write-spec tags` })
+  await $.turn.complete({ answer: 'blocked', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer', agentId: 'agent-1' } as never)
+  expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'tags', step: 'spec', status: 'waiting', agentId: 'agent-1' })
+})
+
 test('a run from another worktree of the same repository is listed, a run of another repository is not', async ($, on) => {
   const store = mockProject(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))

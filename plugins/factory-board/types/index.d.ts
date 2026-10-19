@@ -88,6 +88,8 @@ export type FactoryBoardRun = {
   step: FactoryBoardStep
   /** The last stage of a chained run (`— stages 2-3 (…), chained`); absent otherwise. */
   lastStep?: FactoryBoardStep | null
+  /** The subagent the run works in, when a `/factory:` brief was given to one through the Agent tool; absent for the session's main loop. */
+  agentId?: string
   /**
    * `running` while a turn runs, `waiting` once it ended and the person is asked,
    * `done` once the session's main loop committed: the skill's job is over,
