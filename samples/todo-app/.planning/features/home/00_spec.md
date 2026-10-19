@@ -39,7 +39,7 @@ Tasks noted on paper or scattered across apps get lost: you cannot tell what is 
 - **FR-09** — Deleting a todo first opens a confirmation alert naming it; confirming deletes it for good, cancelling keeps it unchanged.
 - **FR-10** — An empty list shows a message inviting the person to add a first todo; a search or tag filter matching nothing shows a message saying no todo matches.
 - **FR-11** — When adding a todo, the tag is typed freely and the field suggests the existing tags, so that the person reuses a tag instead of creating a near-duplicate.
-- **FR-12** — The person pins a todo, or unpins it, from the list, so that the todos that matter stay at the top of a long list; pins are stored with the todos, so every visitor sees the same pinned todos.
+- **FR-12** — The person pins a todo, or unpins it, from the list, so that the todos that matter stay at the top of a long list; every visitor sees the same pinned todos.
 
 ## Business Rules
 
