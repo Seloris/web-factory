@@ -462,3 +462,65 @@ export function runPlan(run: FactoryBoardRun, feature: FactoryBoardFeature | und
   if (run.command === 'write-plan') return latest?.isDraft ? latest : null
   return latest ?? null
 }
+
+/**
+ * The roles of the manifest's `models` and its one preset.
+ * shortcut: a copy of `PRESETS` and `ROLES` in plugins/factory/scripts/manifest.mjs (a mod cannot import it); change both together.
+ */
+export const MODEL_ROLES = ['planner', 'implementer', 'advisor', 'reviewer', 'runner', 'explorer'] as const
+export const STANDARD_MODELS: Record<string, string> = { planner: 'opus', implementer: 'sonnet', advisor: 'opus', reviewer: 'opus', runner: 'haiku', explorer: 'haiku' }
+/** The models a subagent's `model:` takes, offered by the pane's configuration screen. */
+export const MODEL_CHOICES = ['opus', 'sonnet', 'haiku', 'fable']
+
+/** The `models:` key line of `factory.yaml` and the indented lines under it: [start, end). */
+function modelsBlock(lines: string[]): [number, number] | null {
+  const start = lines.findIndex(line => /^models:/.test(line))
+  if (start < 0) return null
+  let end = start + 1
+  while (end < lines.length && (/^\s/.test(lines[end] ?? '') || lines[end]?.trim() === '')) end++
+  // Blank lines before the next key belong to it.
+  while (end > start + 1 && lines[end - 1]?.trim() === '') end--
+  return [start, end]
+}
+
+/**
+ * Every role's model from `factory.yaml`'s `models`: the preset name, a block map
+ * or an inline `{…}` map, on the `standard` preset.
+ * shortcut: a line read, not a YAML parse; enough for what factory-init and the pane write.
+ */
+export function readModels(text: string): Record<string, string> {
+  const models = { ...STANDARD_MODELS }
+  const lines = text.split(/\r?\n/)
+  const block = modelsBlock(lines)
+  if (block === null) return models
+  const body = lines.slice(block[0], block[1]).map(line => line.replace(/(^|\s)#.*$/, '').trim())
+  const rest = (body[0] ?? '').slice('models:'.length).trim()
+  // A scalar names the preset: `standard` is the only one.
+  const pairs = rest.startsWith('{') ? rest.replace(/^\{|\}$/g, '').split(',') : rest === '' ? body.slice(1) : []
+  for (const pair of pairs) {
+    const m = /^\s*(\w+)\s*:\s*["']?([^"'\s]+)["']?\s*$/.exec(pair)
+    if (m && (MODEL_ROLES as readonly string[]).includes(m[1] ?? '')) models[m[1] ?? ''] = m[2] ?? ''
+  }
+  return models
+}
+
+/**
+ * `factory.yaml` with its `models` set, written as factory-init does: `models: standard`
+ * when every role is the preset's, else the preset and the roles that differ. The other
+ * lines and the line endings are kept; a missing key goes before `components:`.
+ */
+export function setModels(text: string, models: Record<string, string>): string {
+  const eol = text.includes('\r\n') ? '\r\n' : '\n'
+  const changed = MODEL_ROLES.filter(role => models[role] && models[role] !== STANDARD_MODELS[role])
+  const value = changed.length === 0 ? ['models: standard'] : ['models:', '  preset: standard', ...changed.map(role => `  ${role}: ${models[role]}`)]
+  const lines = text.split(/\r?\n/)
+  const block = modelsBlock(lines)
+  if (block !== null) {
+    lines.splice(block[0], block[1] - block[0], ...value)
+  } else {
+    const components = lines.findIndex(line => /^components:/.test(line))
+    const at = components >= 0 ? components : lines.at(-1) === '' ? lines.length - 1 : lines.length
+    lines.splice(at, 0, ...value)
+  }
+  return lines.join(eol)
+}

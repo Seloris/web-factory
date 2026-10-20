@@ -2,6 +2,11 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-20 — The board sets the models and its filters add up
+
+- **The roles' models from the board.** Changing a role's model meant editing `factory.yaml`'s `models` by hand, in the shape `factory-init` writes. The person wanted a configuration screen. The board's `⚙ Modèles` lists the six roles with their model and writes the map the way `factory-init` does (only the roles off the `standard` preset), left uncommitted.
+- **Filters that add up.** A filter chip kept only its features, so the person could not see two features in progress and a finalized one at once. The chips now add up (a press adds, a second press removes, `features` clears), a `plan prêt` chip covers the one state no chip reached, and the folded finalized line shows them beside the others. Version 0.9.0.
+
 ## 2026-10-20 — The board drives and follows the autopilot
 
 - **One run for the pipeline.** `/factory:autopilot` was a `/factory:` prompt the board did not know: its run landed on one step and stayed `en cours` through the whole pipeline (the orchestrator never commits), while each subagent's run showed under its step with `cette session`, so the band of that session named the subagent at work, offered the plan's next step between two subagents, and the live list showed two lines of the same session. The board now records the `autopilot` run as the pipeline: `Autopilot · {step}`, its step moved at each subagent spawned with a `/factory:` brief, the feature and the plan folder taken from them, and its end read from its main loop's turn (the pipeline runs in one turn): `done` when the last subagent committed, `interrupted` (`arrêté · à reprendre`) otherwise, its subagents left waiting interrupted with it. The session list shows the pipeline only; each step row keeps its subagent's run; the band offers `Reprendre l'autopilot` after a stop.

@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, commitFeature, committed, describeRun, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, runLastStep, runPlan, runStep, runTitle, stamp, tickReview, withPlan } from '../hooks/planning'
+import { activeStep, afterCommit, commitFeature, committed, describeRun, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, readModels, runLastStep, runPlan, runStep, runTitle, setModels, stamp, tickReview, withPlan } from '../hooks/planning'
 import type { FactoryBoard, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
@@ -340,12 +340,19 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(await ui.find({ type: 'Text', text: /spec validée/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^1\/2$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Spec$/ })).toBeUndefined()
-    // The filter chips: only the matching features stay, the active chip clears on a second press.
+    // The filter chips add up: each press adds its features, a second press takes them away, `features` clears them all.
     await ui.press({ key: 'filter:no-plan' })
     expect(await ui.find({ key: 'row:demo' })).toBeUndefined()
     expect(await ui.find({ key: 'row:tags' })).toBeDefined()
+    await ui.press({ key: 'filter:running' })
+    expect(await ui.find({ key: 'row:demo' })).toBeDefined()
+    expect(await ui.find({ key: 'row:tags' })).toBeDefined()
+    await ui.press({ key: 'filter:no-plan' })
+    expect(await ui.find({ key: 'row:demo' })).toBeDefined()
+    expect(await ui.find({ key: 'row:tags' })).toBeUndefined()
     await ui.press({ key: 'filter:all' })
     expect(await ui.find({ key: 'row:demo' })).toBeDefined()
+    expect(await ui.find({ key: 'row:tags' })).toBeDefined()
     expect((await ui.find({ key: 'prepare:demo' }))?.text).toBe('Stage 2 — web')
     expect(await ui.find({ key: 'step:demo:stage:1' })).toBeUndefined()
 
@@ -783,6 +790,58 @@ test('the final review is marked done from the pane: Review ticked in plan.md, t
   expect(await ui.find({ type: 'Text', text: /plan finalisé/ })).toBeDefined()
   expect(await ui.find({ key: 'prepare:demo' })).toBeUndefined()
   expect(await ui.find({ key: 'mark-review:demo' })).toBeUndefined()
+  // Folded, the finalized feature leaves a line that shows it beside the others; the chips then take groups away.
+  await ui.press({ key: 'row:demo' })
+  expect(await ui.find({ key: 'row:demo' })).toBeUndefined()
+  await ui.press({ key: 'show-done' })
+  expect(await ui.find({ key: 'row:demo' })).toBeDefined()
+  expect(await ui.find({ key: 'row:tags' })).toBeDefined()
+  await ui.press({ key: 'filter:no-plan' })
+  expect(await ui.find({ key: 'row:demo' })).toBeDefined()
+  expect(await ui.find({ key: 'row:tags' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('readModels reads every shape of models, setModels writes only the roles off the preset', () => {
+  const standard = readModels('')
+  expect(standard.planner).toBe('opus')
+  expect(standard.runner).toBe('haiku')
+  expect(readModels('name: a\nmodels: standard  # preset\ncomponents:\n')).toEqual(standard)
+  expect(readModels('models:\n  preset: standard\n  planner: fable # big\n  reviewer: "sonnet"\ncomponents:\n').planner).toBe('fable')
+  expect(readModels('models:\r\n  preset: standard\r\n  reviewer: sonnet\r\n').reviewer).toBe('sonnet')
+  expect(readModels('models: {preset: standard, implementer: opus}\n').implementer).toBe('opus')
+
+  const yaml = 'name: a\nbase_branch: main\nmodels: standard\ncomponents:\n  - name: api\n'
+  const set = setModels(yaml, { ...standard, planner: 'fable' })
+  expect(set).toBe('name: a\nbase_branch: main\nmodels:\n  preset: standard\n  planner: fable\ncomponents:\n  - name: api\n')
+  expect(readModels(set).planner).toBe('fable')
+  // Back on the preset: the map folds to its name.
+  expect(setModels(set, standard)).toBe(yaml)
+  // A missing key goes before `components:`; the line endings are kept.
+  expect(setModels('name: a\r\ncomponents:\r\n', { ...standard, runner: 'sonnet' })).toBe('name: a\r\nmodels:\r\n  preset: standard\r\n  runner: sonnet\r\ncomponents:\r\n')
+  expect(setModels('name: a\n', standard)).toBe('name: a\nmodels: standard\n')
+  // The blank line before the next key stays.
+  expect(setModels('models:\n  planner: fable\n\ncomponents:\n', standard)).toBe('models: standard\n\ncomponents:\n')
+})
+
+test('the configuration screen sets a role’s model in factory.yaml', async ($, on) => {
+  const files = { ...BASE_FILES }
+  mockProject(on, { files })
+  on('fs.write', ($, e) => {
+    files[norm(e.path)] = e.text
+    return { value: undefined }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'config' })
+  expect(await ui.find({ key: 'row:demo' })).toBeUndefined()
+  expect(await ui.find({ key: 'role:planner', text: /planner/ })).toBeDefined()
+  await ui.select({ key: 'model:planner', value: 'fable' })
+  expect(files[`${ROOT}/factory.yaml`]).toBe('project: demo\nbase_branch: "develop"  # the base\nmodels:\n  preset: standard\n  planner: fable\n')
+  await ui.press({ key: 'config' })
+  expect(await ui.find({ key: 'row:demo' })).toBeDefined()
   await ui.unmount()
 })
 

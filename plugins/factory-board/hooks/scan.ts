@@ -1,13 +1,13 @@
 /**
  * Builds the board from the project's files and its git branch. Reads only:
- * `.planning/features/*` and `factory.yaml`'s `base_branch` through `$.fs`;
+ * `.planning/features/*` and `factory.yaml`'s `base_branch` and `models` through `$.fs`;
  * the branch, its commits since the base, the status and the log through git.
  */
 
 import type { EngineInterface } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardPlan } from '../types'
-import { featureState, parsePlan, parseSpec } from './planning'
+import { featureState, parsePlan, parseSpec, readModels } from './planning'
 
 const join = (...parts: string[]): string => parts.join('/')
 
@@ -35,17 +35,21 @@ async function git($: EngineInterface, root: string, argv: string[]): Promise<st
   }
 }
 
-/** The manifest's `base_branch`, `main` without one. */
-async function readBaseBranch($: EngineInterface, root: string): Promise<string> {
+/** The manifest's text, empty without one. */
+async function readManifest($: EngineInterface, root: string): Promise<string> {
   const text = await $.fs.read(join(root, 'factory.yaml')).catch(() => null)
-  // shortcut: a line match, not a YAML parse; enough for the top-level key factory-init writes.
-  const m = typeof text === 'string' ? /^base_branch:\s*["']?([^"'\s#]+)/m.exec(text) : null
-  return m?.[1] ?? 'main'
+  return typeof text === 'string' ? text : ''
 }
 
-async function readGit($: EngineInterface, root: string): Promise<Git> {
+/** The manifest's `base_branch`, `main` without one. */
+function readBaseBranch(manifest: string): string {
+  // shortcut: a line match, not a YAML parse; enough for the top-level key factory-init writes.
+  return /^base_branch:\s*["']?([^"'\s#]+)/m.exec(manifest)?.[1] ?? 'main'
+}
+
+async function readGit($: EngineInterface, root: string, manifest: string): Promise<Git> {
   const branch = (await git($, root, ['rev-parse', '--abbrev-ref', 'HEAD']))?.trim() || null
-  const baseBranch = await readBaseBranch($, root)
+  const baseBranch = readBaseBranch(manifest)
   // `base..HEAD` starts at the merge base: the branch's own commits. No local base branch: its remote one.
   const range = (await git($, root, ['log', '--format=%s', `${baseBranch}..HEAD`])) ?? (await git($, root, ['log', '--format=%s', `origin/${baseBranch}..HEAD`]))
   const branchSubjects = range === null ? null : range.split(/\r?\n/).filter(Boolean)
@@ -105,13 +109,14 @@ async function readPlans($: EngineInterface, featureDir: string, relFeatureDir: 
 
 /** Reads every feature under `{root}/.planning/features`, its plans, and git. */
 export async function scanBoard($: EngineInterface, root: string, now: number): Promise<FactoryBoard> {
-  const base: FactoryBoard = { root, repo: null, branch: null, baseBranch: 'main', aheadCount: null, branchFeature: null, changedCount: 0, features: [], runs: [], scannedAt: now, error: null }
+  const base: FactoryBoard = { root, repo: null, branch: null, baseBranch: 'main', aheadCount: null, branchFeature: null, changedCount: 0, models: readModels(''), features: [], runs: [], scannedAt: now, error: null }
   const featuresDir = join(root, '.planning', 'features')
   if (!(await $.fs.exists(featuresDir))) {
     return { ...base, error: 'Pas de dossier .planning/features dans ce projet.' }
   }
   try {
-    const state = await readGit($, root)
+    const manifest = await readManifest($, root)
+    const state = await readGit($, root, manifest)
     const slugs = (await $.fs.list(featuresDir))
       .filter(entry => entry.kind === 'dir')
       .map(entry => entry.name)
@@ -141,7 +146,7 @@ export async function scanBoard($: EngineInterface, root: string, now: number): 
     // The commit scope `{type}({slug}): …` names the feature; the newest commit naming one of the board's wins.
     const scopes = (branchSubjects ?? []).map(subject => /^\w+\(([^)]+)\)!?:/.exec(subject)?.[1])
     const branchFeature = scopes.find(scope => features.some(f => f.slug === scope)) ?? null
-    return { ...base, repo, branch, baseBranch, aheadCount: branchSubjects?.length ?? null, branchFeature, changedCount, features }
+    return { ...base, repo, branch, baseBranch, models: readModels(manifest), aheadCount: branchSubjects?.length ?? null, branchFeature, changedCount, features }
   } catch (error) {
     return { ...base, error: `Lecture impossible : ${error instanceof Error ? error.message : String(error)}` }
   }

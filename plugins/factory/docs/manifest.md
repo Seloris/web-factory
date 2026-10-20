@@ -30,7 +30,7 @@ components:                    # the order is the order of the stages; paths rel
 
 ### Models
 
-One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `advisor` (consulted by the implementer at decision points), `reviewer`, `runner` (mechanical work), `explorer` (code searches). The one preset, `standard`, is the recommended set; `factory-init` asks for each role with it as the answer, and writes the map only for the roles the person changed:
+One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `advisor` (consulted by the implementer at decision points), `reviewer`, `runner` (mechanical work), `explorer` (code searches). The one preset, `standard`, is the recommended set; `factory-init` asks for each role with it as the answer, and writes the map only for the roles the person changed (the board's `⚙ Modèles` screen writes it the same way):
 
 | Role | `standard` |
 |---|---|

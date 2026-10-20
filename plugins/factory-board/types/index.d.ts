@@ -105,8 +105,8 @@ export type FactoryBoardRun = {
   updatedAt: number
 }
 
-/** The pane's filter chips: which features the cards show; null, all of them. */
-export type FactoryBoardFilter = 'running' | 'review' | 'no-plan' | 'done'
+/** The pane's filter chips: the cards show the features of any chip pressed; none pressed, all of them. */
+export type FactoryBoardFilter = 'running' | 'review' | 'plan' | 'no-plan' | 'done'
 
 export type FactoryBoard = {
   root: string
@@ -121,6 +121,8 @@ export type FactoryBoard = {
   branchFeature: string | null
   /** Uncommitted paths of the repository (modified, staged, untracked). */
   changedCount: number
+  /** Every role's model (`planner`, `implementer`…), from `factory.yaml`'s `models` on the `standard` preset. */
+  models: Record<string, string>
   features: FactoryBoardFeature[]
   runs: FactoryBoardRun[]
   scannedAt: number
@@ -142,8 +144,10 @@ declare module 'claude-code' {
       browserTest: boolean
       /** True while the pane is open, so the band's button says which way it toggles. */
       isPaneOpen: boolean
-      /** The filter chip pressed in the pane; null shows every feature. */
-      stateFilter: FactoryBoardFilter | null
+      /** The filter chips pressed in the pane; empty shows every feature. */
+      stateFilters: FactoryBoardFilter[]
+      /** True while the pane shows its configuration screen (the models of the roles) instead of the features. */
+      isConfigOpen: boolean
       /** The step (`{slug}:{step}`) whose earlier runs are unfolded in the timeline. */
       openHistory: string | null
     }

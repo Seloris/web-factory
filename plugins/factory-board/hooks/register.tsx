@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardFilter, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStage, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, commitFeature, committed, describeRun, isFinalized, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, stamp, stepTitle, steps, tickReview, withPlan } from './planning'
+import { activeStep, afterCommit, commitFeature, committed, describeRun, isFinalized, isRunOfPlan, isStepDone, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, setModels, stamp, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -30,7 +30,8 @@ const isPaneOpen = atom({ plugin: 'factory-board', key: 'isPaneOpen' } as const,
 const pickedPlans = atom({ plugin: 'factory-board', key: 'pickedPlans' } as const, {})
 const reviewStage = atom({ plugin: 'factory-board', key: 'reviewStage' } as const, false)
 const browserTest = atom({ plugin: 'factory-board', key: 'browserTest' } as const, false)
-const stateFilter = atom({ plugin: 'factory-board', key: 'stateFilter' } as const, null)
+const stateFilters = atom({ plugin: 'factory-board', key: 'stateFilters' } as const, [])
+const isConfigOpen = atom({ plugin: 'factory-board', key: 'isConfigOpen' } as const, false)
 const openHistory = atom({ plugin: 'factory-board', key: 'openHistory' } as const, null)
 
 const isLive = (run: FactoryBoardRun): boolean => run.status === 'running' || run.status === 'waiting'
@@ -227,6 +228,20 @@ async function markReviewDone($: EngineInterface, root: string, folder: string):
   $.ui.toast('Review coché dans plan.md : plan finalisé, la coche reste à committer.', { timeoutMs: 8000 })
 }
 
+/** Sets one role's model in `factory.yaml`, left uncommitted: the next step launched reads it. */
+async function saveModel($: EngineInterface, root: string, role: string, model: string): Promise<void> {
+  const file = `${root}/factory.yaml`
+  const text = await $.fs.read(file).catch(() => null)
+  if (typeof text !== 'string') {
+    $.ui.toast('Pas de factory.yaml à la racine du projet.')
+    return
+  }
+  const models = (await read($, board))?.models ?? {}
+  await $.fs.write(file, setModels(text, { ...models, [role]: model }))
+  await refresh($)
+  $.ui.toast(`${role} : ${model} dans factory.yaml, à committer. Vaut pour la prochaine étape lancée.`, { timeoutMs: 8000 })
+}
+
 const STATE_LABEL: Record<FactoryBoardFeature['state'], string> = {
   empty: 'sans spec',
   spec: 'spec seule',
@@ -268,6 +283,9 @@ const PILL_BG: Record<string, string> = {
 }
 
 const SEP = '  ·  '
+
+/** Every chip: the folded finalized features shown on top of all the others. */
+const ALL_FILTERS: FactoryBoardFilter[] = ['running', 'review', 'plan', 'no-plan', 'done']
 
 /** The context tokens of this session, as the status line counts them; null where the host keeps none. */
 async function sessionTokens($: EngineInterface): Promise<number | null> {
@@ -567,7 +585,8 @@ export const register: Register = on => {
     const picked = await read($, pickedPlans)
     const reviewOn = await read($, reviewStage)
     const browserOn = await read($, browserTest)
-    const filtering = await read($, stateFilter)
+    const filtering = await read($, stateFilters)
+    const isConfig = await read($, isConfigOpen)
     const history = await read($, openHistory)
     const toggleReview = async () => void update($, reviewStage, ticked => !ticked)
     const toggleBrowser = async () => void update($, browserTest, ticked => !ticked)
@@ -631,11 +650,13 @@ export const register: Register = on => {
     const matches = (f: FactoryBoardFeature, filter: FactoryBoardFilter): boolean =>
       filter === 'no-plan' ? f.plan === null : f.state === filter
     const count = (filter: FactoryBoardFilter) => features.filter(f => matches(f, filter)).length
-    const visible = filtering === null ? features : features.filter(f => matches(f, filtering))
+    const visible = filtering.length === 0 ? features : features.filter(f => filtering.some(filter => matches(f, filter)))
+    // The chips add up: a press adds its features to those shown, a second press takes them away, `features` shows all.
     const chip = (key: FactoryBoardFilter | 'all', label: string, value: number, color?: string) => {
-      const isOn = filtering === (key === 'all' ? null : key)
+      const isOn = key === 'all' ? filtering.length === 0 : filtering.includes(key)
+      const toggle = (f: FactoryBoardFilter[]) => (key === 'all' ? [] : f.includes(key) ? f.filter(x => x !== key) : [...f, key])
       return (
-        <Button key={`filter:${key}`} plain onPress={() => update($, stateFilter, () => (key === 'all' ? null : key))}>
+        <Button key={`filter:${key}`} plain onPress={() => update($, stateFilters, toggle)}>
           <Text color={isOn ? 'claude' : undefined} weight={isOn ? 'semibold' : 'regular'}>
             {color && value > 0 ? <Text color={color}>{'● '}</Text> : ''}
             <Text weight="semibold" tabular>
@@ -848,7 +869,8 @@ export const register: Register = on => {
     }
     const done = features.filter(f => f.state === 'done')
     // The finalized features stay folded, unless asked for or one of them is the card unfolded (an older plan picked).
-    const isDoneShown = filtering === 'done' || done.some(f => f.slug === open)
+    const isDoneShown = filtering.includes('done') || done.some(f => f.slug === open)
+    const models = b.models
 
     return (
       <Box flexDirection="column">
@@ -873,6 +895,7 @@ export const register: Register = on => {
             )}
           </Text>
           <Box gap={1} alignItems="center">
+            <Button key="config" label={isConfig ? '← Features' : '⚙ Modèles'} onPress={() => update($, isConfigOpen, o => !o)} />
             <Button key="new-autopilot" label="⚡ Nouvelle feature" onPress={newFeature} />
             {/* The squash skill checks the range, proposes the message and waits for a yes: the button only prepares it. */}
             {canSquash && !isPlanOpen && <Button key="squash" label="Squasher" onPress={prepare(squashPrompt)} />}
@@ -885,78 +908,111 @@ export const register: Register = on => {
           </Box>
         </Box>
 
-        <Box gap={2} flexWrap="wrap" alignItems="center" justifyContent="space-between" marginTop={1} paddingX={1}>
-          <Box gap={2} flexWrap="wrap" alignItems="center">
-            {chip('all', 'features', b.features.length)}
-            {chip('running', 'en cours', count('running'), 'claude')}
-            {chip('review', 'à valider', count('review'), 'permission')}
-            {chip('no-plan', 'sans plan', noPlan, 'warning')}
-            {chip('done', 'finalisée(s)', done.length, 'success')}
-          </Box>
-          <Box key="stages-left">
-            <Text dimColor tabular>
-              {stagesLeft} stage(s) restant(s)
-            </Text>
-          </Box>
-        </Box>
-
-        {live.length > 0 && (
-          <Box flexDirection="column" marginTop={1} paddingX={1}>
+        {isConfig && (
+          <Box flexDirection="column" marginTop={1} paddingX={1} gap={1}>
             <Text size="caption" dimColor>
-              Sessions actives · {live.length}
+              Modèles des rôles · factory.yaml, preset standard
             </Text>
-            {live.map(run => {
-              const found = b.features.find(f => f.slug === run.feature)
-              const feature = found && withPlan(found, run.folder)
-              const plan = runPlan(run, found)
-              const stepAt = plan && /^stage:\d+$|^review$/.test(run.step) && feature ? stepDetail(feature, run.step) : ''
-              // A click unfolds the feature on the run's plan.
-              const follow = async () => {
-                const slug = run.feature
-                if (slug === null) return
-                await update($, expanded, () => slug)
-                if (plan) await update($, pickedPlans, m => ({ ...m, [slug]: plan.folder }))
-              }
+            {MODEL_ROLES.map(role => {
+              const model = models[role] ?? ''
+              const choices = MODEL_CHOICES.includes(model) ? MODEL_CHOICES : [...MODEL_CHOICES, model]
               return (
-                <Box key={`card:${run.sessionId}:${run.since}`} justifyContent="space-between" gap={1} alignItems="center" borderStyle="round" borderColor={RUN_COLOR[run.status]} borderDimColor paddingX={1}>
-                  <Button key={`live:${run.sessionId}:${run.since}`} plain onPress={follow}>
-                    <Text color={RUN_COLOR[run.status]}>{`${RUN_GLYPH[run.status]} `}</Text>
-                    <Text weight="semibold">{run.feature ?? 'nouvelle feature'}</Text>
-                    <Text dimColor>{`  ${runTitle(run, feature)}`}</Text>
-                    {stepAt ? <Text dimColor mono tabular>{` ${stepAt}`}</Text> : ''}
-                  </Button>
-                  <Text wrap="truncate-end">
-                    {runPill(run)}
-                    <Text size="caption" dimColor>{`  ${who(run)}`}</Text>
-                  </Text>
+                <Box key={`role:${role}`} gap={2} alignItems="center">
+                  <Box width={14}>
+                    <Text>{role}</Text>
+                  </Box>
+                  {Select ? (
+                    <Select key={`model:${role}`} options={choices.map(c => ({ value: c, label: c }))} value={model} onSelect={next => saveModel($, b.root, role, next)} />
+                  ) : (
+                    // No Select on this surface: a press moves to the next model.
+                    <Button key={`model:${role}`} label={`${model} ↻`} onPress={() => saveModel($, b.root, role, choices[(choices.indexOf(model) + 1) % choices.length] ?? model)} />
+                  )}
                 </Box>
               )
             })}
-          </Box>
-        )}
-
-        {features.length === 0 && (
-          <Box flexDirection="column" marginTop={1} paddingX={1}>
-            <Text dimColor>Aucune feature sous .planning/features.</Text>
-            <Text dimColor>
-              Lance <Text mono>/factory:write-spec</Text> pour en créer une, ou <Text mono>/factory:autopilot {'{demande}'}</Text> pour tout faire d’un coup.
+            <Text size="caption" dimColor>
+              Le changement est écrit dans factory.yaml, à committer ; il vaut pour la prochaine étape lancée, pas pour un autopilot déjà en cours.
             </Text>
           </Box>
         )}
 
-        {group('running', 'En cours')}
-        {group('review', 'À valider')}
-        {group('plan', 'Plan prêt')}
-        {group('spec', 'Spec seule')}
-        {group('empty', 'Sans spec')}
-        {isDoneShown ? (
-          group('done', 'Finalisées')
-        ) : done.length > 0 ? (
-          <Box marginTop={1} paddingX={1}>
-            <Button key="show-done" plain dimColor label={`▸ ${done.length} feature(s) finalisée(s) · ${done.map(f => f.slug).join(', ')}`} onPress={() => update($, stateFilter, () => 'done')} />
+        {!isConfig && (
+          <Box flexDirection="column">
+            <Box gap={2} flexWrap="wrap" alignItems="center" justifyContent="space-between" marginTop={1} paddingX={1}>
+              <Box gap={2} flexWrap="wrap" alignItems="center">
+                {chip('all', 'features', b.features.length)}
+                {chip('running', 'en cours', count('running'), 'claude')}
+                {chip('review', 'à valider', count('review'), 'permission')}
+                {chip('plan', 'plan prêt', count('plan'), 'success')}
+                {chip('no-plan', 'sans plan', noPlan, 'warning')}
+                {chip('done', 'finalisée(s)', done.length, 'success')}
+              </Box>
+              <Box key="stages-left">
+                <Text dimColor tabular>
+                  {stagesLeft} stage(s) restant(s)
+                </Text>
+              </Box>
+            </Box>
+
+            {live.length > 0 && (
+              <Box flexDirection="column" marginTop={1} paddingX={1}>
+                <Text size="caption" dimColor>
+                  Sessions actives · {live.length}
+                </Text>
+                {live.map(run => {
+                  const found = b.features.find(f => f.slug === run.feature)
+                  const feature = found && withPlan(found, run.folder)
+                  const plan = runPlan(run, found)
+                  const stepAt = plan && /^stage:\d+$|^review$/.test(run.step) && feature ? stepDetail(feature, run.step) : ''
+                  // A click unfolds the feature on the run's plan.
+                  const follow = async () => {
+                    const slug = run.feature
+                    if (slug === null) return
+                    await update($, expanded, () => slug)
+                    if (plan) await update($, pickedPlans, m => ({ ...m, [slug]: plan.folder }))
+                  }
+                  return (
+                    <Box key={`card:${run.sessionId}:${run.since}`} justifyContent="space-between" gap={1} alignItems="center" borderStyle="round" borderColor={RUN_COLOR[run.status]} borderDimColor paddingX={1}>
+                      <Button key={`live:${run.sessionId}:${run.since}`} plain onPress={follow}>
+                        <Text color={RUN_COLOR[run.status]}>{`${RUN_GLYPH[run.status]} `}</Text>
+                        <Text weight="semibold">{run.feature ?? 'nouvelle feature'}</Text>
+                        <Text dimColor>{`  ${runTitle(run, feature)}`}</Text>
+                        {stepAt ? <Text dimColor mono tabular>{` ${stepAt}`}</Text> : ''}
+                      </Button>
+                      <Text wrap="truncate-end">
+                        {runPill(run)}
+                        <Text size="caption" dimColor>{`  ${who(run)}`}</Text>
+                      </Text>
+                    </Box>
+                  )
+                })}
+              </Box>
+            )}
+
+            {features.length === 0 && (
+              <Box flexDirection="column" marginTop={1} paddingX={1}>
+                <Text dimColor>Aucune feature sous .planning/features.</Text>
+                <Text dimColor>
+                  Lance <Text mono>/factory:write-spec</Text> pour en créer une, ou <Text mono>/factory:autopilot {'{demande}'}</Text> pour tout faire d’un coup.
+                </Text>
+              </Box>
+            )}
+
+            {group('running', 'En cours')}
+            {group('review', 'À valider')}
+            {group('plan', 'Plan prêt')}
+            {group('spec', 'Spec seule')}
+            {group('empty', 'Sans spec')}
+            {isDoneShown ? (
+              group('done', 'Finalisées')
+            ) : done.length > 0 ? (
+              <Box marginTop={1} paddingX={1}>
+                <Button key="show-done" plain dimColor label={`▸ ${done.length} feature(s) finalisée(s) · ${done.map(f => f.slug).join(', ')}`} onPress={() => update($, stateFilters, f => (f.length === 0 ? ALL_FILTERS : [...f, 'done']))} />
+              </Box>
+            ) : (
+              ''
+            )}
           </Box>
-        ) : (
-          ''
         )}
       </Box>
     )
