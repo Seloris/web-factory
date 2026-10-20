@@ -83,18 +83,22 @@ export type FactoryBoardRecap = { text: string | null; commits: { sha: string; s
  */
 export type FactoryBoardStep = string
 
-/** One session working on one step of one feature, kept as history once over. */
+/** One session working on one step of one feature, or off the workflow, kept as history once over. */
 export type FactoryBoardRun = {
   sessionId: string
   /** The project root the session runs in: the worktree's path when it runs in one. */
   root: string
   /** The repository's git common dir, absolute: the same from every worktree. Absent on records written before it existed. */
   repo?: string
-  /** The feature's slug; null while a spec or an autopilot started from a free request has not committed its spec (the commit's scope names it). */
+  /** The feature's slug; null off the workflow, and while a spec or an autopilot started from a free request has not committed its spec (the commit's scope names it). */
   feature: string | null
   /** The plan folder the command named, when it named one; an autopilot takes the one its stages name. */
   folder: string | null
-  /** The factory skill the session was started with (`implement`, `write-plan`, `autopilot`…). */
+  /**
+   * The factory skill the session was started with (`implement`, `write-plan`, `autopilot`…), or `off-workflow`
+   * for a session that works without one (a free request): its `step` is `off-workflow` too, its `feature` and
+   * `folder` stay null, and it goes through the same statuses and phases.
+   */
   command: string
   /** The timeline step the run works on: frozen at its start, moved only by a chained run's stage commits, or, for an autopilot, by each subagent it spawns. */
   step: FactoryBoardStep

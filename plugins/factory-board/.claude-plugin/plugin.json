@@ -1,6 +1,6 @@
 {
   "name": "factory-board",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "A pane that follows the factory's features, their dev plans and the stages running in other sessions, and prepares the next /factory: prompt.",
   "author": {
     "name": "Daniel Djordjevic"

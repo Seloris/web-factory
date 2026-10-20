@@ -688,13 +688,70 @@ test('a run from another worktree of the same repository is listed, a run of ano
   await ui.unmount()
 })
 
-test('a plain prompt records nothing', async ($, on) => {
+test('a free prompt follows the session off the workflow: its commit question, its done job, no feature from the commit', async ($, on) => {
+  const store = mockProject(on)
+  mock.env(on, { HOME: '/home/me' })
+  const written = new Map<string, string>()
+  on('fs.write', ($, e) => {
+    written.set(norm(e.path), e.text)
+    return { value: undefined }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.start', ($, e) => ({ turnId: e.turnId }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  const run = (since = 1_000_000) => store.get(`run:session-aaaa-1111:${since}`) as FactoryBoardRun
+  const exported = () => JSON.parse(written.get('/home/me/.claude/factory-board/-repo.json') ?? 'null') as FactoryBoardExport
+
+  // A slash command records nothing.
+  await $.prompt.submit({ text: '/model opus', wait: false, origin: { kind: 'composer' } })
+  expect([...store.keys()]).toEqual([])
+
+  await $.prompt.submit({ text: 'ajoute un bouton, go dev direct', wait: false, origin: { kind: 'composer' } })
+  expect(run()).toMatchObject({ feature: null, folder: null, command: 'off-workflow', step: 'off-workflow', status: 'running', root: ROOT, repo: REPO })
+  await $.turn.complete({ answer: COMMIT_QUESTION, durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  expect(run()).toMatchObject({ status: 'waiting', phase: 'awaiting-commit', pendingCommit: 'docs(demo): spec — the demo\n\nBody line.' })
+  // The poll rescans and writes the export.
+  await store.clock.advance(10_000)
+  const board = exported()
+  expect(board.activity).toMatchObject({ phase: 'awaiting-commit', sessionId: 'session-aaaa-1111', feature: null, step: 'off-workflow' })
+  expect(board.sessions.map(r => [r.command, r.phase])).toEqual([['off-workflow', 'awaiting-commit']])
+  expect(board.live.map(r => r.command)).toEqual(['off-workflow'])
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ key: 'card:session-aaaa-1111:1000000' }))?.text).toMatch(/○ hors workflow\s+Session libre/)
+  await ui.unmount()
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await band.find({ type: 'Text', text: /Session libre\s+·\s+hors workflow/ })).toBeDefined()
+  await band.unmount()
+
+  // The yes to the commit question is no new run; the commit's scope names no feature.
+  await $.prompt.submit({ text: 'oui', wait: false, origin: { kind: 'composer' } })
+  await $.turn.start({ text: 'oui', turnId: 't2' })
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "feat(demo): a button"' } as never)
+  await $.turn.complete({ answer: DONE_TURN, durationMs: 10, isAborted: false, turnId: 't2', reason: 'answer' })
+  expect([...store.keys()]).toEqual(['run:session-aaaa-1111:1000000'])
+  expect(run()).toMatchObject({ feature: null, status: 'done', phase: 'job-done', recap: { text: 'Liste branchée sur l’API, 12 tests verts.' } })
+
+  // The job over, the next free request is a new run.
+  await store.clock.advance(1000)
+  await $.prompt.submit({ text: 'et maintenant le footer', wait: false, origin: { kind: 'composer' } })
+  expect(run(1_011_000)).toMatchObject({ command: 'off-workflow', status: 'running' })
+})
+
+test('a free prompt in a session with a factory run records nothing', async ($, on) => {
   const store = mockProject(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
   await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
-  await $.prompt.submit({ text: 'explique-moi ce fichier', wait: false, origin: { kind: 'composer' } })
-  expect([...store.keys()]).toEqual([])
+  await $.prompt.submit({ text: `/factory:implement ${PLAN_FOLDER}`, wait: false, origin: { kind: 'composer' } })
+  await $.turn.complete({ answer: 'Quelle option ?', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  await store.clock.advance(1000)
+  await $.prompt.submit({ text: 'la seconde', wait: false, origin: { kind: 'composer' } })
+  expect([...store.keys()]).toEqual(['run:session-aaaa-1111:1000000'])
 })
 
 test('the timeline steps follow the feature: active step, done steps, the step a prompt lands on', () => {

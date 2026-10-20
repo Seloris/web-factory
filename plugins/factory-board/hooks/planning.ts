@@ -431,8 +431,15 @@ export function stepTitle(feature: FactoryBoardFeature | undefined, step: Factor
  * stage: once a stage's boxes are ticked, its session is still finishing it.
  */
 export function describeRun(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): string {
-  return `${runTitle(run, feature)} · ${run.feature ?? 'nouvelle feature'}`
+  return `${runTitle(run, feature)} · ${featureLabel(run)}`
 }
+
+/** The command and the step of a session that works outside the workflow: no `/factory:` command, no factory skill. */
+export const OFF_WORKFLOW = 'off-workflow'
+export const isOffWorkflow = (run: Pick<FactoryBoardRun, 'command'>): boolean => run.command === OFF_WORKFLOW
+
+/** The feature a run names, for the band and the cards: `nouvelle feature` before its spec's commit, `hors workflow` off the workflow. */
+export const featureLabel = (run: FactoryBoardRun): string => (isOffWorkflow(run) ? 'hors workflow' : (run.feature ?? 'nouvelle feature'))
 
 /** What a session does, without its feature: the title of a live session's card. */
 export function runTitle(run: FactoryBoardRun, feature: FactoryBoardFeature | undefined): string {
@@ -443,6 +450,8 @@ export function runTitle(run: FactoryBoardRun, feature: FactoryBoardFeature | un
       return 'Plan'
     case 'review':
       return run.step === 'plan' ? 'Revue du plan' : 'Revue'
+    case OFF_WORKFLOW:
+      return 'Session libre'
     case 'autopilot':
       return `Autopilot · ${stepTitle(feature, run.step)}`
     case 'implement': {

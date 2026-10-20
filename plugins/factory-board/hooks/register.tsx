@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardFilter, FactoryBoardMarker, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStage, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, classifyTurn, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, setModels, SPEC_STATUS_LABEL, squashAction, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
+import { activeStep, afterCommit, classifyTurn, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featureLabel, isOffWorkflow, OFF_WORKFLOW, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, setModels, SPEC_STATUS_LABEL, squashAction, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -142,6 +142,20 @@ async function recordRun($: EngineInterface, text: string, agentId?: string): Pr
   refreshQuietly($)
 }
 
+/**
+ * A free prompt of a session's main loop follows it as an off-workflow run, when the session has no run yet or its
+ * last off-workflow run is over (done, no question pending). A slash command records none; a factory run, live or
+ * not, keeps the session: the answer to its commit question, an interrupted autopilot's resume.
+ */
+async function recordOffWorkflow($: EngineInterface, text: string): Promise<void> {
+  if (text.trimStart().startsWith('/')) return
+  const latest = (await loopRun($, undefined))?.[1]
+  const isOver = latest !== undefined && isOffWorkflow(latest) && latest.status === 'done' && latest.phase !== 'awaiting-commit' && latest.phase !== 'awaiting-answer'
+  if (latest !== undefined && !isOver) return
+  await startRun($, { feature: null, folder: null, command: OFF_WORKFLOW, step: OFF_WORKFLOW })
+  refreshQuietly($)
+}
+
 /** The first `/factory:…` line of a subagent's brief, from the command on; null without one. */
 function factoryLine(prompt: string): string | null {
   const line = prompt.split(/\r?\n/).find(l => l.includes('/factory:'))
@@ -192,7 +206,8 @@ async function commitRun($: EngineInterface, b: FactoryBoard | null, agentId: st
   if (latest === undefined) return
   const [key, run] = latest
   if (run.status === 'done') return
-  const slug = run.feature ?? commitFeature(command)
+  // An off-workflow run names no feature, whatever its commit's scope.
+  const slug = isOffWorkflow(run) ? null : (run.feature ?? commitFeature(command))
   const feature = b?.features.find(f => f.slug === slug)
   const moved = afterCommit(run, feature && withPlan(feature, run.folder))
   await $.store.set(key, { ...run, ...moved, feature: slug, updatedAt: await $.clock.now() })
@@ -476,6 +491,7 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     await recordRun($, e.text)
+    await recordOffWorkflow($, e.text)
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -572,7 +588,7 @@ export const register: Register = on => {
               <Text weight="semibold">{runTitle(run, feature)}</Text>
               {detail ? <Text dimColor mono tabular>{` ${detail}`}</Text> : ''}
               <Text dimColor>{SEP}</Text>
-              {run.feature ?? <Text dimColor>nouvelle feature</Text>}
+              {run.feature ?? <Text dimColor>{featureLabel(run)}</Text>}
               <Text dimColor>{SEP}</Text>
               {pill(RUN_COLOR[run.status], `${RUN_GLYPH[run.status]} ${runLabel(run)}${isLive(run) ? ` · ${age(b.scannedAt, run.since)}` : ''}`)}
             </Text>
@@ -984,7 +1000,7 @@ export const register: Register = on => {
                     <Box key={`card:${run.sessionId}:${run.since}`} justifyContent="space-between" gap={1} alignItems="center" borderStyle="round" borderColor={RUN_COLOR[run.status]} borderDimColor paddingX={1}>
                       <Button key={`live:${run.sessionId}:${run.since}`} plain onPress={follow}>
                         <Text color={RUN_COLOR[run.status]}>{`${RUN_GLYPH[run.status]} `}</Text>
-                        <Text weight="semibold">{run.feature ?? 'nouvelle feature'}</Text>
+                        <Text weight="semibold">{featureLabel(run)}</Text>
                         <Text dimColor>{`  ${runTitle(run, feature)}`}</Text>
                         {stepAt ? <Text dimColor mono tabular>{` ${stepAt}`}</Text> : ''}
                       </Button>
