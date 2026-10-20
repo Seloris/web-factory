@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-21 — A free request answered without a commit carries a recap too
+
+- **The done footer without commits, off the workflow.** A session of claude-companion worked on a free request and ended its turn without a commit, so with no footer, and the board exported its off-workflow run `awaiting-answer` with no recap. The companion had nothing to show for a session whose job was done. A free request (no skill) answered without a commit now ends with the footer too, its `> ` recap line alone; a commit question, a failure or an open question still ends with none, and a skill's turn keeps the footer for its commits. The board already reads a footer with no commit line (`commits: []`, phase `job-done`). Projects initialised earlier get it by replacing the `**Done footer.**` paragraph with the one of `templates/CLAUDE.md`; `samples/todo-app` has it. Version 0.8.0.
+
 ## 2026-10-20 — A free request ends with the done footer too
 
 - **The done footer in the project's `CLAUDE.md`.** A session of claude-companion asked to rework a tile's design, outside the workflow, committed and stopped on "nothing was pushed": no `## ✅ JOB DONE`, so the board recorded its run with no recap. The rule already covered a direct request, but it lives in the workflow rules, which only a skill reads. The project's `CLAUDE.md`, always loaded, now carries it, as it carries the servers' rule. Projects initialised earlier get it by adding the `**Done footer.**` paragraph of `templates/CLAUDE.md`; `samples/todo-app` has it. Version 0.7.1.

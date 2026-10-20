@@ -52,6 +52,6 @@ The whole path above, each step a fresh subagent, no question: every `grill-me` 
 
 - Agents **never push**. You push.
 - Integration tests run only when you ask, by name.
-- `✅ JOB DONE` footer = a commit was made, on the branch named.
+- `✅ JOB DONE` footer = the job is done: its commits, on the branch named; a free request answered without a commit shows the recap alone.
 - Every step offers `/factory:retro` last: run it when the session taught something; `/factory:retro apply` later, when the open lessons pile up.
 - The session's model is yours to pick: the manifest's `models` says which one each role is meant for.

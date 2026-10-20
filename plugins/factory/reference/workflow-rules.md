@@ -115,7 +115,7 @@ Whenever a commit was made during the turn (any skill, agent or direct request),
 
 The footer is read by tools (the board and its companion apps show the recap): keep its shape.
 
-No footer when nothing was committed, or when the turn stops on a failure or an open question.
+A free request (no skill) answered without a commit (a question answered, an analysis, a change left uncommitted) ends with the footer too, the recap line alone, no commit line: the board shows what the session achieved. No footer otherwise when nothing was committed, nor when the turn stops on a commit question, a failure or an open question.
 
 ## Images
 
