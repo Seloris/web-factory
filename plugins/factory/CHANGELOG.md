@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-20 — A place for ideas
+
+- **`.planning/ideas.md`, the ideas of a project.** The person often has ideas for a project and nowhere to put them: a spec is too early, the technical debt is for what is wrong, and the memory is for facts. `factory-init` now writes `.planning/ideas.md`, a flat dated list in the shape of the technical debt, and the project's `CLAUDE.md` (always loaded) tells every agent to append an idea there when the person asks, and never to act on it. Only the person removes an idea, once it has become a spec or been dropped: no skill of the workflow edits the file. Projects initialised earlier get it by adding the file from `templates/ideas.md`, the `## Ideas` section of `templates/rules/planning.md` and the `**Ideas.**` paragraph of `templates/CLAUDE.md`; `samples/todo-app` has them. The factory keeps its own at the repository's root, `IDEAS.md`. Version 0.5.0.
+
 ## 2026-10-20 — The retro: each session draws its lessons
 
 - **`retro`, an After Action Review per session.** Nothing in the workflow asked what went well, what went badly and what to change, so a correction the person made in one session was made again in the next. The person wanted the repository to improve itself at every session, after the US Army's After Action Review. `/factory:retro` answers its four questions from the session's evidence (the plan or the agreed approach, the commits, the failures, the reviewer's findings, the person's corrections) and writes `.planning/retros/{timestamp}-{name}.md`: at most five lessons, each with its evidence, its one destination and the exact change, status `open`. A session that taught nothing writes no file, so no lesson is invented.

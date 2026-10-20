@@ -59,7 +59,7 @@ Into the project, from the plugin's `${CLAUDE_PLUGIN_ROOT}/templates/`, filling 
 | `{path}/CLAUDE.md` per component | the pack's `templates/{kind}.CLAUDE.md` when the stack has a pack and a template for that kind, else `templates/component/CLAUDE.md` | the `component` block, structure, conventions, testing, local run. |
 | `.claude/settings.json` | `templates/settings.json` | the `webapp-factory` marketplace known and the plugin enabled (`{{factory_marketplace}}`: the folder holding the marketplace's `.claude-plugin/marketplace.json`, or its repository: the value an existing `.claude/settings.json` already has, else walk up from `${CLAUDE_PLUGIN_ROOT}` to that file; the plugin's own folder is not the marketplace), push denied, timestamp and manifest scripts allowed, `CLAUDE_CODE_SUBAGENT_MODEL` = the `runner` role's model. Merge into an existing file, never replace it. |
 | `.claude/rules/planning.md`, `.claude/rules/memory.md` | `templates/rules/` | as is. |
-| `.planning/technical-debt.md`, `.planning/features/.gitkeep` | `templates/technical-debt.md` | |
+| `.planning/technical-debt.md`, `.planning/ideas.md`, `.planning/features/.gitkeep` | `templates/technical-debt.md`, `templates/ideas.md` | |
 | `docs/CONTRIBUTING.md` | `templates/docs/CONTRIBUTING.md` | base branch filled in. An existing one is kept and shown for the person to reconcile. |
 | `.claude/local/test-logins.example.md` | `templates/test-logins.example.md` | only when a component has `logins`. |
 | `.gitignore` | the used packs' `gitignore` files | adds `.claude/local/` and the lines of each used pack's `gitignore` file (when the pack has one), each line when missing. |

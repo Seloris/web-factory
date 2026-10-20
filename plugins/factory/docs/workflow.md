@@ -53,4 +53,4 @@ A plan is finalized once every stage of its Progress and its `Review` are ticked
 
 ## Planning conventions
 
-`.claude/rules/planning.md` (the project's, written by `factory-init` from the plugin's `templates/rules/`) defines the folder layout, the `plan.md` structure (one section per component touched, sub-divided by its `layers`, plus Context, Decisions, Conventions, Tests, Deviations, Progress, Validation), the reserved slugs `tooling` and `shared`, the `retros/` folder and the technical-debt file.
+`.claude/rules/planning.md` (the project's, written by `factory-init` from the plugin's `templates/rules/`) defines the folder layout, the `plan.md` structure (one section per component touched, sub-divided by its `layers`, plus Context, Decisions, Conventions, Tests, Deviations, Progress, Validation), the reserved slugs `tooling` and `shared`, the `retros/` folder, the ideas file and the technical-debt file. `.planning/ideas.md` holds the person's ideas not yet specified: the project's `CLAUDE.md` tells every agent to append one there when the person asks, and never to act on it; the person removes an idea once it has become a spec.

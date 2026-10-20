@@ -1,5 +1,5 @@
 ---
-description: "Feature planning under .planning/: folder layout, dev-plan folder and plan.md structure (one section per component, sub-divided by its layers), Progress and Validation checklists, plan header, reserved slugs, images and technical debt. Use when writing a spec or a plan."
+description: "Feature planning under .planning/: folder layout, dev-plan folder and plan.md structure (one section per component, sub-divided by its layers), Progress and Validation checklists, plan header, reserved slugs, images, ideas and technical debt. Use when writing a spec or a plan."
 paths:
   - "**/.planning/**"
 ---
@@ -15,6 +15,7 @@ paths:
       plan.md                   the whole plan
       assets/                   plan-specific images (wireframes, reference designs)
   retros/{YYYYMMDD}-{HHmmss}-{name}.md   one After Action Review per session that taught something
+  ideas.md
   technical-debt.md
 ```
 
@@ -146,6 +147,16 @@ Save an image the person shares at the moment it is shared: in the plan's `asset
 ## Retros: `.planning/retros/`
 
 Written only through the `retro` skill, which holds their template: one file per session, with or without a plan, its lessons `open` until `/factory:retro apply` applies, rejects or forwards them. Once committed, a retro changes only in its lessons' Status.
+
+## Ideas: `.planning/ideas.md`
+
+The person's ideas, not yet specified. A flat list, no sections, priorities or metadata, new items appended at the bottom:
+
+```
+- {YYYY-MM-DD} — **<Short title> (<scope>):** <The idea in a sentence or two, as the person put it>.
+```
+
+Title: 3–6 words, sentence case. Scope: component or feature names, or `app`. An agent appends an idea only when the person asks, in their words; it never reorders, rewrites or removes one. The person removes an idea once it has become a spec, or once dropped.
 
 ## Technical debt: `.planning/technical-debt.md`
 
