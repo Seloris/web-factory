@@ -470,6 +470,28 @@ test('a factory skill called through the Skill tool records the run like a typed
   expect([...store.keys()]).toHaveLength(1)
 })
 
+test('a live run followed by a newer run of its loop is done, ended when the next one started; another loop’s run stays live', async ($, on) => {
+  const store = mockProject(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('tool.call', { tool: 'Skill' }, () => ({ result: {} as never }))
+  on('agent.spawn', () => ({ agentId: 'agent-1', model: 'sonnet' }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  // A subagent's run, then the main loop's spec with nothing to commit, then its plan.
+  await $.agent.spawn({ prompt: '/factory:write-plan tags' })
+  await store.clock.advance(1000)
+  await $.tool.call({ tool: 'Skill', skill: 'factory:write-spec', args: 'demo' } as never)
+  await store.clock.advance(17_000)
+  await $.tool.call({ tool: 'Skill', skill: 'factory:write-plan', args: 'demo' } as never)
+  await store.clock.advance(60_000)
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "docs(demo): plan"' } as never)
+
+  expect(store.get('run:session-aaaa-1111:1001000')).toMatchObject({ step: 'spec', status: 'done', updatedAt: 1_018_000 })
+  expect(store.get('run:session-aaaa-1111:1018000')).toMatchObject({ step: 'plan', status: 'done' })
+  expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'tags', status: 'running', agentId: 'agent-1' })
+})
+
 test('a /factory: brief given to a subagent through the Agent tool is a run of that subagent, done at its commit', async ($, on) => {
   const store = mockProject(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))

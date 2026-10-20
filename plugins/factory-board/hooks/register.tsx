@@ -46,22 +46,37 @@ async function closePane($: EngineInterface): Promise<void> {
   await update($, isPaneOpen, () => false)
 }
 
+/** The same loop: one session's main loop, or one of its subagents. */
+const isSameLoop = (a: FactoryBoardRun, b: FactoryBoardRun): boolean => a.sessionId === b.sessionId && (a.agentId ?? null) === (b.agentId ?? null)
+
 /**
  * Every run of the repository, oldest first; prunes the old ones and interrupts the silent ones on the way.
+ * A live run followed by a newer run of its loop is done: a loop works on one step at a time, and only its
+ * latest run hears its turns and commits (a `write-spec` with nothing to commit, then a `write-plan`).
  * A run from another worktree of the same repository counts: its `repo` is the same git common dir.
  * A record without `repo` (written before it existed) is kept on its root.
  */
 async function readRuns($: EngineInterface, root: string, repo: string | null, now: number): Promise<FactoryBoardRun[]> {
-  const runs: FactoryBoardRun[] = []
+  const all: [string, FactoryBoardRun][] = []
   for (const key of await $.store.keys()) {
     if (!key.startsWith(RUN_PREFIX)) continue
-    let run = (await $.store.get(key)) as FactoryBoardRun | undefined
+    const run = (await $.store.get(key)) as FactoryBoardRun | undefined
     if (run === undefined) continue
     if (now - run.updatedAt > HISTORY_MS) {
       await $.store.delete(key)
       continue
     }
-    if (isLive(run) && now - run.updatedAt > STALE_MS) {
+    all.push([key, run])
+  }
+  const runs: FactoryBoardRun[] = []
+  for (const [key, stored] of all) {
+    let run = stored
+    const successor = isLive(run) ? all.map(([, r]) => r).filter(r => isSameLoop(r, run) && r.since > run.since).sort((a, b) => a.since - b.since)[0] : undefined
+    if (successor !== undefined) {
+      // Ended when the next one started: its duration stays the step's, not the time until this scan.
+      run = { ...run, status: 'done', updatedAt: successor.since }
+      await $.store.set(key, run)
+    } else if (isLive(run) && now - run.updatedAt > STALE_MS) {
       run = { ...run, status: 'interrupted' }
       await $.store.set(key, run)
     }
