@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-20 — A free request ends with the done footer too
+
+- **The done footer in the project's `CLAUDE.md`.** A session of claude-companion asked to rework a tile's design, outside the workflow, committed and stopped on "nothing was pushed": no `## ✅ JOB DONE`, so the board recorded its run with no recap. The rule already covered a direct request, but it lives in the workflow rules, which only a skill reads. The project's `CLAUDE.md`, always loaded, now carries it, as it carries the servers' rule. Projects initialised earlier get it by adding the `**Done footer.**` paragraph of `templates/CLAUDE.md`; `samples/todo-app` has it. Version 0.7.1.
+
 ## 2026-10-20 — The done footer carries a recap
 
 - **A `> ` recap line under `## ✅ JOB DONE`.** The companion app shows where each session stands (at work, waiting for a commit's yes, waiting for an answer, job done) and, once a job is done, what it achieved. The footer's commit subjects are in the repository's language and say what changed in the code, not what the person got. The footer now opens with one line in the chat language, 120 characters at most, read by the board (`factory-board` 0.11.0, export `schemaVersion: 2`) from the turn's final text, as are the commit question's closing code block and the footer itself. A footer without the line still works: the companion falls back to the commits. Version 0.7.0.

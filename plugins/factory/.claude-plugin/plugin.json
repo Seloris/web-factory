@@ -1,6 +1,6 @@
 {
   "name": "factory",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Spec → plan → implement → review → close workflow for web applications, driven by the project's factory.yaml manifest. Skills: factory-init, write-spec, write-plan, implement, autopilot, grill-me, review, retro, test-in-browser. Agents: reviewer, runner.",
   "author": {
     "name": "Daniel Djordjevic"
