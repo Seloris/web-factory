@@ -5,8 +5,10 @@
 
 import type {
   FactoryBoard,
+  FactoryBoardExport,
   FactoryBoardFeature,
   FactoryBoardFeatureState,
+  FactoryBoardMarker,
   FactoryBoardPlan,
   FactoryBoardRun,
   FactoryBoardStage,
@@ -461,6 +463,112 @@ export function runPlan(run: FactoryBoardRun, feature: FactoryBoardFeature | und
   const latest = feature?.plans[0]
   if (run.command === 'write-plan') return latest?.isDraft ? latest : null
   return latest ?? null
+}
+
+const isLive = (run: FactoryBoardRun): boolean => run.status === 'running' || run.status === 'waiting'
+const isPilot = (run: FactoryBoardRun): boolean => run.command === 'autopilot'
+
+export const isStageDone = (stage: { done: number; total: number }): boolean => stage.total > 0 && stage.done === stage.total
+
+export const SPEC_STATUS_LABEL: Record<string, string> = {
+  Draft: 'brouillon',
+  Approved: 'validée',
+}
+
+/** What stands at a step's right: the stage count, the SHA, the spec status. */
+export function stepDetail(feature: FactoryBoardFeature, step: FactoryBoardStep): string {
+  const plan = feature.plan
+  if (step === 'spec') {
+    return feature.specStatus ? (SPEC_STATUS_LABEL[feature.specStatus] ?? feature.specStatus) : feature.hasSpec ? 'présente' : 'absente'
+  }
+  if (step === 'plan') return plan === null ? '' : plan.isDraft ? 'brouillon' : 'commité'
+  if (step === 'review') return plan ? `${plan.validationDone}/${plan.validationTotal}` : ''
+  const stage = plan?.stages.find(s => `stage:${s.number}` === step)
+  if (stage === undefined) return ''
+  return isStageDone(stage) ? (stage.sha ?? 'non committé') : `${stage.done}/${stage.total}`
+}
+
+/** The features as the pane follows them: the new plan on its way while a `write-plan` writes it, else the picked plan, else the latest. */
+export function followedFeatures(board: FactoryBoard, picked: Record<string, string> = {}): FactoryBoardFeature[] {
+  return board.features.map(f => onNewPlan(f, board.runs) ?? withPlan(f, picked[f.slug]))
+}
+
+/** The live autopilot working on a feature, if any. */
+export function featurePilot(slug: string, runs: FactoryBoardRun[]): FactoryBoardRun | undefined {
+  return runs.find(r => r.feature === slug && isPilot(r) && isLive(r))
+}
+
+/** The live sessions, newest first: a live autopilot stands for its subagents. */
+export function liveRuns(runs: FactoryBoardRun[]): FactoryBoardRun[] {
+  const pilots = runs.filter(r => isPilot(r) && isLive(r))
+  return runs.filter(r => isLive(r) && !(r.agentId !== undefined && pilots.some(p => p.sessionId === r.sessionId))).sort((a, b) => b.since - a.since)
+}
+
+/** The pane's primary button on a followed feature: none while its new plan is on its way (its session writes it) or an autopilot works on it. */
+export function featureAction(feature: FactoryBoardFeature, runs: FactoryBoardRun[], options: { review?: boolean; browser?: boolean } = {}): NextAction | null {
+  const isNewPlan = feature.plan === null && feature.plans.length > 0
+  return isNewPlan || featurePilot(feature.slug, runs) ? null : nextAction(feature, options)
+}
+
+/** The runs on a step's row, newest first: an autopilot's own run moves along the steps, each row keeps its subagent's. */
+export function stepRuns(feature: FactoryBoardFeature, runs: FactoryBoardRun[], step: FactoryBoardStep): FactoryBoardRun[] {
+  return runs.filter(r => r.feature === feature.slug && r.step === step && !isPilot(r) && isRunOfPlan(r, feature)).sort((a, b) => b.since - a.since)
+}
+
+export function stepMarker(feature: FactoryBoardFeature, runs: FactoryBoardRun[], step: FactoryBoardStep): FactoryBoardMarker {
+  if (stepRuns(feature, runs, step).some(isLive) || featurePilot(feature.slug, runs)?.step === step) return 'running'
+  if (isStepDone(feature, step)) return 'done'
+  return step === activeStep(feature) ? 'next' : 'pending'
+}
+
+/**
+ * The branch line's squash: none on the base branch, a detached head or under two commits.
+ * The branch's feature with a plan waits for that plan to be finalized (`isReady`).
+ */
+export function squashAction(board: FactoryBoard): { prompt: string; isReady: boolean } | null {
+  const isBaseBranch = board.branch === board.baseBranch || board.branch === 'HEAD'
+  if (board.branch === null || isBaseBranch || (board.aheadCount ?? 0) <= 1) return null
+  const plan = board.features.find(f => f.slug === board.branchFeature)?.plan ?? null
+  const prompt = plan ? `/factory:implement ${plan.folder} — close the branch` : `/factory:implement close the branch ${board.branch}`
+  return { prompt, isReady: plan === null || isFinalized(plan) }
+}
+
+/** The board for companion apps: what the pane shows, each feature on the plan it follows by default. */
+export function exportBoard(board: FactoryBoard): FactoryBoardExport {
+  const { root, repo, branch, baseBranch, aheadCount, changedCount, models, error, scannedAt, runs } = board
+  return {
+    schemaVersion: 1,
+    scannedAt,
+    root,
+    repo,
+    branch,
+    baseBranch,
+    aheadCount,
+    changedCount,
+    models,
+    error,
+    markers: { review: REVIEW_MARKER, browser: BROWSER_MARKER },
+    squash: squashAction(board),
+    live: liveRuns(runs),
+    features: followedFeatures(board).map(f => ({
+      slug: f.slug,
+      title: f.title,
+      state: f.state,
+      isNewPlan: f.plan === null && f.plans.length > 0,
+      hasSpec: f.hasSpec,
+      specStatus: f.specStatus,
+      plan: f.plan,
+      plans: f.plans.map(p => p.folder),
+      autopilot: featurePilot(f.slug, runs) ?? null,
+      next: featureAction(f, runs),
+      steps: steps(f).map(step => ({ step, title: stepTitle(f, step), detail: stepDetail(f, step), marker: stepMarker(f, runs, step), runs: stepRuns(f, runs, step) })),
+    })),
+  }
+}
+
+/** Where a project's export lands: `{configDir}/factory-board/`, the root named as `~/.claude/projects` names its folders. */
+export function exportPath(configDir: string, root: string): string {
+  return `${configDir.replace(/[\\/]+$/, '')}/factory-board/${root.replace(/[\\/]+$/, '').replace(/[^A-Za-z0-9]/g, '-')}.json`
 }
 
 /**

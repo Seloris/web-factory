@@ -11,8 +11,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
-import type { FactoryBoard, FactoryBoardFeature, FactoryBoardFilter, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStage, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, commitFeature, committed, describeRun, isFinalized, isRunOfPlan, isStepDone, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, onNewPlan, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, setModels, stamp, stepTitle, steps, tickReview, withPlan } from './planning'
+import type { FactoryBoard, FactoryBoardFeature, FactoryBoardFilter, FactoryBoardMarker, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStage, FactoryBoardStep } from '../types'
+import { activeStep, afterCommit, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, setModels, SPEC_STATUS_LABEL, squashAction, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -100,9 +100,22 @@ async function refresh($: EngineInterface): Promise<FactoryBoard> {
   const next: FactoryBoard = { ...scanned, runs }
   const appeared = newPlans(await read($, board), next)
   await update($, board, () => next)
+  await writeExport($, next).catch(() => undefined)
   // A plan that appears (a `write-plan` session created its folder) is followed at once: an older pick is dropped.
   if (appeared.length > 0) await update($, pickedPlans, m => Object.fromEntries(Object.entries(m).filter(([slug]) => !appeared.includes(slug))))
   return next
+}
+
+/**
+ * Writes the board for companion apps, one file per project root under the user's Claude Code directory.
+ * shortcut: rewritten whole at each rescan, not atomically ($.fs has no rename); a reader retries a file it cannot parse.
+ */
+async function writeExport($: EngineInterface, b: FactoryBoard): Promise<void> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  const configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? (home === undefined ? undefined : `${home}/.claude`)
+  if (configDir === undefined) return
+  await $.fs.write(exportPath(configDir, b.root), `${JSON.stringify(exportBoard(b), null, 2)}
+`)
 }
 
 async function startRun($: EngineInterface, run: Pick<FactoryBoardRun, 'feature' | 'folder' | 'command' | 'step' | 'lastStep' | 'agentId'>): Promise<void> {
@@ -328,11 +341,6 @@ const SKILL_LABEL: Record<string, string> = {
 /** The prompt that resumes an autopilot where its Progress is: from its plan folder, else its slug. */
 const resumePrompt = (run: FactoryBoardRun): string | null => (run.feature === null ? null : `/factory:autopilot ${run.folder ?? run.feature}`)
 
-const SPEC_STATUS_LABEL: Record<string, string> = {
-  Draft: 'brouillon',
-  Approved: 'validée',
-}
-
 /** One cell per stage: done, the one at hand, later. */
 function bar(stages: FactoryBoardStage[], next: number | null): string {
   return stages.map(s => (isStageDone(s) ? '█' : s.number === next ? '▓' : '░')).join('')
@@ -363,27 +371,7 @@ function age(now: number, since: number): string {
 /** A plan in the picker: its folder name (timestamp first), a draft said so. */
 const planLabel = (plan: FactoryBoardPlan): string => `${plan.folder.split('/').at(-1) ?? plan.folder}${plan.isDraft ? ' (brouillon)' : ''}`
 
-const isStageDone = (stage: { done: number; total: number }): boolean => stage.total > 0 && stage.done === stage.total
-
-/** What stands at a step's right: the stage count, the SHA, the spec status. */
-function stepDetail(feature: FactoryBoardFeature, step: FactoryBoardStep): string {
-  const plan = feature.plan
-  if (step === 'spec') {
-    return feature.specStatus ? (SPEC_STATUS_LABEL[feature.specStatus] ?? feature.specStatus) : feature.hasSpec ? 'présente' : 'absente'
-  }
-  if (step === 'plan') return plan === null ? '' : plan.isDraft ? 'brouillon' : 'commité'
-  if (step === 'review') return plan ? `${plan.validationDone}/${plan.validationTotal}` : ''
-  const stage = plan?.stages.find(s => `stage:${s.number}` === step)
-  if (stage === undefined) return ''
-  return isStageDone(stage) ? (stage.sha ?? 'non committé') : `${stage.done}/${stage.total}`
-}
-
-/**
- * Where a step stands on the timeline: `done`, `running` (a live session works
- * on it, even when its boxes are all ticked: it is not committed yet), `next`
- * (the step the prompt button prepares) or `pending`.
- */
-type Marker = 'done' | 'running' | 'next' | 'pending'
+type Marker = FactoryBoardMarker
 
 /** The timeline's raw colors: an Svg is drawn as an image, out of reach of the theme keys. */
 const GREEN = '#2f9e5b'
@@ -644,20 +632,15 @@ export const register: Register = on => {
     }
 
     // A live `write-plan` writing a new plan wins over the pick: the card shows the plan on its way.
-    const features = b.features.map(f => onNewPlan(f, b.runs) ?? withPlan(f, picked[f.slug]))
+    const features = followedFeatures(b, picked)
     const project = b.root.split(/[\\/]/).filter(Boolean).at(-1) ?? b.root
-    const pilots = b.runs.filter(r => isPilot(r) && isLive(r))
-    // A live autopilot stands for its subagents: the session list shows the pipeline, each step row its subagent's run.
-    const live = b.runs.filter(r => isLive(r) && !(r.agentId !== undefined && pilots.some(p => p.sessionId === r.sessionId))).sort((a, b2) => b2.since - a.since)
+    const live = liveRuns(b.runs)
     const noPlan = features.filter(f => f.plan === null).length
     const stagesLeft = features.reduce((n, f) => n + (f.plan?.stages.filter(s => !isStageDone(s)).length ?? 0), 0)
     // `HEAD` is a detached head: no branch to squash.
     const isBaseBranch = b.branch === b.baseBranch || b.branch === 'HEAD'
     // The squash folds a finalized plan: a branch whose commits name a feature with a plan waits for it.
-    const branchPlan = b.features.find(f => f.slug === b.branchFeature)?.plan ?? null
-    const isPlanOpen = branchPlan !== null && !isFinalized(branchPlan)
-    const squashPrompt = branchPlan ? `/factory:implement ${branchPlan.folder} — close the branch` : `/factory:implement close the branch ${b.branch}`
-    const canSquash = b.branch !== null && !isBaseBranch && (b.aheadCount ?? 0) > 1
+    const squash = squashAction(b)
 
     const matches = (f: FactoryBoardFeature, filter: FactoryBoardFilter): boolean =>
       filter === 'no-plan' ? f.plan === null : f.state === filter
@@ -684,9 +667,8 @@ export const register: Register = on => {
       const plan = feature.plan
       const runs = b.runs.filter(r => r.feature === feature.slug)
       const isNewPlan = plan === null && feature.plans.length > 0
-      const pilot = pilots.find(r => r.feature === feature.slug)
-      // Its session writes it: no prompt to prepare until its folder is there. Nor while an autopilot works on the feature.
-      const action = isNewPlan || pilot ? null : nextAction(feature, { review: reviewOn, browser: browserOn })
+      const pilot = featurePilot(feature.slug, b.runs)
+      const action = featureAction(feature, b.runs, { review: reviewOn, browser: browserOn })
       // The review checkbox only means something on a stage prompt (`— stage N`, `— stages N-M`).
       const isStageAction = action !== null && /^\/factory:implement .* — stages? \d/.test(action.prompt)
       const isOpen = open === feature.slug
@@ -701,10 +683,8 @@ export const register: Register = on => {
       const row = (step: FactoryBoardStep, isLast: boolean) => {
         const isDone = isStepDone(feature, step)
         const isActive = step === active
-        // An autopilot's own run moves along the steps: each row keeps the run of the subagent that worked on it.
-        const stepRuns = runs.filter(r => r.step === step && !isPilot(r) && isRunOfPlan(r, feature)).sort((a, b2) => b2.since - a.since)
-        const [latest, ...older] = stepRuns
-        const marker: Marker = stepRuns.some(isLive) || pilot?.step === step ? 'running' : isDone ? 'done' : isActive ? 'next' : 'pending'
+        const [latest, ...older] = stepRuns(feature, b.runs, step)
+        const marker = stepMarker(feature, b.runs, step)
         const detail = stepDetail(feature, step)
         const historyKey = `${feature.slug}:${step}`
         const isHistoryOpen = history === historyKey
@@ -910,8 +890,8 @@ export const register: Register = on => {
             <Button key="config" label={isConfig ? '← Features' : '⚙ Modèles'} onPress={() => update($, isConfigOpen, o => !o)} />
             <Button key="new-autopilot" label="⚡ Nouvelle feature" onPress={newFeature} />
             {/* The squash skill checks the range, proposes the message and waits for a yes: the button only prepares it. */}
-            {canSquash && !isPlanOpen && <Button key="squash" label="Squasher" onPress={prepare(squashPrompt)} />}
-            {canSquash && isPlanOpen && (
+            {squash?.isReady && <Button key="squash" label="Squasher" onPress={prepare(squash.prompt)} />}
+            {squash && !squash.isReady && (
               <Text key="squash-later" size="caption" dimColor wrap="truncate-end">
                 squash une fois le plan finalisé
               </Text>

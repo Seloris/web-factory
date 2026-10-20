@@ -130,6 +130,73 @@ export type FactoryBoard = {
   error: string | null
 }
 
+/**
+ * Where a step stands on the timeline: `done`, `running` (a live session works
+ * on it, even when its boxes are all ticked: it is not committed yet), `next`
+ * (the step the prompt button prepares) or `pending`.
+ */
+export type FactoryBoardMarker = 'done' | 'running' | 'next' | 'pending'
+
+/** A button of the pane: what it says and the prompt it prepares. */
+export type FactoryBoardPrompt = { label: string; prompt: string }
+
+/** One row of a feature's timeline, as the pane draws it. */
+export type FactoryBoardExportStep = {
+  step: FactoryBoardStep
+  /** `Spec`, `Plan`, `Stage 2 — web`, `Revue finale`. */
+  title: string
+  /** What stands at the row's right: the spec status, the plan's, a stage count or SHA, the Validation count. */
+  detail: string
+  marker: FactoryBoardMarker
+  /** The runs on the row, newest first: an autopilot's own run is on no row, its subagents' are. */
+  runs: FactoryBoardRun[]
+}
+
+export type FactoryBoardExportFeature = {
+  slug: string
+  title: string
+  state: FactoryBoardFeatureState
+  /** A live `write-plan` writes a new plan whose folder is not there yet: `plan` is null, the timeline is that plan's. */
+  isNewPlan: boolean
+  hasSpec: boolean
+  specStatus: string | null
+  /** The plan followed: the latest, or none while a new one is on its way. */
+  plan: FactoryBoardPlan | null
+  /** Every plan folder of the feature, newest first. */
+  plans: string[]
+  /** The live autopilot working on the feature, if any. */
+  autopilot: FactoryBoardRun | null
+  /** The pane's primary button, with its chained and autopilot variants; null where the pane offers none. */
+  next: (FactoryBoardPrompt & { all?: FactoryBoardPrompt; autopilot?: FactoryBoardPrompt }) | null
+  steps: FactoryBoardExportStep[]
+}
+
+/**
+ * The board written for companion apps at each rescan: one JSON file per
+ * project root, `{config dir}/factory-board/{root}.json`, the root named as
+ * `~/.claude/projects` names its folders. Not written atomically: a reader that
+ * fails to parse it reads it again at its next poll.
+ */
+export type FactoryBoardExport = {
+  schemaVersion: 1
+  scannedAt: number
+  root: string
+  repo: string | null
+  branch: string | null
+  baseBranch: string
+  aheadCount: number | null
+  changedCount: number
+  models: Record<string, string>
+  error: string | null
+  /** What the pane's checkboxes add at the end of a prompt: `review` to a stage prompt, `browser` to an autopilot prompt. */
+  markers: { review: string; browser: string }
+  /** The branch line's `Squasher`; null when there is nothing to squash, `isReady` false until the branch's plan is finalized. */
+  squash: { prompt: string; isReady: boolean } | null
+  /** The live sessions, newest first: a live autopilot stands for its subagents. */
+  live: FactoryBoardRun[]
+  features: FactoryBoardExportFeature[]
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'factory-board': {

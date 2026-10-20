@@ -1,8 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, commitFeature, committed, describeRun, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, readModels, runLastStep, runPlan, runStep, runTitle, setModels, stamp, tickReview, withPlan } from '../hooks/planning'
-import type { FactoryBoard, FactoryBoardFeature } from '../types'
+import { activeStep, afterCommit, commitFeature, committed, describeRun, exportPath, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, readModels, runLastStep, runPlan, runStep, runTitle, setModels, stamp, tickReview, withPlan } from '../hooks/planning'
+import type { FactoryBoard, FactoryBoardExport, FactoryBoardFeature } from '../types'
 
 const ROOT = '/repo'
 /** The repository's git common dir, the same from every worktree. */
@@ -994,4 +994,58 @@ test('the squash of a branch whose commits name no feature closes the branch wit
 
 test('a branch of one commit offers no squash', async ($, on) => {
   expect(await squashPrompt($, on, { range: 'chore(ci): cache\n' })).toBeNull()
+})
+
+test('exportPath names a project as ~/.claude/projects names its folder, a worktree apart', () => {
+  expect(exportPath('C:\\Users\\me\\.claude', 'C:\\WS\\ia-projects\\claude-companion')).toBe('C:\\Users\\me\\.claude/factory-board/C--WS-ia-projects-claude-companion.json')
+  expect(exportPath('/home/me/.claude/', 'C:/WS/ia-projects/claude-companion/.claude/worktrees/live-e15e79/')).toBe('/home/me/.claude/factory-board/C--WS-ia-projects-claude-companion--claude-worktrees-live-e15e79.json')
+})
+
+test('the board is exported for companion apps: the pane’s timeline, prompts and live sessions', async ($, on) => {
+  const store = mockProject(on)
+  mock.env(on, { HOME: '/home/me' })
+  const written = new Map<string, string>()
+  on('fs.write', ($, e) => {
+    written.set(norm(e.path), e.text)
+    return { value: undefined }
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+
+  const read = () => JSON.parse(written.get('/home/me/.claude/factory-board/-repo.json') ?? 'null') as FactoryBoardExport
+  const first = read()
+  expect(first.schemaVersion).toBe(1)
+  expect(first.root).toBe(ROOT)
+  expect(first.markers).toEqual({ review: ' — with review', browser: ' — with browser test' })
+  expect(first.squash).toEqual({ prompt: `/factory:implement ${PLAN_FOLDER} — close the branch`, isReady: false })
+  const demo = first.features.find(f => f.slug === 'demo')
+  expect(demo?.plan?.folder).toBe(PLAN_FOLDER)
+  expect(demo?.plans).toEqual([PLAN_FOLDER, OLD_PLAN_FOLDER])
+  expect(demo?.next?.prompt).toBe(`/factory:implement ${PLAN_FOLDER} — stage 2 (web)`)
+  expect(demo?.steps.map(s => `${s.step} ${s.marker} ${s.detail}`)).toEqual(['spec done brouillon', 'plan done commité', 'stage:1 done b71e04', 'stage:2 next 1/3', 'review pending 0/2'])
+  expect(first.features.find(f => f.slug === 'tags')?.next?.prompt).toBe('/factory:write-plan tags')
+
+  // A live autopilot on the feature: no prompt offered, its step running, the pipeline in the live sessions.
+  store.set('run:other:999000', { sessionId: 'other', root: ROOT, repo: REPO, feature: 'demo', folder: PLAN_FOLDER, command: 'autopilot', step: 'stage:2', status: 'running', since: 999_000, updatedAt: 999_000 })
+  await store.clock.advance(10_000)
+  const second = read()
+  const piloted = second.features.find(f => f.slug === 'demo')
+  expect(piloted?.next).toBeNull()
+  expect(piloted?.autopilot?.sessionId).toBe('other')
+  expect(piloted?.steps.find(s => s.step === 'stage:2')?.marker).toBe('running')
+  expect(second.live.map(r => r.command)).toEqual(['autopilot'])
+})
+
+test('a failed export leaves the board working', async ($, on) => {
+  mockProject(on)
+  mock.env(on, { HOME: '/home/me' })
+  on('fs.write', () => {
+    throw new Error('EACCES')
+  })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ key: 'row:demo' })).toBeDefined()
+  await ui.unmount()
 })
