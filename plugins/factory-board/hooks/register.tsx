@@ -170,12 +170,15 @@ async function steerPilot($: EngineInterface, from: Pick<FactoryBoardRun, 'featu
   await $.store.set(key, { ...run, step: moveStep ? from.step : run.step, feature: run.feature ?? from.feature, folder: run.folder ?? from.folder, updatedAt: await $.clock.now() })
 }
 
-/** A loop of this session committed: its live run is done, or, chained, moves to its next stage. A run without a feature takes the commit's scope. */
+/**
+ * A loop of this session committed: its run is done, or, chained, moves to its next stage. A run without a feature
+ * takes the commit's scope. An interrupted run that commits was still at work (a subagent resumed in the background).
+ */
 async function commitRun($: EngineInterface, b: FactoryBoard | null, agentId: string | undefined, command: string): Promise<void> {
   const latest = await loopRun($, agentId)
   if (latest === undefined) return
   const [key, run] = latest
-  if (!isLive(run)) return
+  if (run.status === 'done') return
   const slug = run.feature ?? commitFeature(command)
   const feature = b?.features.find(f => f.slug === slug)
   const moved = afterCommit(run, feature && withPlan(feature, run.folder))
@@ -184,10 +187,11 @@ async function commitRun($: EngineInterface, b: FactoryBoard | null, agentId: st
 }
 
 /**
- * A turn of a loop ended: its run waits for the person. An autopilot runs its
- * whole pipeline in one turn, so the end of its turn is the end of the pipeline:
- * done when its last subagent committed, interrupted otherwise (a blocker, an
- * abort), and its subagents left waiting are interrupted with it.
+ * A turn of a loop ended: its run waits for the person. The end of an autopilot's
+ * turn is the end of the pipeline, unless its latest subagent still works in the
+ * background (the pipeline goes on at its hand-back): done when that subagent
+ * committed, interrupted otherwise (a blocker, an abort), and its subagents left
+ * waiting are interrupted with it.
  */
 async function endTurn($: EngineInterface, agentId: string | undefined): Promise<void> {
   const latest = await loopRun($, agentId)
@@ -198,16 +202,24 @@ async function endTurn($: EngineInterface, agentId: string | undefined): Promise
   const [key, run] = latest
   const now = await $.clock.now()
   const subagents = (await sessionRuns($, run.sessionId)).filter(([, r]) => r.agentId !== undefined && r.since >= run.since)
-  await $.store.set(key, { ...run, status: subagents[0]?.[1].status === 'done' ? 'done' : 'interrupted', updatedAt: now })
+  const last = subagents[0]?.[1].status
+  if (last === 'running') {
+    await $.store.set(key, { ...run, updatedAt: now })
+    return
+  }
+  await $.store.set(key, { ...run, status: last === 'done' ? 'done' : 'interrupted', updatedAt: now })
   for (const [k, r] of subagents) if (isLive(r)) await $.store.set(k, { ...r, status: 'interrupted', updatedAt: now })
 }
 
-/** Updates the latest run of a loop of this session, when it has one. A finished run stays so until a new `/factory:` prompt. */
+/**
+ * Updates the latest run of a loop of this session, when it has one. A done run stays so until a new `/factory:`
+ * prompt; an interrupted one comes back with a turn of its loop (an autopilot woken by a subagent's hand-back).
+ */
 async function touchRun($: EngineInterface, status: FactoryBoardRunStatus, agentId: string | undefined): Promise<void> {
   const latest = await loopRun($, agentId)
   if (latest === undefined) return
   const [key, run] = latest
-  if (run.status === status || !isLive(run)) return
+  if (run.status === status || run.status === 'done') return
   await $.store.set(key, { ...run, status, updatedAt: await $.clock.now() })
 }
 

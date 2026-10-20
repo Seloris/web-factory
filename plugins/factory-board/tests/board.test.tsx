@@ -632,6 +632,44 @@ test('an autopilot from a request takes its feature at the spec commit, and stop
   await band.unmount()
 })
 
+for (const resumed of ['before', 'after'] as const) {
+  test(`an autopilot that ends its turn on a subagent resumed in the background goes on at its hand-back (resumed ${resumed} the turn's end)`, async ($, on) => {
+    const store = mockProject(on)
+    let spawned = 0
+    on('session.start', ($, e) => ({ cwd: e.cwd }))
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+    on('agent.spawn', () => ({ agentId: `agent-${++spawned}`, model: 'sonnet' }))
+    on('turn.start', ($, e) => ({ turnId: e.turnId }))
+    on('turn.complete', ($, e) => ({ text: e.answer }))
+    on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+    await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+
+    await $.prompt.submit({ text: `/factory:autopilot ${PLAN_FOLDER}`, wait: false, origin: { kind: 'composer' } })
+    const pilot = () => store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
+    const stage = () => store.get('run:session-aaaa-1111:1001000') as Record<string, unknown>
+    await store.clock.advance(1000)
+    await $.agent.spawn({ prompt: `/factory:implement ${PLAN_FOLDER} — stage 2 (web) — with review — autonomous` })
+    // The subagent returns without its commit; the main loop resumes it in the background and ends its turn.
+    await $.turn.complete({ answer: 'review pending', durationMs: 10, isAborted: false, turnId: 't2', reason: 'answer', agentId: 'agent-1' } as never)
+    const resume = () => $.turn.start({ text: '', turnId: 't3', agentId: 'agent-1' } as never)
+    if (resumed === 'before') await resume()
+    await $.turn.complete({ answer: 'waiting for its report', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+    if (resumed === 'after') await resume()
+    await $.tool.call({ tool: 'Bash', command: 'git commit -m "feat(demo): web — counter page"', agentId: 'agent-1' } as never)
+    expect(stage().status).toBe('done')
+
+    // The hand-back opens a main turn: the pipeline is live again and follows its next subagent.
+    await $.turn.start({ text: '', turnId: 't4' })
+    await store.clock.advance(1000)
+    await $.agent.spawn({ prompt: `/factory:implement ${PLAN_FOLDER} — final review — autonomous` })
+    expect(pilot()).toMatchObject({ status: 'running', step: 'review' })
+    const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+    expect(await band.find({ type: 'Text', text: /arrêté/ })).toBeUndefined()
+    expect(await band.find({ key: 'next-step' })).toBeUndefined()
+    await band.unmount()
+  })
+}
+
 test('a run from another worktree of the same repository is listed, a run of another repository is not', async ($, on) => {
   const store = mockProject(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
