@@ -9,6 +9,7 @@ The factory plugin for Claude Code and its marketplace: one disciplined workflow
 - Everything written to this repository is in English. Agents talk to the person in French.
 - The plugin stays stack-agnostic: the words of a specific stack (`dotnet`, `nx`, `swagger`, `angular`…) belong to `plugins/factory/stacks/` and to the projects.
 - Useful to two projects or more: the plugin. Specific to one project: that project. A rule of the process changes with the case that motivated it, and `plugins/factory/CHANGELOG.md` says why.
+- **A change under `plugins/factory/` reaches the projects only through its version.** The commit bumps `version` in its `.claude-plugin/plugin.json` and adds the `CHANGELOG.md` entry. After the commit, run `claude plugin update factory@webapp-factory --scope project` in each project that `~/.claude/plugins/installed_plugins.json` lists for it, then tell the person to open a new session there. `factory-board` is read from its folder: a new session or `/reload-plugins` is enough.
 
 ## Commands
 
