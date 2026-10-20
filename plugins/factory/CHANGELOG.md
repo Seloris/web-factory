@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-20 — The done footer carries a recap
+
+- **A `> ` recap line under `## ✅ JOB DONE`.** The companion app shows where each session stands (at work, waiting for a commit's yes, waiting for an answer, job done) and, once a job is done, what it achieved. The footer's commit subjects are in the repository's language and say what changed in the code, not what the person got. The footer now opens with one line in the chat language, 120 characters at most, read by the board (`factory-board` 0.11.0, export `schemaVersion: 2`) from the turn's final text, as are the commit question's closing code block and the footer itself. A footer without the line still works: the companion falls back to the commits. Version 0.7.0.
+
 ## 2026-10-20 — Servers start in Windows Terminal
 
 - **Every server in a Windows Terminal tab.** A server an agent started ran as a background command of the session: the person could not see what was running, its output was hidden, and it died with the session. The person wants everything open in their terminal. The workflow rules' new **Starting a server** section says how any server is started: where `wt.exe` is on the PATH, in a tab of one Windows Terminal window, `factory`, titled after its component (`wt -w factory nt --title {component} -d {path} cmd /k "{serve}"`); `cmd /k` keeps a crashed server's tab open on its error. Elsewhere, the background command as before, so the plugin keeps working off Windows. The agent cannot read a tab's output, so it polls the server's address and, when it stays silent, sends the person to the tab. `test-in-browser` follows the rule; the project's `CLAUDE.md` carries it too, since a plain "start the API" loads no skill. Projects initialised earlier get it by adding the `**Servers.**` paragraph of `templates/CLAUDE.md`; `samples/todo-app` has it. Version 0.6.0.

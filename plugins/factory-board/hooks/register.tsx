@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { FactoryBoard, FactoryBoardFeature, FactoryBoardFilter, FactoryBoardMarker, FactoryBoardPlan, FactoryBoardRun, FactoryBoardRunStatus, FactoryBoardStage, FactoryBoardStep } from '../types'
-import { activeStep, afterCommit, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, setModels, SPEC_STATUS_LABEL, squashAction, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
+import { activeStep, afterCommit, classifyTurn, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseFactoryCommand, runLastStep, runPlan, runStep, runTitle, setModels, SPEC_STATUS_LABEL, squashAction, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'factory-board'
@@ -222,6 +222,21 @@ async function endTurn($: EngineInterface, agentId: string | undefined): Promise
   }
   await $.store.set(key, { ...run, status: last === 'done' ? 'done' : 'interrupted', updatedAt: now })
   for (const [k, r] of subagents) if (isLive(r)) await $.store.set(k, { ...r, status: 'interrupted', updatedAt: now })
+}
+
+/**
+ * The phase of a loop's latest run: at a turn's start, a done run that asked the person (a squash's commit
+ * question) is at work again; at its end, the phase is read from the turn's final text (`answer`).
+ */
+async function markPhase($: EngineInterface, agentId: string | undefined, answer: string | null): Promise<void> {
+  const latest = await loopRun($, agentId)
+  if (latest === undefined || latest[1].status === 'interrupted') return
+  const [key, run] = latest
+  if (answer === null) {
+    if (run.phase === 'awaiting-commit' || run.phase === 'awaiting-answer') await $.store.set(key, { ...run, phase: 'working' })
+    return
+  }
+  await $.store.set(key, { ...run, ...classifyTurn(answer, run), updatedAt: await $.clock.now() })
 }
 
 /**
@@ -487,11 +502,13 @@ export const register: Register = on => {
 
   on('turn.start', async ($, e, next) => {
     await touchRun($, 'running', e.agentId)
+    await markPhase($, e.agentId, null)
     return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
     await endTurn($, e.agentId)
+    await markPhase($, e.agentId, e.answer)
     refreshQuietly($)
     return next(e)
   })

@@ -1,8 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { activeStep, afterCommit, commitFeature, committed, describeRun, exportPath, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, readModels, runLastStep, runPlan, runStep, runTitle, setModels, stamp, tickReview, withPlan } from '../hooks/planning'
-import type { FactoryBoard, FactoryBoardExport, FactoryBoardFeature } from '../types'
+import { activeStep, afterCommit, classifyTurn, commitFeature, committed, describeRun, exportPath, featureState, isRunOfPlan, isStepDone, newPlans, nextAction, onNewPlan, parseFactoryCommand, parsePlan, parseSpec, projectActivity, readModels, runLastStep, runPlan, runStep, runTitle, setModels, stamp, tickReview, withPlan } from '../hooks/planning'
+import type { FactoryBoard, FactoryBoardExport, FactoryBoardFeature, FactoryBoardRun } from '../types'
 
 const ROOT = '/repo'
 /** The repository's git common dir, the same from every worktree. */
@@ -1014,7 +1014,8 @@ test('the board is exported for companion apps: the pane’s timeline, prompts a
 
   const read = () => JSON.parse(written.get('/home/me/.claude/factory-board/-repo.json') ?? 'null') as FactoryBoardExport
   const first = read()
-  expect(first.schemaVersion).toBe(1)
+  expect(first.schemaVersion).toBe(2)
+  expect(first.activity.phase).toBe('idle')
   expect(first.root).toBe(ROOT)
   expect(first.markers).toEqual({ review: ' — with review', browser: ' — with browser test' })
   expect(first.squash).toEqual({ prompt: `/factory:implement ${PLAN_FOLDER} — close the branch`, isReady: false })
@@ -1034,6 +1035,8 @@ test('the board is exported for companion apps: the pane’s timeline, prompts a
   expect(piloted?.autopilot?.sessionId).toBe('other')
   expect(piloted?.steps.find(s => s.step === 'stage:2')?.marker).toBe('running')
   expect(second.live.map(r => r.command)).toEqual(['autopilot'])
+  expect(second.activity).toMatchObject({ phase: 'working', sessionId: 'other', feature: 'demo', step: 'stage:2' })
+  expect(second.sessions.map(r => `${r.sessionId} ${r.phase}`)).toEqual(['other working'])
 })
 
 test('a failed export leaves the board working', async ($, on) => {
@@ -1048,4 +1051,46 @@ test('a failed export leaves the board working', async ($, on) => {
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ key: 'row:demo' })).toBeDefined()
   await ui.unmount()
+})
+
+const COMMIT_QUESTION = 'Spec prête. On committe ?\n\n```\ndocs(demo): spec — the demo\n\nBody line.\n```\n'
+const DONE_TURN = 'Stage livré.\n\n---\n## ✅ JOB DONE\n> Liste branchée sur l’API, 12 tests verts.\n`abc1234` feat(demo): stage 2 — web · branch `feat/demo` · not pushed\n'
+
+test('classifyTurn reads a commit question, the done footer and its recap, any other question', () => {
+  expect(classifyTurn(COMMIT_QUESTION, { status: 'waiting' })).toEqual({ phase: 'awaiting-commit', pendingCommit: 'docs(demo): spec — the demo\n\nBody line.', recap: null })
+  expect(classifyTurn(DONE_TURN, { status: 'done' })).toEqual({ phase: 'job-done', pendingCommit: null, recap: { text: 'Liste branchée sur l’API, 12 tests verts.', commits: [{ sha: 'abc1234', subject: 'feat(demo): stage 2 — web' }] } })
+  expect(classifyTurn('## ✅ JOB DONE\n`abc1234` fix(x): y · branch `b` · not pushed', { status: 'done' }).recap).toEqual({ text: null, commits: [{ sha: 'abc1234', subject: 'fix(x): y' }] })
+  expect(classifyTurn('Quelle option ?\n\n```ts\nconst a = 1\n```', { status: 'waiting' }).phase).toBe('awaiting-answer')
+  // A done run keeps its recap through a turn with no footer.
+  expect(classifyTurn('Merci.', { status: 'done' })).toEqual({ phase: 'job-done', pendingCommit: null })
+})
+
+test('projectActivity puts forward the session that most needs the person', () => {
+  const run = (sessionId: string, status: FactoryBoardRun['status'], phase: FactoryBoardRun['phase'], updatedAt: number): FactoryBoardRun =>
+    ({ sessionId, root: ROOT, feature: 'demo', folder: null, command: 'implement', step: 'stage:2', status, phase, since: updatedAt, updatedAt })
+  expect(projectActivity([]).phase).toBe('idle')
+  const runs = [run('a', 'running', 'working', 30), run('b', 'waiting', 'awaiting-commit', 10), run('c', 'done', 'job-done', 40), run('d', 'interrupted', 'awaiting-answer', 50)]
+  expect(projectActivity(runs)).toMatchObject({ phase: 'awaiting-commit', sessionId: 'b' })
+  expect(projectActivity(runs.slice(2))).toMatchObject({ phase: 'job-done', sessionId: 'c' })
+})
+
+test('a turn ending on a commit question waits for the commit, the yes works, the footer marks the job done', async ($, on) => {
+  const store = mockProject(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.start', ($, e) => ({ turnId: e.turnId }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  const run = () => store.get('run:session-aaaa-1111:1000000') as FactoryBoardRun
+
+  await $.prompt.submit({ text: `/factory:implement ${PLAN_FOLDER}`, wait: false, origin: { kind: 'composer' } })
+  await $.turn.complete({ answer: COMMIT_QUESTION, durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  expect(run()).toMatchObject({ status: 'waiting', phase: 'awaiting-commit', pendingCommit: 'docs(demo): spec — the demo\n\nBody line.' })
+
+  await $.turn.start({ text: 'oui', turnId: 't2' })
+  expect(run()).toMatchObject({ status: 'running', phase: 'working' })
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "docs(demo): spec"' } as never)
+  await $.turn.complete({ answer: DONE_TURN, durationMs: 10, isAborted: false, turnId: 't2', reason: 'answer' })
+  expect(run()).toMatchObject({ status: 'done', phase: 'job-done', pendingCommit: null, recap: { text: 'Liste branchée sur l’API, 12 tests verts.' } })
 })

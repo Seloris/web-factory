@@ -67,6 +67,17 @@ export type FactoryBoardFeature = {
 export type FactoryBoardRunStatus = 'running' | 'waiting' | 'done' | 'interrupted'
 
 /**
+ * Where a session stands for the person, read from the end of its last turn: `working` while a turn runs,
+ * `awaiting-commit` when the turn ended on a commit question (its message in a closing code block),
+ * `awaiting-answer` when it ended on any other question, `job-done` when it ended with the done footer
+ * (or its run is done), `interrupted` with the run.
+ */
+export type FactoryBoardPhase = 'working' | 'awaiting-commit' | 'awaiting-answer' | 'job-done' | 'interrupted'
+
+/** The done footer of a turn: its `> ` recap line in the chat language (null without one) and its commits. */
+export type FactoryBoardRecap = { text: string | null; commits: { sha: string; subject: string }[] }
+
+/**
  * The step of a feature's timeline a run works on: `spec`, `plan`,
  * `stage:{N}` or `review` (the final review).
  */
@@ -99,6 +110,12 @@ export type FactoryBoardRun = {
    * last subagent committed, `interrupted` otherwise (stopped on a blocker, aborted).
    */
   status: FactoryBoardRunStatus
+  /** Set at each turn's end from its final text; absent on records written before it existed. `runPhase` reads it with the status. */
+  phase?: FactoryBoardPhase
+  /** The commit message the turn ended on, while `awaiting-commit`. */
+  pendingCommit?: string | null
+  /** The done footer of the last turn that had one. */
+  recap?: FactoryBoardRecap | null
   /** When the run was recorded (ms since the epoch). */
   since: number
   /** The last time the status changed. */
@@ -178,7 +195,7 @@ export type FactoryBoardExportFeature = {
  * fails to parse it reads it again at its next poll.
  */
 export type FactoryBoardExport = {
-  schemaVersion: 1
+  schemaVersion: 2
   scannedAt: number
   root: string
   repo: string | null
@@ -194,6 +211,19 @@ export type FactoryBoardExport = {
   squash: { prompt: string; isReady: boolean } | null
   /** The live sessions, newest first: a live autopilot stands for its subagents. */
   live: FactoryBoardRun[]
+  /** The project at a glance: the session that most needs the person (a commit question, then any question, then a turn at work), else the latest; `idle` without any. */
+  activity: {
+    phase: FactoryBoardPhase | 'idle'
+    sessionId: string | null
+    feature: string | null
+    step: FactoryBoardStep | null
+    /** The last change of that session (ms since the epoch). */
+    since: number | null
+    pendingCommit: string | null
+    recap: FactoryBoardRecap | null
+  }
+  /** Each session's latest main-loop run (an autopilot stands for its subagents), most recently changed first, a month at most, `phase` always set. */
+  sessions: (FactoryBoardRun & { phase: FactoryBoardPhase })[]
   features: FactoryBoardExportFeature[]
 }
 

@@ -9,7 +9,9 @@ import type {
   FactoryBoardFeature,
   FactoryBoardFeatureState,
   FactoryBoardMarker,
+  FactoryBoardPhase,
   FactoryBoardPlan,
+  FactoryBoardRecap,
   FactoryBoardRun,
   FactoryBoardStage,
   FactoryBoardStep,
@@ -533,11 +535,66 @@ export function squashAction(board: FactoryBoard): { prompt: string; isReady: bo
   return { prompt, isReady: plan === null || isFinalized(plan) }
 }
 
+/** A commit question closes its turn: a fenced block whose first line is a `{type}({scope}): …` subject. */
+const COMMIT_BLOCK = /```[^\n]*\n(\w+\([^)\n]+\): [^\n]+[\s\S]*?)\n?```\s*$/
+const DONE_FOOTER = /^##\s*✅\s*JOB DONE\s*$/m
+const FOOTER_COMMIT = /^`([0-9a-f]{7,40})`\s+(.+?)(?:\s+·\s+branch\b.*)?$/
+
+/**
+ * Where a turn left its run, read from the turn's final text, as the workflow rules shape it: a commit
+ * question ends on its message in a code block; a turn that committed ends with the done footer, its
+ * `> ` recap line and one line per commit. Any other end of a live run waits for an answer.
+ */
+export function classifyTurn(answer: string, run: Pick<FactoryBoardRun, 'status'>): Pick<FactoryBoardRun, 'phase' | 'pendingCommit' | 'recap'> {
+  const block = COMMIT_BLOCK.exec(answer.trimEnd())
+  if (block) return { phase: 'awaiting-commit', pendingCommit: block[1].trim(), recap: null }
+  const footer = DONE_FOOTER.exec(answer)
+  if (footer) return { phase: 'job-done', pendingCommit: null, recap: parseRecap(answer.slice(footer.index + footer[0].length)) }
+  if (run.status === 'done') return { phase: 'job-done', pendingCommit: null }
+  return { phase: 'awaiting-answer', pendingCommit: null, recap: null }
+}
+
+/** The done footer's lines after its heading: the `> ` recap (null without one) and the commits. */
+export function parseRecap(lines: string): FactoryBoardRecap {
+  let text: string | null = null
+  const commits: FactoryBoardRecap['commits'] = []
+  for (const line of lines.split(/\r?\n/).map(l => l.trim())) {
+    const commit = FOOTER_COMMIT.exec(line)
+    if (commit) commits.push({ sha: commit[1], subject: commit[2] })
+    else if (text === null && line.startsWith('>')) text = line.replace(/^>\s*(?:R[ée]cap\s*:\s*)?/i, '').trim() || null
+  }
+  return { text, commits }
+}
+
+/** A run's phase: the status wins while a turn runs or once it is interrupted; a run from before phases reads from its status. */
+export function runPhase(run: FactoryBoardRun): FactoryBoardPhase {
+  if (run.status === 'running') return 'working'
+  if (run.status === 'interrupted') return 'interrupted'
+  return run.phase ?? (run.status === 'done' ? 'job-done' : 'awaiting-answer')
+}
+
+const PHASE_RANK: Record<FactoryBoardPhase, number> = { 'awaiting-commit': 0, 'awaiting-answer': 1, working: 2, 'job-done': 3, interrupted: 4 }
+
+/** The sessions' main loops (an autopilot stands for its subagents), newest first, over a month at most. */
+export function sessionRunsOf(runs: FactoryBoardRun[]): FactoryBoardRun[] {
+  const latest = new Map<string, FactoryBoardRun>()
+  for (const r of runs) if (r.agentId === undefined && (latest.get(r.sessionId)?.since ?? -1) < r.since) latest.set(r.sessionId, r)
+  return [...latest.values()].sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+/** The project's state at a glance: the session that most needs the person, else the latest one; idle without any. */
+export function projectActivity(runs: FactoryBoardRun[]): FactoryBoardExport['activity'] {
+  const sessions = sessionRunsOf(runs).filter(r => r.status !== 'interrupted')
+  const top = [...sessions].sort((a, b) => PHASE_RANK[runPhase(a)] - PHASE_RANK[runPhase(b)] || b.updatedAt - a.updatedAt)[0]
+  if (top === undefined) return { phase: 'idle', sessionId: null, feature: null, step: null, since: null, pendingCommit: null, recap: null }
+  return { phase: runPhase(top), sessionId: top.sessionId, feature: top.feature, step: top.step, since: top.updatedAt, pendingCommit: top.pendingCommit ?? null, recap: top.recap ?? null }
+}
+
 /** The board for companion apps: what the pane shows, each feature on the plan it follows by default. */
 export function exportBoard(board: FactoryBoard): FactoryBoardExport {
   const { root, repo, branch, baseBranch, aheadCount, changedCount, models, error, scannedAt, runs } = board
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     scannedAt,
     root,
     repo,
@@ -550,6 +607,8 @@ export function exportBoard(board: FactoryBoard): FactoryBoardExport {
     markers: { review: REVIEW_MARKER, browser: BROWSER_MARKER },
     squash: squashAction(board),
     live: liveRuns(runs),
+    activity: projectActivity(runs),
+    sessions: sessionRunsOf(runs).map(r => ({ ...r, phase: runPhase(r) })),
     features: followedFeatures(board).map(f => ({
       slug: f.slug,
       title: f.title,

@@ -104,13 +104,16 @@ Whichever step finalizes it (the last stage, the final review, `/factory:review 
 
 ## Done footer
 
-Whenever a commit was made during the turn (any skill, agent or direct request), the final message ends with this footer, after the next prompts, as the very last lines. One line per commit, short hash and subject:
+Whenever a commit was made during the turn (any skill, agent or direct request), the final message ends with this footer, after the next prompts, as the very last lines. First the recap: one line in `language.chat`, 120 characters at most, what the turn achieved for the person (not the commit subject again). Then one line per commit, short hash and subject:
 
 ```markdown
 ---
 ## ✅ JOB DONE
+> {recap}
 `{short hash}` {commit subject} · branch `{branch}` · not pushed
 ```
+
+The footer is read by tools (the board and its companion apps show the recap): keep its shape.
 
 No footer when nothing was committed, or when the turn stops on a failure or an open question.
 
