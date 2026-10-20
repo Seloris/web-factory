@@ -74,6 +74,8 @@ At the end of each workflow step (spec written, plan written, stage implemented,
 
 A finalized plan needs no next prompt: its squash is proposed in the same turn (see **Plan finalized**). Only a squash the person declined or put off gets one: `/factory:implement {plan folder} — close the branch` (without a plan, `/factory:implement close the branch {branch}`).
 
+**The retro.** The last next prompt of every workflow step is `/factory:retro`, for the person to run in the same session, when the session taught something: it writes the session's lessons to `.planning/retros/` and applies none (`/factory:retro apply` does, later). A turn that ends on a commit question gives it in the turn that answers it. In autonomous mode the steps leave it out; `autopilot` gives it in its report.
+
 ## Plan finalized
 
 A plan is **finalized** once every stage of its Progress is ticked and its Validation's `Review` is ticked. The optional items (`Tests`, `Browser test`, `Integration tests`) do not hold it back: each may stay `[ ]` (not run), be ticked (run and green) or be marked `[-]` (declined, with the reason). Without a plan, the work is finalized once its last stage is committed.

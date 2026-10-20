@@ -2,6 +2,13 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-20 — The retro: each session draws its lessons
+
+- **`retro`, an After Action Review per session.** Nothing in the workflow asked what went well, what went badly and what to change, so a correction the person made in one session was made again in the next. The person wanted the repository to improve itself at every session, after the US Army's After Action Review. `/factory:retro` answers its four questions from the session's evidence (the plan or the agreed approach, the commits, the failures, the reviewer's findings, the person's corrections) and writes `.planning/retros/{timestamp}-{name}.md`: at most five lessons, each with its evidence, its one destination and the exact change, status `open`. A session that taught nothing writes no file, so no lesson is invented.
+- **One folder, with or without a plan.** A section of the plan would have missed most sessions: the default path has no plan, and a past plan is never edited. One file per session, not one shared list, so two branches never collide on its last line.
+- **Recorded now, applied later.** The retro applies nothing: one session is one data point, and a rule written from it alone may be wrong. `/factory:retro apply` takes the open lessons of every retro, groups the duplicates, proposes each change on the person's yes and records its status. A lesson for the factory is never applied in a project, whose plugin runs from its cache: it becomes a proposal the person carries here, `forwarded`.
+- **Offered, never forced.** `/factory:retro` is the last next prompt of every step (the rule is in the workflow rules' `## Next prompts`), and `autopilot` gives it in its report; no hook runs it in the background, whose untriaged candidates pile up. Projects initialised earlier get the `retros/` folder by updating their `.claude/rules/planning.md` from the template; `samples/todo-app` has it. Version 0.4.0.
+
 ## 2026-10-20 — The board sets the models and its filters add up
 
 - **The roles' models from the board.** Changing a role's model meant editing `factory.yaml`'s `models` by hand, in the shape `factory-init` writes. The person wanted a configuration screen. The board's `⚙ Modèles` lists the six roles with their model and writes the map the way `factory-init` does (only the roles off the `standard` preset), left uncommitted.

@@ -12,6 +12,7 @@ skills/
   autopilot/            spec → plan → stages → final review with no question, one fresh subagent per step
   grill-me/             the interview that settles decisions
   review/               runs the reviewer agent and relays its findings
+  retro/                After Action Review of a session into .planning/retros/; retro apply applies the lessons
   test-in-browser/      click through a front component locally
 agents/
   reviewer.md           read-only review (reviewer model)

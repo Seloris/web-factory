@@ -16,6 +16,8 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | Review the branch | `/factory:review` |
 | Review a plan before coding | `/factory:review plan {plan folder}` |
 | Settle open decisions first | `/factory:grill-me {slug}` |
+| Draw the lessons of the session (what went well, badly, what to change) | `/factory:retro` (writes `.planning/retros/`, applies nothing) |
+| Apply the lessons collected | `/factory:retro apply` (one change at a time, on your yes) |
 | Click through the app locally | `/factory:test-in-browser {component} …` (starts the servers that do not answer, leaves them running) |
 
 ## Without a plan (default)
@@ -51,4 +53,5 @@ The whole path above, each step a fresh subagent, no question: every `grill-me` 
 - Agents **never push**. You push.
 - Integration tests run only when you ask, by name.
 - `✅ JOB DONE` footer = a commit was made, on the branch named.
+- Every step offers `/factory:retro` last: run it when the session taught something; `/factory:retro apply` later, when the open lessons pile up.
 - The session's model is yours to pick: the manifest's `models` says which one each role is meant for.

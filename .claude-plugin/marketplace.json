@@ -8,7 +8,7 @@
     {
       "name": "factory",
       "source": "./plugins/factory",
-      "description": "The workflow: /factory:factory-init sets up the project, then write-spec, write-plan, implement, grill-me and review run the spec → plan → code → review → close loop, driven by the project's factory.yaml manifest."
+      "description": "The workflow: /factory:factory-init sets up the project, then write-spec, write-plan, implement, grill-me, review and retro run the spec → plan → code → review → close loop, driven by the project's factory.yaml manifest."
     },
     {
       "name": "factory-board",

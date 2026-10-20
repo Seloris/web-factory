@@ -14,6 +14,7 @@ paths:
     dev-plans/{YYYYMMDD}-{HHmmss}-{type}-{name}/
       plan.md                   the whole plan
       assets/                   plan-specific images (wireframes, reference designs)
+  retros/{YYYYMMDD}-{HHmmss}-{name}.md   one After Action Review per session that taught something
   technical-debt.md
 ```
 
@@ -141,6 +142,10 @@ Neither has a `00_spec.md`.
 ## Images
 
 Save an image the person shares at the moment it is shared: in the plan's `assets/` by default, in the feature's `assets/` when it outlives the iteration. Name it in kebab-case after its content and reference it from `plan.md` or the spec: `![what it shows](./assets/{name}.png)`.
+
+## Retros: `.planning/retros/`
+
+Written only through the `retro` skill, which holds their template: one file per session, with or without a plan, its lessons `open` until `/factory:retro apply` applies, rejects or forwards them. Once committed, a retro changes only in its lessons' Status.
 
 ## Technical debt: `.planning/technical-debt.md`
 
