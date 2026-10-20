@@ -150,13 +150,15 @@ Written only through the `retro` skill, which holds their template: one file per
 
 ## Ideas: `.planning/ideas.md`
 
-The person's ideas, not yet specified. A flat list, no sections, priorities or metadata, new items appended at the bottom:
+The person's ideas, not yet specified, grouped by scope: one section per component, feature or `app`, a new scope's section added at the bottom; in a section, new items appended at the bottom, no priorities or metadata:
 
 ```
-- {YYYY-MM-DD} — **<Short title> (<scope>):** <The idea in a sentence or two, as the person put it>.
+## <scope>
+
+- {YYYY-MM-DD} — **<Short title>:** <The idea in a sentence or two, as the person put it>.
 ```
 
-Title: 3–6 words, sentence case. Scope: component or feature names, or `app`. An agent appends an idea only when the person asks, in their words; it never reorders, rewrites or removes one. The person removes an idea once it has become a spec, or once dropped.
+Title: 3–6 words, sentence case. An idea that spans several scopes goes under `app`. An agent appends an idea only when the person asks, in their words; it never reorders, rewrites or removes one. The person removes an idea once it has become a spec, or once dropped.
 
 ## Technical debt: `.planning/technical-debt.md`
 
