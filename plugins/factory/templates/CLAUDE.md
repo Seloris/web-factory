@@ -6,6 +6,8 @@ The manifest is `factory.yaml`, beside this file: name, base branch, languages, 
 
 **Ideas.** When the person asks to note an idea, append it to `.planning/ideas.md` in the format its header gives, in the repository's language; never act on it.
 
+**Servers.** Start a component's server (an API, a front) as the factory's workflow rules say under "Starting a server": with Windows Terminal, in a tab of the `factory` window titled after the component (`wt -w factory nt --title {component} -d {absolute component path} cmd /k "{serve}"`), so the person sees every server open; otherwise as a background command. Never restart a server that already answers.
+
 **Language.** Agents talk to the person in {{language_chat_name}}. Everything written to the repository is in {{language_repo_name}}: code, identifiers, comments, contracts, tests, commit messages, branch names, plans, specs and instruction files. User-facing strings of the application: {{ui_language}}.
 
 ## Hard rules

@@ -64,14 +64,14 @@ commands:
   handoff: npm run export-openapi            # produces the manifest's handoff file (api stage end)
   prepare: npm run generate-client           # front stage start, from the previous handoff
   integration_tests: npm run test:integration -- --filter "{filter}"   # never run unasked
-  serve: npm run dev                         # starts the local server, run in the background by test-in-browser
+  serve: npm run dev                         # starts the local server (a Windows Terminal tab, else a background command)
 serve_url: http://localhost:3000             # where the server answers once started (default: the component's url)
 logins: .claude/local/test-logins.md         # accounts for test-in-browser (git-ignored)
 ```
 
 Only `kind` and `commands.build` are required. A component without `test` gets no test step; one without `lint` gets no lint step.
 
-`serve` and `serve_url` let `test-in-browser` start, without asking, the servers that do not answer: the tested component's and those of the components it `needs`, in stage order, each awaited on its `serve_url` before the next starts. A server that already answers is left as it is. `serve` runs only when its server is down, so it can chain a prerequisite that needs the server stopped (`npm run db:migrate && npm run dev`). `serve_url` is separate from `url` because `url` makes a component browser-tested; any HTTP status on it counts as answering. The parser returns it as `serveUrl`, falling back to `url`.
+`serve` and `serve_url` let `test-in-browser` start, without asking, the servers that do not answer: the tested component's and those of the components it `needs`, in stage order, each awaited on its `serve_url` before the next starts. A server that already answers is left as it is. Where `wt.exe` is on the PATH, every server starts in a tab of one Windows Terminal window, `factory`, titled after its component, so the person sees all of them; elsewhere, as a background command (the workflow rules' **Starting a server**). `serve` runs only when its server is down, so it can chain a prerequisite that needs the server stopped (`npm run db:migrate && npm run dev`). `serve_url` is separate from `url` because `url` makes a component browser-tested; any HTTP status on it counts as answering. The parser returns it as `serveUrl`, falling back to `url`.
 
 ## Stages
 

@@ -20,6 +20,15 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root an
 
 The `CLAUDE.md` of a component is loaded by Claude Code when you work under its path; read it yourself when you plan for it from elsewhere.
 
+## Starting a server
+
+A component that runs a server (an API, a front) is started with its `commands.serve`, else the start its `CLAUDE.md` "Local run" gives, inside its path. The person watches every server in one place:
+
+- **`wt.exe` on the PATH (Windows Terminal):** start it in a tab of the `factory` window, titled after the component, from PowerShell: `wt -w factory nt --title {component} -d {absolute component path} cmd /k "{serve}"`. In Git Bash, prefix it with `MSYS_NO_PATHCONV=1`. Escape a `;` in the command as `\;` (it separates `wt` commands). The call returns at once; `cmd /k` keeps the tab open when the server exits, so its error stays readable. The tab outlives the session. You cannot read its output: poll the server's address to know it is up, and when it does not answer, send the person to the tab titled `{component}`.
+- **Otherwise:** run it as a background command (the session's background-command tool, never a blocking call), and keep its output.
+
+A server that already answers on its address is used as it is: never restart, stop or kill it.
+
 ## Subagents
 
 The session's model leads: it plans, decides and writes. Subagents are tools it picks when they help, each spawned with the `model:` of its role from the manifest's `models`:

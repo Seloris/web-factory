@@ -18,7 +18,7 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | Settle open decisions first | `/factory:grill-me {slug}` |
 | Draw the lessons of the session (what went well, badly, what to change) | `/factory:retro` (writes `.planning/retros/`, applies nothing) |
 | Apply the lessons collected | `/factory:retro apply` (one change at a time, on your yes) |
-| Click through the app locally | `/factory:test-in-browser {component} …` (starts the servers that do not answer, leaves them running) |
+| Click through the app locally | `/factory:test-in-browser {component} …` (starts the servers that do not answer, in Windows Terminal tabs when it is there, leaves them running) |
 
 ## Without a plan (default)
 
