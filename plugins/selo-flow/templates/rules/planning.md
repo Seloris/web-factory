@@ -14,7 +14,6 @@ paths:
     dev-plans/{YYYYMMDD}-{HHmmss}-{type}-{name}/
       plan.md                   the whole plan
       assets/                   plan-specific images (wireframes, reference designs)
-  retros/{YYYYMMDD}-{HHmmss}-{name}.md   one After Action Review per session that taught something
   ideas.md
   technical-debt.md
 ```
@@ -114,14 +113,14 @@ The checks made once every stage is done, one checkbox each, in a section of the
 - [ ] Integration tests: `{names}` green
 ```
 
-- **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings on another component, or a plan implemented before this rule), `/selo-flow:review {plan folder}` or `implement`'s final review ticks it (`/selo-flow:implement {plan folder} — final review` once every stage is ticked).
+- **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings left open), `/selo-flow:review {plan folder}` ticks it once they are settled.
 - **Tests:** whenever a touched component declares `commands.test`, listing those components. Each stage runs its own component's full suite already; this item records one run of every listed suite, in full, on the plan's final code. Ticked when all of them passed; a code change after the tick re-runs every listed suite, or unticks it.
 - **Browser test:** only when a touched component declares a `url`. Ticked when every scenario passed.
 - **Integration tests:** only when the Tests section names integration tests of a component that declares `commands.integration_tests`, listed in the item. Ticked when the person asked for the run and every test passed.
 
 The checklist is the only record of these checks: an item absent or unticked means the check was not done. Review is never skipped; the other items are optional: each stays `[ ]` (not run), is ticked (run and green) or is marked `[-]` with the reason when the person declined it, e.g. `- [-] Browser test: not run (declined by the person)`, so the plan says it was not run and why. The tick or the mark goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.
 
-The plan is **finalized** once every stage of Progress and `Review` are ticked; the optional items do not hold it back. The step that finalizes it (the last stage, the final review, `/selo-flow:review {plan folder}`) then proposes to squash the branch's commits (the plan's, each stage's, the review's and the validations') into one, on the person's yes; a squash put off runs later with `/selo-flow:implement {plan folder} — close the branch`. The checklist needs no item for it.
+The plan is **done** once every stage of Progress and `Review` are ticked; the optional items do not hold it back.
 
 ## Plan header
 
@@ -129,7 +128,6 @@ Infer the header instead of asking for it, and state it at the top of the plan p
 
 - **Feature slug:** list `.planning/features/` and reuse an existing slug first; say whether it is existing or new.
 - **Components:** the manifest components the plan touches, in stage order (none for `tooling` unless it touches a component).
-- **Branch:** on the base branch, a new `{commit type}/{slug}-{name}` (commit type as above), or `feat/{slug}` for a spec written before any plan; on another branch, that branch. Whoever creates the branch (`write-spec` for a spec on its own, `write-plan` for a plan, `implement` for a request without a plan) has the person validate its name first.
 
 ## Reserved slugs
 
@@ -143,10 +141,6 @@ Neither has a `00_spec.md`.
 ## Images
 
 Save an image the person shares at the moment it is shared: in the plan's `assets/` by default, in the feature's `assets/` when it outlives the iteration. Name it in kebab-case after its content and reference it from `plan.md` or the spec: `![what it shows](./assets/{name}.png)`.
-
-## Retros: `.planning/retros/`
-
-Written only through the `retro` skill, which holds their template: one file per session, with or without a plan, its lessons `open` until `/selo-flow:retro apply` applies, rejects or forwards them. Once committed, a retro changes only in its lessons' Status.
 
 ## Ideas: `.planning/ideas.md`
 

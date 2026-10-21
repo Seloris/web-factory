@@ -13,7 +13,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const PRESETS = {
-  standard: { planner: "opus", implementer: "sonnet", advisor: "opus", reviewer: "opus", runner: "haiku", explorer: "haiku" },
+  standard: { planner: "opus", implementer: "sonnet", reviewer: "opus", runner: "haiku", explorer: "haiku" },
 };
 export const ROLES = Object.keys(PRESETS.standard);
 export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests", "serve"];

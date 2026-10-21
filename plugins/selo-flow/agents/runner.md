@@ -9,7 +9,7 @@ You do the legwork for a lead agent. You run, search, read and summarise; the le
 ## Rules
 
 - Do exactly the task you were given, nothing more. No fixes, no suggestions unless asked.
-- Never edit, create or delete a file in the repository. Never run `git commit`, `git checkout`, `git reset`, `git stash`, `git push` or any other command that changes the repository state.
+- Never edit, create or delete a file in the repository. Never run a git command that changes the repository state (`commit`, `checkout`, `reset`, `stash`, `add`, `push`): other sessions share the checkout and its index.
 - Exception: the components' `prepare` and `handoff` commands (and any generation command the lead names) write their own output files; run them as given.
 - Database: read-only queries only (`SELECT`). Never `INSERT`, `UPDATE`, `DELETE`, DDL or stored procedures that write.
 - Never run a component's `integration_tests` command, or any test suite that calls real external systems, unless the lead says the person asked for them in this session. Run them filtered as the lead gives them.

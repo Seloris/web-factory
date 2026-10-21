@@ -5,14 +5,13 @@ The workflow plugin: everything useful to two projects or more. Stack-agnostic: 
 ```
 .claude-plugin/plugin.json
 skills/
-  init/         set up the project: interview + templates (selo-flow.yaml, CLAUDE.md files, .planning/)
+  init/                 set up the project: interview + templates (selo-flow.yaml, CLAUDE.md files, .planning/)
   write-spec/           the only writer of 00_spec.md
   write-plan/           plan.md, one section per component touched
-  implement/            stages, verification, review, commit, final review, squash of a finalized plan
-  autopilot/            spec → plan → stages → final review with no question, one fresh subagent per step
+  implement/            stages, verification, commit; the last stage reviews the whole work
+  autopilot/            spec → plan → stages with no question, one fresh subagent per step
   grill-me/             the interview that settles decisions
-  review/               runs the reviewer agent and relays its findings
-  retro/                After Action Review of a session into .planning/retros/; retro apply applies the lessons
+  review/               runs the reviewer agent and relays its findings; review {plan} records it
   test-in-browser/      click through a front component locally
 agents/
   reviewer.md           read-only review (reviewer model)

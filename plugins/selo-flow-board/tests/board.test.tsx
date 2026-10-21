@@ -78,7 +78,7 @@ const GIT_LOG = ['b71e04\tfeat(demo): api — counter endpoint', '9c0d1e\tchore:
 const norm = (path: string): string => path.split('\\').join('/').replace(/^[A-Za-z]:/, '')
 
 /** A project on disk, git included, answered from memory. Returns the store the mod writes to, its mocked clock on it. */
-function mockProject(on: On, options: { log?: string; range?: string; files?: Record<string, string> } = {}): Map<string, unknown> & { clock: ReturnType<typeof mock.clock> } {
+function mockProject(on: On, options: { log?: string; files?: Record<string, string> } = {}): Map<string, unknown> & { clock: ReturnType<typeof mock.clock> } {
   const files = options.files ?? BASE_FILES
   const isDir = (path: string) => Object.keys(files).some(p => p.startsWith(`${path}/`))
   on('session.root', () => ({ value: ROOT }))
@@ -112,7 +112,6 @@ function mockProject(on: On, options: { log?: string; range?: string; files?: Re
     })
     if (argv.startsWith('git rev-parse --git-common-dir')) return ok('.git\n')
     if (argv.startsWith('git rev-parse')) return ok('feat/demo\n')
-    if (argv === 'git log --format=%s develop..HEAD') return ok(options.range ?? 'feat(demo): api — counter endpoint\ndocs(demo): plan\ndocs(demo): spec\n')
     if (argv.startsWith('git status')) return ok(' M api/src/app.ts\n?? notes.md\n')
     if (argv.startsWith('git log')) return ok(options.log ?? GIT_LOG)
     return ok('')
@@ -201,7 +200,7 @@ test('a plan is finalized once its stages and its Review are ticked, whatever th
   const board = (validation: string): SeloFlowBoard => {
     const plan = finished(validation)
     const feature: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [plan], plan, state: featureState(true, plan) }
-    return { root: ROOT, branch: 'feat/demo', baseBranch: 'main', aheadCount: 2, changedCount: 0, features: [feature], runs: [], scannedAt: 0, error: null }
+    return { root: ROOT, branch: 'feat/demo', baseBranch: 'main', changedCount: 0, features: [feature], runs: [], scannedAt: 0, error: null }
   }
   expect(committed(board('- [ ] Review: pending\n'), board('- [x] Review: done\n- [ ] Browser test: not run\n'))).toEqual(['demo · plan finalisé'])
   expect(committed(board('- [x] Review: done\n'), board('- [x] Review: done\n'))).toEqual([])
@@ -256,31 +255,11 @@ test('nextAction follows the feature state', () => {
     autopilot,
   })
   expect(nextAction(feature('running', { ...plan, isDraft: true }))?.prompt).toBe('/selo-flow:write-plan demo')
-  expect(nextAction(feature('review'))?.prompt).toBe(`/selo-flow:implement ${PLAN_FOLDER} — final review`)
+  expect(nextAction(feature('review'))?.prompt).toBe(`/selo-flow:review ${PLAN_FOLDER}`)
   // The browser test is the autopilot's option only; a feature without a spec has no autopilot.
   expect(nextAction(feature('review'), { browser: true })?.autopilot?.prompt).toBe(`/selo-flow:autopilot ${PLAN_FOLDER} — with browser test`)
   expect(nextAction({ ...feature('empty', null as never), hasSpec: false })?.autopilot).toBeUndefined()
   expect(nextAction(feature('done'))).toBeNull()
-})
-
-test('the review checkbox adds its marker to the stage prompts only', () => {
-  const parsed = parsePlan(PLAN)
-  const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
-  const untouched = { ...plan, stages: plan.stages.map(s => ({ ...s, done: 0 })) }
-  const demo: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [untouched], plan: untouched, state: 'plan' }
-  const reviewed = nextAction(demo, { review: true })
-  expect(reviewed).toEqual({
-    label: 'Stage 1 — api',
-    prompt: `/selo-flow:implement ${PLAN_FOLDER} — stage 1 (api) — with review`,
-    all: { label: "Tout d'un coup (stages 1–2)", prompt: `/selo-flow:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained — with review` },
-    autopilot: { label: '⚡ Autopilot', prompt: `/selo-flow:autopilot ${PLAN_FOLDER}` },
-  })
-  expect(runStep(parseSeloFlowCommand(reviewed!.prompt)!, demo)).toBe('stage:1')
-  expect(runLastStep(parseSeloFlowCommand(reviewed!.all!.prompt)!)).toBe('stage:2')
-  const finalReview = { ...plan, stages: plan.stages.map(s => ({ ...s, done: s.total })), validationDone: 0 }
-  const review: SeloFlowBoardFeature = { ...demo, plans: [finalReview], plan: finalReview, state: 'review' }
-  expect(nextAction(review, { review: true })?.prompt).toBe(`/selo-flow:implement ${PLAN_FOLDER} — final review`)
-  expect(nextAction(demo)?.prompt).toBe(`/selo-flow:implement ${PLAN_FOLDER} — stage 1 (api)`)
 })
 
 test('committed names a stage whose commit reached the branch', () => {
@@ -289,7 +268,7 @@ test('committed names a stage whose commit reached the branch', () => {
   const board = (sha: string | null): SeloFlowBoard => ({
     root: ROOT,
     repo: REPO,
-    branch: 'feat/demo', baseBranch: 'main', aheadCount: 2, changedCount: 0,
+    branch: 'feat/demo', baseBranch: 'main', changedCount: 0,
     runs: [],
     scannedAt: 0,
     error: null,
@@ -324,11 +303,7 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     const ui = await $.ui.mount({ ...PANE, surface })
     expect(await ui.find({ type: 'Text', text: /^ v9\.9\.9  repo$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^feat\/demo$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /\+3 commit\(s\) depuis develop/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /2 fichier\(s\) non commité\(s\)/ })).toBeDefined()
-    // The branch's commits name `demo`, whose latest plan is not finalized: no squash yet.
-    expect(await ui.find({ key: 'squash' })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: /squash une fois le plan finalisé/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^ v9\.9\.9/ })).toBeDefined()
     expect((await ui.find({ key: 'filter:all' }))?.text).toContain('2 features')
     expect((await ui.find({ key: 'filter:no-plan' }))?.text).toContain('1 sans plan')
@@ -469,7 +444,7 @@ test('a selo-flow skill called through the Skill tool records the run like a typ
   // A subagent's call records nothing; the bare name and the prefixed one both count.
   await $.tool.call({ tool: 'Skill', skill: 'selo-flow:write-plan', args: 'tags', agentId: 'agent-1' } as never)
   expect([...store.keys()]).toEqual([])
-  await $.tool.call({ tool: 'Skill', skill: 'selo-flow:implement', args: `${PLAN_FOLDER} — stages 1-2 (api, web), chained — with review` } as never)
+  await $.tool.call({ tool: 'Skill', skill: 'selo-flow:implement', args: `${PLAN_FOLDER} — stages 1-2 (api, web), chained` } as never)
   expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'implement', step: 'stage:1', lastStep: 'stage:2', status: 'running', repo: REPO })
   await $.tool.call({ tool: 'Skill', skill: 'write-plan', args: 'tags' } as never)
   expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'tags', command: 'write-plan', step: 'plan' })
@@ -511,7 +486,7 @@ test('a /selo-flow: brief given to a subagent through the Agent tool is a run of
   await $.agent.spawn({ prompt: 'Read README.md and report.' })
   await $.agent.spawn({ prompt: `/selo-flow:write-plan tags`, parentAgentId: 'agent-0' } as never)
   expect([...store.keys()]).toEqual([])
-  await $.agent.spawn({ prompt: `Implement the stage:\n\`/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web) — with review\`\nCommit it, then report.` })
+  await $.agent.spawn({ prompt: `Implement the stage:\n\`/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web)\`\nCommit it, then report.` })
   expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'demo', folder: PLAN_FOLDER, command: 'implement', step: 'stage:2', status: 'running', agentId: 'agent-1' })
 
   // The main loop's turn end and commit are not the subagent's.
@@ -550,7 +525,7 @@ test('an autopilot from a plan folder is one run moved along its subagents, done
 
   // The stage's subagent: its run on the stage row, the pipeline at that step.
   await store.clock.advance(1000)
-  await $.agent.spawn({ prompt: `Read the skill, then act as if the person typed:\n/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web) — with review — autonomous\nReport the commit.` })
+  await $.agent.spawn({ prompt: `Read the skill, then act as if the person typed:\n/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web) — autonomous\nReport the commit.` })
   expect(store.get('run:session-aaaa-1111:1001000')).toMatchObject({ feature: 'demo', command: 'implement', step: 'stage:2', status: 'running', agentId: 'agent-1' })
   expect(pilot().step).toBe('stage:2')
 
@@ -574,9 +549,9 @@ test('an autopilot from a plan folder is one run moved along its subagents, done
   expect((store.get('run:session-aaaa-1111:1001000') as Record<string, unknown>).status).toBe('done')
   expect(pilot().status).toBe('running')
 
-  // The final review's subagent moves the pipeline to its last step; the main turn's end ends it, done.
+  // A review subagent on the plan moves the pipeline to its last step; the main turn's end ends it, done.
   await store.clock.advance(1000)
-  await $.agent.spawn({ prompt: `/selo-flow:implement ${PLAN_FOLDER} — final review — autonomous` })
+  await $.agent.spawn({ prompt: `/selo-flow:review ${PLAN_FOLDER}` })
   expect(pilot().step).toBe('review')
   await $.turn.complete({ answer: 'reviewed', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer', agentId: 'agent-2' } as never)
   await $.tool.call({ tool: 'Bash', command: 'git commit -m "chore(demo): validation — review"', agentId: 'agent-2' } as never)
@@ -648,7 +623,7 @@ for (const resumed of ['before', 'after'] as const) {
     const pilot = () => store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
     const stage = () => store.get('run:session-aaaa-1111:1001000') as Record<string, unknown>
     await store.clock.advance(1000)
-    await $.agent.spawn({ prompt: `/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web) — with review — autonomous` })
+    await $.agent.spawn({ prompt: `/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web) — autonomous` })
     // The subagent returns without its commit; the main loop resumes it in the background and ends its turn.
     await $.turn.complete({ answer: 'review pending', durationMs: 10, isAborted: false, turnId: 't2', reason: 'answer', agentId: 'agent-1' } as never)
     const resume = () => $.turn.start({ text: '', turnId: 't3', agentId: 'agent-1' } as never)
@@ -661,7 +636,7 @@ for (const resumed of ['before', 'after'] as const) {
     // The hand-back opens a main turn: the pipeline is live again and follows its next subagent.
     await $.turn.start({ text: '', turnId: 't4' })
     await store.clock.advance(1000)
-    await $.agent.spawn({ prompt: `/selo-flow:implement ${PLAN_FOLDER} — final review — autonomous` })
+    await $.agent.spawn({ prompt: `/selo-flow:review ${PLAN_FOLDER}` })
     expect(pilot()).toMatchObject({ status: 'running', step: 'review' })
     const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
     expect(await band.find({ type: 'Text', text: /arrêté/ })).toBeUndefined()
@@ -766,7 +741,7 @@ test('the timeline steps follow the feature: active step, done steps, the step a
   expect(isStepDone(empty, 'spec')).toBe(false)
   const command = (text: string) => parseSeloFlowCommand(text)!
   expect(runStep(command(`/selo-flow:implement ${PLAN_FOLDER}`), demo)).toBe('stage:2')
-  expect(runStep(command(`/selo-flow:implement ${PLAN_FOLDER} — final review`), demo)).toBe('review')
+  expect(runStep(command(`/selo-flow:review ${PLAN_FOLDER}`), demo)).toBe('review')
   expect(runStep(command(`/selo-flow:review plan ${PLAN_FOLDER}`), demo)).toBe('plan')
   expect(runStep(command(`/selo-flow:implement ${PLAN_FOLDER} — stage 1 (api)`), demo)).toBe('stage:1')
   const chained = command(`/selo-flow:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained`)
@@ -814,7 +789,7 @@ test('withPlan follows a feature on one of its plans, and its runs with it', () 
   expect(isRunOfPlan(writing, onNew as SeloFlowBoardFeature)).toBe(true)
   expect(isRunOfPlan(run('plan', null), onNew as SeloFlowBoardFeature)).toBe(false)
 
-  const board = (plans: typeof demo.plans): SeloFlowBoard => ({ root: ROOT, repo: null, branch: null, baseBranch: 'main', aheadCount: null, changedCount: 0, features: [{ ...demo, plans }], runs: [], scannedAt: 0, error: null })
+  const board = (plans: typeof demo.plans): SeloFlowBoard => ({ root: ROOT, repo: null, branch: null, baseBranch: 'main', changedCount: 0, features: [{ ...demo, plans }], runs: [], scannedAt: 0, error: null })
   expect(newPlans(null, board([latest, old]))).toEqual([])
   expect(newPlans(board([old]), board([old]))).toEqual([])
   expect(newPlans(board([old]), board([latest, old]))).toEqual(['demo'])
@@ -862,7 +837,7 @@ test('tickReview ticks the Validation’s Review item only, the line endings kep
   expect(tickReview('## Progress\n\n- [ ] Review: not here\n')).toBeNull()
 })
 
-test('the final review is marked done from the pane: Review ticked in plan.md, the plan finalized', async ($, on) => {
+test('the review is marked done from the pane: Review ticked in plan.md, the plan finalized', async ($, on) => {
   const finished = PLAN.replace(/- \[ \] (pages|ui):/g, '- [x] $1:')
   const files = { ...BASE_FILES, [`${ROOT}/${PLAN_FOLDER}/plan.md`]: finished }
   mockProject(on, { files })
@@ -1023,36 +998,6 @@ test('the band shows this session’s step and toggles the pane', async ($, on) 
   await ui.unmount()
 })
 
-/** Mounts the pane on a project, presses `Squasher` when it shows: the prompt it prepared, null without the button. */
-async function squashPrompt($: Parameters<Parameters<typeof test>[1]>[0], on: On, options: Parameters<typeof mockProject>[1]): Promise<string | null> {
-  mockProject(on, options)
-  const filled: string[] = []
-  on('prompt.fill', ($, e) => {
-    filled.push(e.text)
-    return { isFilled: true }
-  })
-  on('session.start', ($, e) => ({ cwd: e.cwd }))
-  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  const button = await ui.find({ key: 'squash' })
-  if (button !== undefined) await ui.press({ key: 'squash' })
-  await ui.unmount()
-  return button === undefined ? null : (filled.at(-1) ?? null)
-}
-
-test('the squash of a branch whose feature has its plan finalized closes that plan', async ($, on) => {
-  const { [`${ROOT}/${PLAN_FOLDER}/plan.md`]: _, ...finalized } = BASE_FILES
-  expect(await squashPrompt($, on, { files: finalized })).toBe(`/selo-flow:implement ${OLD_PLAN_FOLDER} — close the branch`)
-})
-
-test('the squash of a branch whose commits name no feature closes the branch without a plan', async ($, on) => {
-  expect(await squashPrompt($, on, { range: 'chore(ci): cache\nchore(ci): node 20\n' })).toBe('/selo-flow:implement close the branch feat/demo')
-})
-
-test('a branch of one commit offers no squash', async ($, on) => {
-  expect(await squashPrompt($, on, { range: 'chore(ci): cache\n' })).toBeNull()
-})
-
 test('exportPath names a project as ~/.claude/projects names its folder, a worktree apart', () => {
   expect(exportPath('C:\\Users\\me\\.claude', 'C:\\WS\\ia-projects\\claude-companion')).toBe('C:\\Users\\me\\.claude/selo-flow-board/C--WS-ia-projects-claude-companion.json')
   expect(exportPath('/home/me/.claude/', 'C:/WS/ia-projects/claude-companion/.claude/worktrees/live-e15e79/')).toBe('/home/me/.claude/selo-flow-board/C--WS-ia-projects-claude-companion--claude-worktrees-live-e15e79.json')
@@ -1071,11 +1016,10 @@ test('the board is exported for companion apps: the pane’s timeline, prompts a
 
   const read = () => JSON.parse(written.get('/home/me/.claude/selo-flow-board/-repo.json') ?? 'null') as SeloFlowBoardExport
   const first = read()
-  expect(first.schemaVersion).toBe(2)
+  expect(first.schemaVersion).toBe(3)
   expect(first.activity.phase).toBe('idle')
   expect(first.root).toBe(ROOT)
-  expect(first.markers).toEqual({ review: ' — with review', browser: ' — with browser test' })
-  expect(first.squash).toEqual({ prompt: `/selo-flow:implement ${PLAN_FOLDER} — close the branch`, isReady: false })
+  expect(first.markers).toEqual({ browser: ' — with browser test' })
   const demo = first.features.find(f => f.slug === 'demo')
   expect(demo?.plan?.folder).toBe(PLAN_FOLDER)
   expect(demo?.plans).toEqual([PLAN_FOLDER, OLD_PLAN_FOLDER])

@@ -220,7 +220,7 @@ export type NextAction = {
   prompt: string
   /** When several stages remain: the prompt that chains them all in one session. */
   all?: { label: string; prompt: string }
-  /** The prompt that runs the rest of the feature with no click, from this step to the final review. */
+  /** The prompt that runs the rest of the feature with no click, from this step to the last stage's review. */
   autopilot?: { label: string; prompt: string }
 }
 
@@ -228,7 +228,7 @@ const stageName = (stage: SeloFlowBoardStage): string => `Stage ${stage.number}$
 
 /**
  * A `plan.md` with its Validation's `Review` item ticked (`[ ]` or `[-]` to `[x]`),
- * every other line and the line endings untouched: the final review marked done
+ * every other line and the line endings untouched: the review marked done
  * without running it. `null` when the Validation has no `Review` item left to tick.
  */
 export function tickReview(text: string): string | null {
@@ -250,12 +250,10 @@ export function tickReview(text: string): string | null {
   return null
 }
 
-/** The marker a stage prompt carries when the person asked for the reviewer after the stage (the pane's checkbox). */
-export const REVIEW_MARKER = ' — with review'
 /** The marker an autopilot prompt carries when the person asked for the browser test (the pane's checkbox). */
 export const BROWSER_MARKER = ' — with browser test'
 
-/** The autopilot prompt of a feature: the rest of it from its plan (its stages, the final review), or from its spec. */
+/** The autopilot prompt of a feature: the rest of it from its plan (its stages), or from its spec. */
 function autopilotAction(feature: SeloFlowBoardFeature, browser: boolean | undefined): NextAction['autopilot'] {
   const target = feature.plan?.folder ?? feature.slug
   return { label: '⚡ Autopilot', prompt: `/selo-flow:autopilot ${target}${browser ? BROWSER_MARKER : ''}` }
@@ -263,12 +261,10 @@ function autopilotAction(feature: SeloFlowBoardFeature, browser: boolean | undef
 
 /**
  * The one thing to do next on a feature, and the prompt that does it.
- * `review`: the stage prompts ask for the reviewer after each stage (`REVIEW_MARKER`); off by default.
  * `browser`: the autopilot prompt asks for the browser test (`BROWSER_MARKER`); off by default.
  */
-export function nextAction(feature: SeloFlowBoardFeature, options: { review?: boolean; browser?: boolean } = {}): NextAction | null {
+export function nextAction(feature: SeloFlowBoardFeature, options: { browser?: boolean } = {}): NextAction | null {
   const { slug, plan } = feature
-  const marker = options.review ? REVIEW_MARKER : ''
   const autopilot = autopilotAction(feature, options.browser)
   switch (feature.state) {
     case 'empty':
@@ -281,10 +277,10 @@ export function nextAction(feature: SeloFlowBoardFeature, options: { review?: bo
       if (plan === null) return null
       if (plan.isDraft) return { label: 'Reprendre le plan (brouillon)', prompt: `/selo-flow:write-plan ${slug}`, autopilot }
       const stage = nextStage(plan)
-      if (stage === null) return { label: 'Implémenter', prompt: `/selo-flow:implement ${plan.folder}${marker}`, autopilot }
+      if (stage === null) return { label: 'Implémenter', prompt: `/selo-flow:implement ${plan.folder}`, autopilot }
       const action: NextAction = {
         label: stageName(stage),
-        prompt: `/selo-flow:implement ${plan.folder} — stage ${stage.number}${stage.title ? ` (${stage.title})` : ''}${marker}`,
+        prompt: `/selo-flow:implement ${plan.folder} — stage ${stage.number}${stage.title ? ` (${stage.title})` : ''}`,
         autopilot,
       }
       const remaining = plan.stages.filter(s => s.number >= stage.number)
@@ -293,20 +289,19 @@ export function nextAction(feature: SeloFlowBoardFeature, options: { review?: bo
         const titles = remaining.map(s => s.title).filter(Boolean)
         action.all = {
           label: `Tout d'un coup (stages ${stage.number}–${last.number})`,
-          prompt: `/selo-flow:implement ${plan.folder} — stages ${stage.number}-${last.number}${titles.length > 0 ? ` (${titles.join(', ')})` : ''}, chained${marker}`,
+          prompt: `/selo-flow:implement ${plan.folder} — stages ${stage.number}-${last.number}${titles.length > 0 ? ` (${titles.join(', ')})` : ''}, chained`,
         }
       }
       return action
     }
     case 'review':
-      return plan ? { label: 'Revue finale', prompt: `/selo-flow:implement ${plan.folder} — final review`, autopilot } : null
+      return plan ? { label: 'Revue finale', prompt: `/selo-flow:review ${plan.folder}`, autopilot } : null
     case 'done':
-      // The squash is proposed by the step that finalized the plan: nothing left to prepare.
       return null
   }
 }
 
-/** The timeline steps of a feature, in order: spec, plan, its stages, the final review. */
+/** The timeline steps of a feature, in order: spec, plan, its stages, the review. */
 export function steps(feature: SeloFlowBoardFeature): SeloFlowBoardStep[] {
   return ['spec', 'plan', ...(feature.plan?.stages.map(s => `stage:${s.number}`) ?? []), 'review']
 }
@@ -354,8 +349,6 @@ export function runStep(command: SeloFlowCommand, feature: SeloFlowBoardFeature 
       // The pipeline starts at the feature's step; from a request, at the spec. Moved at each of its subagents.
       return feature ? activeStep(feature) : 'spec'
     default:
-      // `— final review`, followed or not by an option (` — autonomous`).
-      if (/final review\b/i.test(command.args)) return 'review'
       // `— stage 2 (web)`, or the first of `— stages 2-3 (web, e2e), chained`.
       if (/\bstages?\s+\d+/i.test(command.args)) return `stage:${/\bstages?\s+(\d+)/i.exec(command.args)?.[1]}`
       // An implement on a feature the board does not know lands on no row: listed with the sessions only.
@@ -516,7 +509,7 @@ export function liveRuns(runs: SeloFlowBoardRun[]): SeloFlowBoardRun[] {
 }
 
 /** The pane's primary button on a followed feature: none while its new plan is on its way (its session writes it) or an autopilot works on it. */
-export function featureAction(feature: SeloFlowBoardFeature, runs: SeloFlowBoardRun[], options: { review?: boolean; browser?: boolean } = {}): NextAction | null {
+export function featureAction(feature: SeloFlowBoardFeature, runs: SeloFlowBoardRun[], options: { browser?: boolean } = {}): NextAction | null {
   const isNewPlan = feature.plan === null && feature.plans.length > 0
   return isNewPlan || featurePilot(feature.slug, runs) ? null : nextAction(feature, options)
 }
@@ -530,18 +523,6 @@ export function stepMarker(feature: SeloFlowBoardFeature, runs: SeloFlowBoardRun
   if (stepRuns(feature, runs, step).some(isLive) || featurePilot(feature.slug, runs)?.step === step) return 'running'
   if (isStepDone(feature, step)) return 'done'
   return step === activeStep(feature) ? 'next' : 'pending'
-}
-
-/**
- * The branch line's squash: none on the base branch, a detached head or under two commits.
- * The branch's feature with a plan waits for that plan to be finalized (`isReady`).
- */
-export function squashAction(board: SeloFlowBoard): { prompt: string; isReady: boolean } | null {
-  const isBaseBranch = board.branch === board.baseBranch || board.branch === 'HEAD'
-  if (board.branch === null || isBaseBranch || (board.aheadCount ?? 0) <= 1) return null
-  const plan = board.features.find(f => f.slug === board.branchFeature)?.plan ?? null
-  const prompt = plan ? `/selo-flow:implement ${plan.folder} — close the branch` : `/selo-flow:implement close the branch ${board.branch}`
-  return { prompt, isReady: plan === null || isFinalized(plan) }
 }
 
 /** A commit question closes its turn: a fenced block whose first line is a `{type}({scope}): …` subject. */
@@ -601,20 +582,18 @@ export function projectActivity(runs: SeloFlowBoardRun[]): SeloFlowBoardExport['
 
 /** The board for companion apps: what the pane shows, each feature on the plan it follows by default. */
 export function exportBoard(board: SeloFlowBoard): SeloFlowBoardExport {
-  const { root, repo, branch, baseBranch, aheadCount, changedCount, models, error, scannedAt, runs } = board
+  const { root, repo, branch, baseBranch, changedCount, models, error, scannedAt, runs } = board
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     scannedAt,
     root,
     repo,
     branch,
     baseBranch,
-    aheadCount,
     changedCount,
     models,
     error,
-    markers: { review: REVIEW_MARKER, browser: BROWSER_MARKER },
-    squash: squashAction(board),
+    markers: { browser: BROWSER_MARKER },
     live: liveRuns(runs),
     activity: projectActivity(runs),
     sessions: sessionRunsOf(runs).map(r => ({ ...r, phase: runPhase(r) })),
@@ -643,8 +622,8 @@ export function exportPath(configDir: string, root: string): string {
  * The roles of the manifest's `models` and its one preset.
  * shortcut: a copy of `PRESETS` and `ROLES` in plugins/selo-flow/scripts/manifest.mjs (a mod cannot import it); change both together.
  */
-export const MODEL_ROLES = ['planner', 'implementer', 'advisor', 'reviewer', 'runner', 'explorer'] as const
-export const STANDARD_MODELS: Record<string, string> = { planner: 'opus', implementer: 'sonnet', advisor: 'opus', reviewer: 'opus', runner: 'haiku', explorer: 'haiku' }
+export const MODEL_ROLES = ['planner', 'implementer', 'reviewer', 'runner', 'explorer'] as const
+export const STANDARD_MODELS: Record<string, string> = { planner: 'opus', implementer: 'sonnet', reviewer: 'opus', runner: 'haiku', explorer: 'haiku' }
 /** The models a subagent's `model:` takes, offered by the pane's configuration screen. */
 export const MODEL_CHOICES = ['opus', 'sonnet', 'haiku', 'fable']
 

@@ -47,16 +47,16 @@ Commit: `refactor(repo): rename the factory to selo-flow`
 
 ### Stage 2 — cleanup and shared develop (ex-0.9.0)
 Commit: `refactor(selo-flow): one review, no branches, no squash, no retro`
-- [ ] Delete `skills/retro`, `.planning/retros/` from `planning.md`, the retro next prompt
-- [ ] Delete ` — with review`, ` — final review` (→ `/selo-flow:review {plan}`), ` — close the branch`, **Plan finalized** (the squash), feature-branch creation and its questions
-- [ ] Delete the `advisor` role (`manifest.mjs` preset, `docs/manifest.md`, the board's preset copy)
-- [ ] Delete `wt.exe` and "never restart a server"; `test-in-browser` starts servers in the background and stops them after the test (opt-in until stage 5)
-- [ ] `reference/workflow-rules.md` from `drafts/workflow-rules-v2.md`, without what later stages add (lanes, `Spec:` line, demo)
-- [ ] `skills/implement/SKILL.md` from `drafts/implement-v2.md`, same limits; one review, on the last stage
-- [ ] Commit rules of step A (`git commit --only`, wait or stop on a file another session changed, foreign test failures marked `[-]`) in the project template `CLAUDE.md`, in a tagged block
-- [ ] `templates/rules/planning.md` trimmed (no retros, squash, branch rules)
-- [ ] Board: review checkbox and `REVIEW_MARKER` removed; "Final review" button → `/selo-flow:review {plan}`; "Squash" button, ` — close the branch` prompts, `branchFeature` and `aheadCount` removed; `shaBySubject` reads more than 200 commits; export `schemaVersion: 3`
-- [ ] `reviewer.md` and `runner.md` without the rules copied from `workflow-rules.md`
+- [x] Delete `skills/retro`, `.planning/retros/` from `planning.md`, the retro next prompt
+- [x] Delete ` — with review`, ` — final review` (→ `/selo-flow:review {plan}`), ` — close the branch`, **Plan finalized** (the squash), feature-branch creation and its questions
+- [x] Delete the `advisor` role (`manifest.mjs` preset, `docs/manifest.md`, the board's preset copy)
+- [x] Delete `wt.exe` and "never restart a server"; `test-in-browser` starts servers in the background and stops them after the test (opt-in until stage 5)
+- [x] `reference/workflow-rules.md` from `drafts/workflow-rules-v2.md`, without what later stages add (lanes, `Spec:` line, demo)
+- [x] `skills/implement/SKILL.md` from `drafts/implement-v2.md`, same limits; one review, on the last stage
+- [x] Commit rules of step A (`git commit --only`, wait or stop on a file another session changed, foreign test failures marked `[-]`) in the project template `CLAUDE.md`, in a tagged block
+- [x] `templates/rules/planning.md` trimmed (no retros, squash, branch rules)
+- [x] Board: review checkbox and `REVIEW_MARKER` removed; "Final review" button → `/selo-flow:review {plan}`; "Squash" button, ` — close the branch` prompts, `branchFeature` and `aheadCount` removed; `shaBySubject` reads more than 200 commits; export `schemaVersion: 3`
+- [x] `reviewer.md` and `runner.md` without the rules copied from `workflow-rules.md`
 
 ### Stage 3 — `init update`
 Commit: `feat(selo-flow): init update brings a project up to date`
@@ -106,7 +106,7 @@ Commit: `fix(selo-flow): review — {summary}` (only when the review leads to fi
 
 - [x] Stage 0 — docs
 - [x] Stage 1 — rename
-- [ ] Stage 2 — cleanup and shared develop
+- [x] Stage 2 — cleanup and shared develop
 - [ ] Stage 3 — `init update`
 - [ ] Stage 4 — living specs and fastlane
 - [ ] Stage 5 — demo

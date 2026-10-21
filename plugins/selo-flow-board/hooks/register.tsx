@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { SeloFlowBoard, SeloFlowBoardFeature, SeloFlowBoardFilter, SeloFlowBoardMarker, SeloFlowBoardPlan, SeloFlowBoardRun, SeloFlowBoardRunStatus, SeloFlowBoardStage, SeloFlowBoardStep } from '../types'
-import { activeStep, afterCommit, classifyTurn, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featureLabel, isOffWorkflow, OFF_WORKFLOW, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseSeloFlowCommand, runLastStep, runPlan, runStep, runTitle, setModels, SPEC_STATUS_LABEL, squashAction, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
+import { activeStep, afterCommit, classifyTurn, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featureLabel, isOffWorkflow, OFF_WORKFLOW, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseSeloFlowCommand, runLastStep, runPlan, runStep, runTitle, setModels, SPEC_STATUS_LABEL, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'selo-flow-board'
@@ -28,7 +28,6 @@ const board = atom({ plugin: 'selo-flow-board', key: 'board' } as const, null)
 const expanded = atom({ plugin: 'selo-flow-board', key: 'expanded' } as const, null)
 const isPaneOpen = atom({ plugin: 'selo-flow-board', key: 'isPaneOpen' } as const, false)
 const pickedPlans = atom({ plugin: 'selo-flow-board', key: 'pickedPlans' } as const, {})
-const reviewStage = atom({ plugin: 'selo-flow-board', key: 'reviewStage' } as const, false)
 const browserTest = atom({ plugin: 'selo-flow-board', key: 'browserTest' } as const, false)
 const stateFilters = atom({ plugin: 'selo-flow-board', key: 'stateFilters' } as const, [])
 const isConfigOpen = atom({ plugin: 'selo-flow-board', key: 'isConfigOpen' } as const, false)
@@ -240,7 +239,7 @@ async function endTurn($: EngineInterface, agentId: string | undefined): Promise
 }
 
 /**
- * The phase of a loop's latest run: at a turn's start, a done run that asked the person (a squash's commit
+ * The phase of a loop's latest run: at a turn's start, a done run that asked the person (a commit
  * question) is at work again; at its end, the phase is read from the turn's final text (`answer`).
  */
 async function markPhase($: EngineInterface, agentId: string | undefined, answer: string | null): Promise<void> {
@@ -267,7 +266,7 @@ async function touchRun($: EngineInterface, status: SeloFlowBoardRunStatus, agen
 }
 
 /**
- * Ticks the `Review` item of a plan's Validation, the final review marked done
+ * Ticks the `Review` item of a plan's Validation, the review marked done
  * without running it: the plan is finalized, the tick left uncommitted.
  */
 async function markReviewDone($: EngineInterface, root: string, folder: string): Promise<void> {
@@ -533,7 +532,7 @@ export const register: Register = on => {
     const ran = await next(e)
     const isCommit = /\bgit\b[^|&;\n]*\bcommit\b/.test(e.command)
     if (isCommit && ran.deny === undefined && ran.isError !== true) {
-      // Every selo-flow skill ends its job with its commit (spec, plan, stage, squash).
+      // Every selo-flow skill ends its job with its commit (spec, plan, stage, review).
       const before = await read($, board)
       await commitRun($, before, e.agentId, e.command)
       const after = await refresh($)
@@ -555,7 +554,6 @@ export const register: Register = on => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const isOpen = await read($, isPaneOpen)
     const picked = await read($, pickedPlans)
-    const reviewOn = await read($, reviewStage)
     const sessionId = await $.session.id()
     const mine = b.runs.filter(r => r.sessionId === sessionId)
     const main = mine.filter(r => r.agentId === undefined).at(-1)
@@ -569,7 +567,7 @@ export const register: Register = on => {
     // The run is over (its commit made): the band offers the plan's next step, so the pane need not be opened.
     // An autopilot that stopped offers its own resume, where the Progress is.
     const resume = run && isPilot(run) && run.status === 'interrupted' ? resumePrompt(run) : null
-    const after = resume !== null ? { label: "Reprendre l'autopilot", prompt: resume } : run && !isLive(run) && found ? nextAction(withPlan(found, picked[found.slug]), { review: reviewOn }) : null
+    const after = resume !== null ? { label: "Reprendre l'autopilot", prompt: resume } : run && !isLive(run) && found ? nextAction(withPlan(found, picked[found.slug])) : null
     const pill = (color: string, label: string) => (
       <Text color={color} backgroundColor={e.surface === 'terminal' ? undefined : PILL_BG[color]} weight="semibold">
         {` ${label} `}
@@ -616,12 +614,10 @@ export const register: Register = on => {
     const b = await read($, board)
     const open = await read($, expanded)
     const picked = await read($, pickedPlans)
-    const reviewOn = await read($, reviewStage)
     const browserOn = await read($, browserTest)
     const filtering = await read($, stateFilters)
     const isConfig = await read($, isConfigOpen)
     const history = await read($, openHistory)
-    const toggleReview = async () => void update($, reviewStage, ticked => !ticked)
     const toggleBrowser = async () => void update($, browserTest, ticked => !ticked)
     /** The header's button: the autopilot of a feature that does not exist yet, its request typed after the command. */
     const newFeature = async (press: UiPressArgument) => {
@@ -670,10 +666,6 @@ export const register: Register = on => {
     const live = liveRuns(b.runs)
     const noPlan = features.filter(f => f.plan === null).length
     const stagesLeft = features.reduce((n, f) => n + (f.plan?.stages.filter(s => !isStageDone(s)).length ?? 0), 0)
-    // `HEAD` is a detached head: no branch to squash.
-    const isBaseBranch = b.branch === b.baseBranch || b.branch === 'HEAD'
-    // The squash folds a finalized plan: a branch whose commits name a feature with a plan waits for it.
-    const squash = squashAction(b)
 
     const matches = (f: SeloFlowBoardFeature, filter: SeloFlowBoardFilter): boolean =>
       filter === 'no-plan' ? f.plan === null : f.state === filter
@@ -701,9 +693,7 @@ export const register: Register = on => {
       const runs = b.runs.filter(r => r.feature === feature.slug)
       const isNewPlan = plan === null && feature.plans.length > 0
       const pilot = featurePilot(feature.slug, b.runs)
-      const action = featureAction(feature, b.runs, { review: reviewOn, browser: browserOn })
-      // The review checkbox only means something on a stage prompt (`— stage N`, `— stages N-M`).
-      const isStageAction = action !== null && /^\/selo-flow:implement .* — stages? \d/.test(action.prompt)
+      const action = featureAction(feature, b.runs, { browser: browserOn })
       const isOpen = open === feature.slug
       const stagesDone = plan ? plan.stages.filter(isStageDone).length : 0
       const stagesTotal = plan ? plan.stages.length : 0
@@ -804,9 +794,6 @@ export const register: Register = on => {
                     <Button key={`mark-review:${feature.slug}`} label="Marquer comme fait" onPress={() => markReviewDone($, b.root, plan.folder)} />
                   )}
                   {plan && <Button key={`review:${feature.slug}`} label="Revue du plan" onPress={prepare(`/selo-flow:review plan ${plan.folder}`)} />}
-                  {isStageAction && (
-                    <Button key={`review-stage:${feature.slug}`} plain label={`${reviewOn ? '☑' : '☐'} Revue après le stage`} onPress={toggleReview} />
-                  )}
                   <Button key={`copy:${feature.slug}`} plain dimColor label="⧉ Copier" onPress={copy(action.prompt)} />
                 </Box>
                 {action.autopilot && (
@@ -913,7 +900,6 @@ export const register: Register = on => {
                 <Text weight="semibold" mono>
                   {b.branch}
                 </Text>
-                {b.aheadCount !== null && !isBaseBranch ? <Text>{'  '}{pill('inactive', `+${b.aheadCount} commit(s) depuis ${b.baseBranch}`)}</Text> : ''}
                 {'  '}
                 {b.changedCount > 0 ? pill('warning', `${b.changedCount} fichier(s) non commité(s)`) : <Text dimColor>rien à committer</Text>}
               </Text>
@@ -922,13 +908,6 @@ export const register: Register = on => {
           <Box gap={1} alignItems="center">
             <Button key="config" label={isConfig ? '← Features' : '⚙ Modèles'} onPress={() => update($, isConfigOpen, o => !o)} />
             <Button key="new-autopilot" label="⚡ Nouvelle feature" onPress={newFeature} />
-            {/* The squash skill checks the range, proposes the message and waits for a yes: the button only prepares it. */}
-            {squash?.isReady && <Button key="squash" label="Squasher" onPress={prepare(squash.prompt)} />}
-            {squash && !squash.isReady && (
-              <Text key="squash-later" size="caption" dimColor wrap="truncate-end">
-                squash une fois le plan finalisé
-              </Text>
-            )}
             <Button key="refresh" plain dimColor label="⟳" onPress={() => refreshQuietly($)} />
           </Box>
         </Box>

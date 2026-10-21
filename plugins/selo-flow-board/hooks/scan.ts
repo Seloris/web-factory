@@ -1,7 +1,7 @@
 /**
  * Builds the board from the project's files and its git branch. Reads only:
  * `.planning/features/*` and `selo-flow.yaml`'s `base_branch` and `models` through `$.fs`;
- * the branch, its commits since the base, the status and the log through git.
+ * the branch, the status and the log through git.
  */
 
 import type { EngineInterface } from 'claude-code'
@@ -14,8 +14,6 @@ const join = (...parts: string[]): string => parts.join('/')
 type Git = {
   branch: string | null
   baseBranch: string
-  /** The subjects of the branch's commits since it left the base branch; null when git cannot tell. */
-  branchSubjects: string[] | null
   /** Paths with an uncommitted change (modified, staged or untracked), the whole repository. */
   changedCount: number
   /** The git common dir, absolute, forward slashes: the same from every worktree of the repository. */
@@ -50,9 +48,6 @@ function readBaseBranch(manifest: string): string {
 async function readGit($: EngineInterface, root: string, manifest: string): Promise<Git> {
   const branch = (await git($, root, ['rev-parse', '--abbrev-ref', 'HEAD']))?.trim() || null
   const baseBranch = readBaseBranch(manifest)
-  // `base..HEAD` starts at the merge base: the branch's own commits. No local base branch: its remote one.
-  const range = (await git($, root, ['log', '--format=%s', `${baseBranch}..HEAD`])) ?? (await git($, root, ['log', '--format=%s', `origin/${baseBranch}..HEAD`]))
-  const branchSubjects = range === null ? null : range.split(/\r?\n/).filter(Boolean)
   const commonDir = (await git($, root, ['rev-parse', '--git-common-dir']))?.trim().split('\\').join('/') || null
   // Relative (`.git`) in a main checkout, absolute in a worktree.
   const repo = commonDir === null ? null : /^([A-Za-z]:)?\//.test(commonDir) ? commonDir : join(root.split('\\').join('/'), commonDir)
@@ -63,7 +58,8 @@ async function readGit($: EngineInterface, root: string, manifest: string): Prom
     if (!line.startsWith('?? ')) continue
     untracked.add(line.slice(3).trim().replace(/^"|"$/g, '').replace(/\\/g, '/'))
   }
-  const log = (await git($, root, ['log', '-n', '200', '--format=%h%x09%s'])) ?? ''
+  // shortcut: the last 2000 commits of the shared base branch; an older stage shows as not committed. Read by date if a project outgrows it.
+  const log = (await git($, root, ['log', '-n', '2000', '--format=%h%x09%s'])) ?? ''
   const shaBySubject = new Map<string, string>()
   for (const line of log.split(/\r?\n/)) {
     const tab = line.indexOf('\t')
@@ -71,7 +67,7 @@ async function readGit($: EngineInterface, root: string, manifest: string): Prom
     const subject = line.slice(tab + 1).trim()
     if (!shaBySubject.has(subject)) shaBySubject.set(subject, line.slice(0, tab))
   }
-  return { branch, baseBranch, branchSubjects, changedCount: lines.length, repo, untracked, shaBySubject }
+  return { branch, baseBranch, changedCount: lines.length, repo, untracked, shaBySubject }
 }
 
 /** Every plan of a feature, newest first: the folder names start with their timestamp. */
@@ -109,7 +105,7 @@ async function readPlans($: EngineInterface, featureDir: string, relFeatureDir: 
 
 /** Reads every feature under `{root}/.planning/features`, its plans, and git. */
 export async function scanBoard($: EngineInterface, root: string, now: number): Promise<SeloFlowBoard> {
-  const base: SeloFlowBoard = { root, repo: null, branch: null, baseBranch: 'main', aheadCount: null, branchFeature: null, changedCount: 0, models: readModels(''), features: [], runs: [], scannedAt: now, error: null }
+  const base: SeloFlowBoard = { root, repo: null, branch: null, baseBranch: 'main', changedCount: 0, models: readModels(''), features: [], runs: [], scannedAt: now, error: null }
   const featuresDir = join(root, '.planning', 'features')
   if (!(await $.fs.exists(featuresDir))) {
     return { ...base, error: 'Pas de dossier .planning/features dans ce projet.' }
@@ -142,11 +138,8 @@ export async function scanBoard($: EngineInterface, root: string, now: number): 
         state: featureState(spec !== null, plan),
       })
     }
-    const { branch, baseBranch, branchSubjects, changedCount, repo } = state
-    // The commit scope `{type}({slug}): …` names the feature; the newest commit naming one of the board's wins.
-    const scopes = (branchSubjects ?? []).map(subject => /^\w+\(([^)]+)\)!?:/.exec(subject)?.[1])
-    const branchFeature = scopes.find(scope => features.some(f => f.slug === scope)) ?? null
-    return { ...base, repo, branch, baseBranch, models: readModels(manifest), aheadCount: branchSubjects?.length ?? null, branchFeature, changedCount, features }
+    const { branch, baseBranch, changedCount, repo } = state
+    return { ...base, repo, branch, baseBranch, models: readModels(manifest), changedCount, features }
   } catch (error) {
     return { ...base, error: `Lecture impossible : ${error instanceof Error ? error.message : String(error)}` }
   }

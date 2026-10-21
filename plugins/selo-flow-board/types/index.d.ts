@@ -79,7 +79,7 @@ export type SeloFlowBoardRecap = { text: string | null; commits: { sha: string; 
 
 /**
  * The step of a feature's timeline a run works on: `spec`, `plan`,
- * `stage:{N}` or `review` (the final review).
+ * `stage:{N}` or `review` (the review of the whole plan).
  */
 export type SeloFlowBoardStep = string
 
@@ -134,12 +134,8 @@ export type SeloFlowBoard = {
   /** The repository's git common dir, absolute; null when git did not answer. */
   repo: string | null
   branch: string | null
-  /** The manifest's `base_branch` (`main` without one): the branch features are squashed into. */
+  /** The manifest's `base_branch` (`main` without one): where every session commits. */
   baseBranch: string
-  /** The branch's own commits since it left `baseBranch`; null when git cannot tell. */
-  aheadCount: number | null
-  /** The feature the branch's commits name (`{type}({slug}): …`), when it is one of `features`. */
-  branchFeature: string | null
   /** Uncommitted paths of the repository (modified, staged, untracked). */
   changedCount: number
   /** Every role's model (`planner`, `implementer`…), from `selo-flow.yaml`'s `models` on the `standard` preset. */
@@ -199,20 +195,17 @@ export type SeloFlowBoardExportFeature = {
  * fails to parse it reads it again at its next poll.
  */
 export type SeloFlowBoardExport = {
-  schemaVersion: 2
+  schemaVersion: 3
   scannedAt: number
   root: string
   repo: string | null
   branch: string | null
   baseBranch: string
-  aheadCount: number | null
   changedCount: number
   models: Record<string, string>
   error: string | null
-  /** What the pane's checkboxes add at the end of a prompt: `review` to a stage prompt, `browser` to an autopilot prompt. */
-  markers: { review: string; browser: string }
-  /** The branch line's `Squasher`; null when there is nothing to squash, `isReady` false until the branch's plan is finalized. */
-  squash: { prompt: string; isReady: boolean } | null
+  /** What the pane's checkbox adds at the end of an autopilot prompt. */
+  markers: { browser: string }
   /** The live sessions, newest first: a live autopilot stands for its subagents. */
   live: SeloFlowBoardRun[]
   /** The project at a glance: the session that most needs the person (a commit question, then any question, then a turn at work), else the latest; `idle` without any. */
@@ -239,8 +232,6 @@ declare module 'claude-code' {
       expanded: string | null
       /** The plan folder picked in each feature's card, by slug; a feature absent here shows its latest plan. */
       pickedPlans: Record<string, string>
-      /** The pane's review checkbox: when on, the stage prompts carry `— with review` and the reviewer runs after each stage. */
-      reviewStage: boolean
       /** The pane's browser-test checkbox: when on, the autopilot prompts carry `— with browser test`. */
       browserTest: boolean
       /** True while the pane is open, so the band's button says which way it toggles. */
