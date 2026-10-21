@@ -208,7 +208,7 @@ Eight skills stay eight, but the person types three in practice: `fastlane`, `bl
 ## 5. One plugin: removing the board
 
 - Delete `plugins/selo-flow-board/` and its entry in `.claude-plugin/marketplace.json`; the root `CLAUDE.md` loses its board lines and commands.
-- `workflow-rules.md`: drop "a second `-m`, never `-F`: the board reads the subject" (keep `-m` twice, it is still the simplest); drop "the board reads it, keep its shape" from the done footer.
+- `workflow-rules.md`: drop "a second `-m`, never `-F`: the board reads the subject" (keep `-m` twice, it is still the simplest); drop "the board reads it, keep its shape" from the done footer. The footer's `> ` recap line says what the whole job achieved, from its prompt to the footer, not only the last turn: a build stopped on a commit question and resumed on the yes spans several turns, and Selo Ops shows that line as the run's recap (`ops-export.md` §5.3).
 - `templates/CLAUDE.md`: the done footer stays, lighter: "The board and its companion apps read it: keep its shape" becomes "Selo Ops reads it". The recap-only footer of a free request answered without a commit stays.
 - `docs/manifest.md`, `skins/README.md`, `skills/init/SKILL.md`: their board mentions.
 - `IDEAS.md`: its "Specs of the day" idea stays there, out of 2.0; its `## board` scope heading is the person's to rename.

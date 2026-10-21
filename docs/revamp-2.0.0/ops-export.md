@@ -249,7 +249,7 @@ A prompt that answers the current run (its phase is `awaiting-commit` or `awaiti
 
 From `last_assistant_message`, in this order:
 
-1. Ends with the done footer (`## ✅ JOB DONE`, a `> ` line, zero or more commit lines) → `job-done`, `recap` filled. A free request answered without a commit ends with the footer and its recap line alone (proposal §3 Q4): it is `job-done` too, with no commits.
+1. Ends with the done footer (`## ✅ JOB DONE`, a `> ` line, zero or more commit lines) → `job-done`, `recap` filled. A free request answered without a commit ends with the footer and its recap line alone (proposal §3 Q4): it is `job-done` too, with no commits. The recap line covers the whole run, every turn since its prompt (a build resumed after a commit's yes included), not only the last turn: `recap.text` is the run's recap as written, never rebuilt from earlier turns.
 2. The last fenced code block is the last text and its first line matches `{type}({scope}): ` → `awaiting-commit`, `pendingCommit` = the block.
 3. A `wrap_up` call of this turn carried an `ask`, or the last non-empty line ends with `?` → `awaiting-answer`, `question` = the `ask`, else that line.
 4. Otherwise `turn-ended`: the turn ended without the footer, a rule the workflow broke, shown as such.
