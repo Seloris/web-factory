@@ -1,4 +1,4 @@
-# selo 2.0 — proposal (v4, 2026-10-22)
+# selo 2.0 — proposal (v5, 2026-10-22)
 
 Working document, meant to continue the reflection. Basis: a full read of selo-flow 1.0.0 (8 skills, 2 agents, `workflow-rules.md`, docs, templates), the `samples/todo-app` history (spec `home`, four plans), the 1.0.0 proposal in `docs/revamp-1.0.0/`, and four grill-me rounds with the person on 2026-10-21 (§3). Nothing in the plugin is changed yet.
 
@@ -160,6 +160,8 @@ The due-date plan of the sample rewritten this way is ≈ 35 lines instead of 17
 
 **Mockup.** An image given to `/selo:blueprint` is saved in `blueprints/assets/` and cited under a `## Mockup` section; the last stage's browser test (`/selo:try`) takes a screenshot of the page and compares it with the mockup in its report.
 
+**Decisions taken during the build.** `build` appends the decisions the blueprint left open under a `### Decided during build` heading at the end of Business decisions and of Technical defaults: the person tells at a glance what they approved and what the build chose. A decision that refines or contradicts an FR or a BR also adds its `~` line to the Spec delta (with the "before" text), so the merge carries it into the spec: otherwise the spec would contradict the code (prototype, 2026-10-22: a decision on `todo` BR-03 left out of the delta).
+
 **Lifecycle.** Committed with its delta, the page spec untouched. `/selo:build` runs the stages, ticks Progress, and on the last stage, after the review: applies the delta to the page and domain specs (through `spec-check`, which gives the final ids), ticks `Spec merged`, commits. A blueprint is never edited after `Spec merged`; a new iteration is a new blueprint.
 
 **`Spec:` lines during a build.** Stage commits carry `Spec: pending (.planning/blueprints/{file})`: their ids are not final yet, and a commit is never amended. Only the merge commit carries the final ids (`Spec: home +FR-18 ~FR-03 · todo +BR-06`). `spec-check` and the commit hook accept the `pending` form when the blueprint exists and is not merged.
@@ -218,7 +220,7 @@ The person runs each session in its own git worktree, on its own branch. The val
 - When does the spec delta merge? → **At the merge step, not at the last stage**, in this order:
   1. bring the branch up to date with `baseBranch` (the desktop app's `sync_with_base_branch`, else `git merge {baseBranch}`); a git conflict stops and asks;
   2. apply the blueprint's delta with `spec-check --merge` against the page specs as `baseBranch` has them now: final ids, semantic conflicts seen against the latest text; commit (`Spec: home +FR-18 …`), then re-run the full suites of the touched components;
-  3. show the landing: the branch, its commits, the Business decisions, the spec delta with its final ids, and the exact message of the one commit in a code block (subject `{type}({name}): {summary}`; body: the stages, the Business decisions, the final `Spec:` line); one yes;
+  3. show the landing: the branch, its commits, the decisions taken during the build first (§4.2), then the Business decisions, the spec delta with its final ids, and the exact message of the one commit in a code block (subject `{type}({name}): {summary}`; body: the stages, the Business decisions, the final `Spec:` line); one yes;
   4. on the yes, squash from the checkout that holds `baseBranch` (the base branch cannot be checked out in a worktree): `git -C {main checkout} merge --squash {branch}`, then `git -C {main checkout} commit --only -m "{subject}" -m "{body}" -- {files}`, `{files}` being `git diff --name-only {baseBranch}...{branch}`: `--only` leaves out what other sessions staged in the main checkout. A dirty file of the main checkout that the squash touches stops it before anything is written, and names the file.
   A fastlane has no delta to apply: steps 1, 3, 4.
 - And the done footer? → **It says where the work is.** Before the merge: `` `{short hash}` {subject} · branch `{branch}` · not merged ``. After: `` merged into `{baseBranch}` · not pushed ``.
@@ -245,13 +247,14 @@ Every project starts its components the same way, one by one or all at once, and
   `root` has the exact form of the ops export's `root` (absolute, forward slashes, drive letter upper case): Selo Ops joins a session to its run on it. A slot is claimed under a short lock (`{git-common-dir}/selo/slots.lock`, an atomic `mkdir`). `— stop` stops the processes and sets `stoppedAt`; the file stays, and `root` is what step 2 reads. A `pid` that is dead frees the slot.
 - What does a component receive? → **Its port and its peers' URLs, in the environment**: `PORT`, `SELO_SLOT`, and `{NAME}_URL` for each component it `needs` (`API_URL`). The stack pack reads them: `react-express` starts Vite with `--port $PORT --strictPort` and points its `/api` proxy at `API_URL`; the api already reads `PORT`. Local data stays per worktree (PGlite under the component's folder); a pack whose database is shared (a Docker container) says so.
 - What about the demo lock? → **Per slot**: `{git-common-dir}/selo/slots/{n}.demo.lock`. Two sessions on one worktree still wait for each other; two worktrees no longer do.
+- A front with no `demo`? → **The browser test runs on `serve`**, never skipped for that reason: `try` and the last stage of `build` start the component's `commands.serve` on the slot instead (1.0.0 marked `[-] not run (no demo)`, and the prototype's page went untested until a check by hand found a layout defect).
 - What does Selo Ops show? → **The run of each session's worktree**: ports and links, read from the slot files (`ops-export.md` §2). Nothing is copied into the export.
 
 ### 4.6 Agents and models
 
 - `runner` stays as it is.
-- `reviewer` changes its two plan checks, written for a step-level plan. Code review: the code against each FR of the blueprint's delta and its Business decisions, then conventions, correctness, tests as today. Blueprint review: gaps in the delta (an edge case, a missing FR, a rule that belongs to the domain sheet) and in the decisions; never file-level detail, which a blueprint no longer holds.
-- `build` records the detail decisions the plan used to fix (a route, a storage type, a component split) by appending them to the blueprint's Technical defaults, so the recap still holds them.
+- `reviewer` changes its two plan checks, written for a step-level plan. Code review: the code against each FR of the blueprint's delta and its Business decisions, each decision taken during the build against the delta (one that changes an FR or a BR without its `~` line is a finding), then conventions, correctness, tests as today. Blueprint review: gaps in the delta (an edge case, a missing FR, a rule that belongs to the domain sheet) and in the decisions; never file-level detail, which a blueprint no longer holds.
+- `build` records the detail decisions the plan used to fix (a route, a storage type, a component split) by appending them under `### Decided during build` (§4.2), so the recap still holds them. In the prototype they took the Technical defaults from 2 lines to 10.
 - `standard` preset becomes: planner opus, implementer **opus**, reviewer opus, runner haiku, explorer haiku. A `lean` preset keeps sonnet as implementer for the person who wants it, with a more detailed blueprint under autopilot only.
 
 ## 5. One plugin: removing the board
@@ -281,17 +284,18 @@ One reference, one cheatsheet:
 6. `(planned)` FRs of unfinished plans moved back into their blueprint's delta.
 7. The project's `CLAUDE.md` tagged blocks rewritten (`/selo:` prompts, the footer without the board).
 8. `url`, `serve_url`, `demo_url` of each component turned into `port` and `demo_port` (§4.8); the stack pack's dev and demo scripts read `PORT` and the `{NAME}_URL` of their peers.
+9. The commands a component's stack pack gives and the component lacks (the sample has no `demo` although `react-express` gives one) added, each named in the recap.
 
 Breaking for every project: version 2.0.0, with the rollback note of 1.0.0 (pin the previous version).
 
 ## 8. Open questions
 
-Q1–Q13 are settled (§3, rounds 3 and 5), and the two ideas of round 4 too. None is open; the next step is the prototype of §10.
+Q1–Q13 are settled (§3, rounds 3 and 5), and the two ideas of round 4 too. None is open. The prototype of §10 is done (2026-10-22); the next step is §10 step 2.
 
 ## 9. Risks
 
-- **Opus as implementer costs more per stage.** Offset: no 174-line plan to write and re-read; to measure on the sample (one blueprint, cost and time vs `add-due-date`).
-- **Short brief, more drift.** The implementer decides details the plan fixed. Mitigation: Business decisions stay in the blueprint; the reviewer checks the delta's FRs one by one; Technical defaults record the non-obvious choices.
+- **Opus as implementer costs more per stage.** Offset: no 174-line plan to write and re-read. Measured in the prototype: a two-component page (≈ 520 lines of code, 192 of tests) built and reviewed in 12 min for $5.30, opus throughout, with the advisor called once before the code; `add-due-date` was not measured, so the comparison stays open.
+- **Short brief, more drift.** The implementer decides details the plan fixed. Mitigation: Business decisions stay in the blueprint; the reviewer checks the delta's FRs one by one and the decisions taken during the build against the delta; `### Decided during build` records the non-obvious choices. Measured in the prototype: a 35-line blueprint (≈ 7 % of the code, against 54 % for a 1.0.0 plan), every FR built, no question; one decision changed a BR outside the delta (now caught, §4.2).
 - **Semantic conflict at merge.** A `~` or `-` in a delta whose "before" text changed during the build stops the merge and needs the person; frequent with 3–5 sessions on one page, rare otherwise.
 - **One page spec in two long-lived branches.** Two worktrees whose blueprints touch `pages/home.md` meet at the merge: the second one gets a git conflict on the spec, or a semantic conflict in `spec-check --merge`. Mitigation: the merge step brings the branch up to date first (§4.7); short branches.
 - **Delta merged at the end.** Between the blueprint and its merge, the page spec does not show the work in flight. Mitigation: `review home` lists the open blueprints of a page.
@@ -300,7 +304,7 @@ Q1–Q13 are settled (§3, rounds 3 and 5), and the two ideas of round 4 too. No
 
 ## 10. Order of work (proposal)
 
-1. Prototype on `samples/todo-app`: write `pages/home.md`, `domain/todo.md` and one blueprint by hand (the next feature), run it with 1.0.0's `implement` to check the brief is enough for opus.
+1. ~~Prototype on `samples/todo-app`: write `pages/home.md`, `domain/todo.md` and one blueprint by hand (the next feature), run it with 1.0.0's `implement` to check the brief is enough for opus.~~ Done 2026-10-22: the brief is enough. Results in `docs/revamp-2.0.0/proto/results.md` on branch `proto/blueprint-v2`, with the specs, the blueprint and the code it built; its findings are in §4.2, §4.6, §4.7, §4.8, §7 and §9.
 2. `blueprint` + `build` skills, `spec-check --merge`, the reference file rewritten.
 3. Rename to `selo`, `setup update` migration, board removal.
 4. `autopilot` on the new lanes, docs collapsed to two files.
