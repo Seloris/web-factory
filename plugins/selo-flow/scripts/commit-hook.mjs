@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // PreToolUse hook on Bash / PowerShell: a `git commit` in a selo-flow project gets warnings added to the
 // agent's context, never a refusal. It warns on `-a`, `git add -A` / `git add .`, `--amend`, a commit that
-// touches code without a `Spec:` line, and a spec of the commit whose ids do not check (spec-check).
+// touches code without a `Spec:` line, a spec of the commit whose ids do not check (spec-check), and a
+// `Spec: pending (…)` whose blueprint is missing or already merged.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -40,18 +41,44 @@ export function commitWarnings(command, files) {
   if (/\s(?:--all|-[A-Za-z]*a[A-Za-z]*)(?=\s|$)/.test(commitPart.split(/[;&|]/)[0])) warnings.push("`git commit -a` takes every tracked change, other sessions' included: name the files (`git commit --only -- {files}`).");
   if (/\bgit\s+add\s+(?:-A|--all|\.)(?=\s|$)/.test(b)) warnings.push("`git add -A` / `git add .` stages other sessions' files: add only the new files of this work.");
   if (/\s--amend\b/.test(commitPart)) warnings.push("`--amend` rewrites a commit another session may build on: make a new commit.");
-  if (files !== null && files.some(isCode) && !/\bSpec:\s*\S/.test(command)) warnings.push("This commit touches code and has no `Spec:` line in its body: add `Spec: {slug} +FR-NN ~FR-NN -FR-NN`, or `Spec: none ({reason})`, as a second `-m`.");
+  if (files !== null && files.some(isCode) && !/\bSpec:\s*\S/.test(command)) warnings.push("This commit touches code and has no `Spec:` line in its body: add `Spec: {slug} +FR-NN ~FR-NN · {slug} ~BR-NN`, `Spec: pending ({blueprint})` or `Spec: none ({reason})`, as a second `-m`.");
   return warnings;
 }
 
-// The spec files of the commit, each checked; a Spec: line's ids for that slug must exist.
+// The `Spec:` line of a commit, from the raw command: `pending` with its blueprint, `none`, or one id group per file (` · ` between).
+export const parseSpecLine = (command) => {
+  const line = /\bSpec:\s*([^"'\n]*)/.exec(command)?.[1]?.trim();
+  if (!line) return null;
+  const pending = /^pending\s*\(([^)]+)\)/.exec(line);
+  if (pending) return { pending: pending[1].trim(), groups: {} };
+  if (/^none\b/.test(line)) return { none: true, groups: {} };
+  const groups = {};
+  for (const part of line.split("·")) {
+    const [slug, ...rest] = part.trim().split(/\s+/);
+    if (slug) groups[slug] = idsIn(rest.join(" "));
+  }
+  return { groups };
+};
+
+// The slug of a spec file: a page (`home`, `web/home`), a domain sheet, a 1.0 area; null for any other file.
+export const specSlug = (file) => {
+  const f = file.replace(/\\/g, "/");
+  return /^\.planning\/pages\/(.+)\.md$/.exec(f)?.[1] ?? /^\.planning\/domain\/([^/]+)\.md$/.exec(f)?.[1] ?? /^\.planning\/features\/([^/]+)\/00_spec\.md$/.exec(f)?.[1] ?? null;
+};
+
+// The spec files of the commit, each checked against its group of the Spec: line; a pending blueprint must exist, not merged.
 export function specWarnings(root, command, files) {
   const warnings = [];
+  const spec = parseSpecLine(command);
+  if (spec?.pending) {
+    const bp = join(root, spec.pending);
+    if (!existsSync(bp)) warnings.push(`\`Spec: pending\` names ${spec.pending}, which does not exist: name the blueprint this stage builds.`);
+    else if (/^\s*-\s+\[x\]\s+Spec merged/im.test(readFileSync(bp, "utf8"))) warnings.push(`\`Spec: pending\` names ${spec.pending}, already merged: cite the final ids (\`Spec: {slug} +FR-NN\`).`);
+  }
   for (const file of files ?? []) {
-    const slug = /^\.planning\/features\/([^/]+)\/00_spec\.md$/.exec(file.replace(/\\/g, "/"))?.[1];
+    const slug = specSlug(file);
     if (!slug || !existsSync(join(root, file))) continue;
-    const line = new RegExp(`\\bSpec:\\s*${slug}\\b([^"'\\n]*)`).exec(command)?.[1] ?? "";
-    const r = checkSpec(readFileSync(join(root, file), "utf8"), idsIn(line));
+    const r = checkSpec(readFileSync(join(root, file), "utf8"), spec?.groups[slug] ?? []);
     const problems = [
       r.duplicates.length && `duplicate ids ${r.duplicates.join(", ")}`,
       r.retiredReused.length && `retired ids reused ${r.retiredReused.join(", ")}`,

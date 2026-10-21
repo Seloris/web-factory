@@ -5,7 +5,7 @@ description: "Test a front component in a browser on its demo: the demo of the c
 
 # Test in the browser
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project), then the manifest: the prompt may name the component (`/selo-flow:test-in-browser {component} …`); the component to test is the one named, else the only component with a `url`; ask when several have one. Read its `CLAUDE.md`: how it and its backend run locally (the "Local run" section, when the manifest has no `demo` or `serve` command), what the local database is and how to read it (a read-only query command, if any).
+Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (the project), then the manifest: the prompt may name the component (`/selo-flow:test-in-browser {component} …`); the component to test is the one named, else the only component with a `url`; ask when several have one. Read its `CLAUDE.md`: how it and its backend run locally (the "Local run" section, when the manifest has no `demo` or `serve` command), what the local database is and how to read it (a read-only query command, if any).
 
 ## Accounts
 
@@ -34,4 +34,4 @@ The component's `logins` file (default `.claude/local/test-logins.md`, git-ignor
 6. **Database check**, when the scenario says what a UI action saved and the component's `CLAUDE.md` gives a read-only query command for the database the run uses. Never write to the database.
 7. **Stop** every server this skill started, once the scenarios are done, pass or fail (the background command stopped, its port free again), then delete the lock. A dev server that already answered at step 2 is never stopped.
 8. **Report**: demo or dev servers, those started and stopped, the foreign uncommitted files a demo served, then per scenario: passed / failed, what was seen, the screenshot, the console errors if any. A failure gets the likely cause from the code when it is clear, as uncertain otherwise. Do not fix anything in this skill: the calling skill (`implement`) does, or the next prompt is `/selo-flow:implement fix {failure}`.
-9. When called from `implement` and every scenario passed, tell it so it ticks `Browser test` in the plan's Validation.
+9. When called from `build` or `implement` and every scenario passed, tell it so it ticks `Browser test` (the blueprint's Progress, the plan's Validation). Called from `build` on a blueprint with a `## Mockup`: take a screenshot of the page and say how it differs from the mockup.

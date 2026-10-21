@@ -7,7 +7,7 @@ description: "Write the spec of an area of the application (.planning/features/{
 
 A spec says how one **area** of the application (a screen, a route, a domain) behaves today, for whom, and which rules it enforces: present tense, readable in five minutes. Never how: when endpoints, tables, components, contracts or migrations come up, lock the business name, say it belongs to the plan, move on. No history, no decisions, no `Status`, no `Updated`: git holds them.
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first; its **The spec follows the code** says when a spec changes, and the `Spec:` line. `write-plan` and `implement` call this skill instead of editing a spec.
+Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first; its **The spec follows the code** says when a spec changes, and the `Spec:` line. `write-plan` and `implement` call this skill instead of editing a spec.
 
 `/selo-flow:write-spec {request or slug}`, optionally ending with ` — rewrite` or ` — autonomous`.
 

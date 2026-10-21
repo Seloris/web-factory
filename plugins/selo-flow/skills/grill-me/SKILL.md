@@ -1,13 +1,13 @@
 ---
 name: grill-me
-description: "Grill the person on a spec, a dev-plan, a request or a project setup: at most two rounds of the session's question tool, the recommended answer first, the rest left as open questions, then hand the decisions to write-spec, write-plan, implement or init. Writes nothing itself. Run it on /grill-me, when write-spec starts a new area (unless the request already carries its decisions), or when the person accepts the offer: write-plan, init and any agent facing an ambiguous request offer it, never start it on their own. With — autonomous (under autopilot), every question takes its recommended answer, and one with no recommendation stops the pipeline."
+description: "Grill the person on a spec, a dev-plan, a request or a project setup: at most two rounds of the session's question tool, the recommended answer first, the rest left as open questions, then hand the decisions to blueprint, write-spec, write-plan, implement or init. Writes nothing itself. Run it on /grill-me, when write-spec starts a new area (unless the request already carries its decisions), or when the person accepts the offer: write-plan, init and any agent facing an ambiguous request offer it, never start it on their own. With — autonomous (under autopilot), every question takes its recommended answer, and one with no recommendation stops the pipeline."
 ---
 
 # Grill me
 
 Interview the person until the spec, plan, request or setup has no open decision left. Find the edge cases now, not during the plan or the code. Inspired by Matt Pocock's `grill-me` / `grilling` skills (MIT).
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, manifest, language, subagents).
+Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (the project, manifest, language, subagents).
 
 Run on `/selo-flow:grill-me`, from `write-spec` on a new area (it runs it unless the request already carries its decisions: ids cited, rules stated one by one), or after the person said yes to the offer. Elsewhere, offering it is cheap; running it costs several rounds, so never start it unasked.
 
@@ -34,6 +34,7 @@ Run on `/selo-flow:grill-me`, from `write-spec` on a new area (it runs it unless
 
 Write nothing, commit nothing. End with a summary in chat:
 
+- **Blueprint target** (run by `blueprint`): each decision mapped to a Spec delta line (`{slug} + FR-NN`, `~`, `+ BR-NN`, a glossary entry of a domain sheet), a Business decision or a Technical default; what stays open as `Q-NN`. Then continue with `blueprint`, which writes them (no second confirmation for the person's answers).
 - **Spec target:** each decision mapped to `+ US-NN`, `+ FR-NN` / `~ FR-NN`, `+ BR-NN` or a glossary entry; questions left open as `Q-NN`; parked technical questions for the plan. Then continue with `write-spec`, which writes them (the person's answers count as their request: no second confirmation for them).
 - **Plan target:** the decisions for the plan's Business decisions and Technical defaults, and the steps they change. Then continue with `write-plan`.
 - **Request target:** the agreed decisions, then resume the calling skill.

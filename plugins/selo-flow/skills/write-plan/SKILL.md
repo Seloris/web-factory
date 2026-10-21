@@ -7,7 +7,7 @@ description: "Write a dev-plan under .planning/features/{slug}/dev-plans/: one p
 
 A plan precise enough to implement without guessing. This skill writes `plan.md` and images under `.planning/`, never source code. It never edits `00_spec.md` either: every spec change goes through the `write-spec` skill.
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, manifest, subagents, language, commits, next prompts), then the project's `.claude/rules/planning.md`: it defines the folder layout, the `plan.md` structure and naming. Ask rather than assume when a requirement is ambiguous.
+Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (the project, manifest, subagents, language, commits, next prompts), then the project's `.claude/rules/planning.md`: it defines the folder layout, the `plan.md` structure and naming. Ask rather than assume when a requirement is ambiguous.
 
 The prompt names the feature: `/selo-flow:write-plan {slug}` (or `/selo-flow:write-plan {slug}: {request}`). The plan lives under `.planning/features/{slug}/dev-plans/`.
 

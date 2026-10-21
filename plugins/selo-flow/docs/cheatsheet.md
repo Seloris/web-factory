@@ -11,7 +11,8 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | Give a front a skin, or switch it | `/selo-flow:init skin {component} {skin}`, then a plan to apply it to existing screens |
 | Ask a question | Just ask. No skill. |
 | Change something, fix a bug (the fastlane) | `/selo-flow:implement {request}` |
-| Specify then develop a feature (the feature lane) | `/selo-flow:write-spec {request}`, then `/selo-flow:write-plan {slug}` |
+| A new page, entity or rule, several pages (the blueprint lane) | `/selo-flow:blueprint {request}`, then `/selo-flow:build {blueprint}` |
+| Specify then develop a feature (1.0 layout, the feature lane) | `/selo-flow:write-spec {request}`, then `/selo-flow:write-plan {slug}` |
 | Implement an existing plan | `/selo-flow:implement {plan folder}` |
 | Let it choose the lane and do everything, no click | `/selo-flow:autopilot {request}` (or `{slug}`, or `{plan folder}` to resume); ` — fastlane`, ` — with plan`, ` — until spec`, ` — until plan`, ` — without browser test` |
 | Review recent work | `/selo-flow:review` (or a range, files) |
@@ -29,7 +30,14 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 
 The area's code is read, then each component touched: tests first, build + full test + lint, the spec delta. On the last one: the review of the whole work, the full suites, the browser test on the demo. Then one commit per component, each with its `Spec:` line. A change that creates a business rule or an entity stops and asks for the feature lane.
 
-## Feature lane
+## Blueprint lane
+
+1. `/selo-flow:blueprint {request}` → `.planning/blueprints/{date}-{name}.md` (a short grill, then one screen: the spec delta, decisions, stages, tests)
+2. Read the delta and the stage subjects, say **yes**: one commit
+3. `/selo-flow:build {blueprint}`: every stage chained, one commit each (`Spec: pending (…)`), the review, the full suites, the browser test (demo, else the dev server), then the delta merged into `.planning/pages/` and `.planning/domain/` (`docs({name}): spec merged`). ` — stage N` runs one stage.
+4. In a worktree (a branch other than the base branch): the build ends with the landing, one squashed commit on the base branch on your yes.
+
+## Feature lane (1.0 layout)
 
 1. `/selo-flow:write-spec {request}` → `.planning/features/{slug}/00_spec.md` (a short grill, new FRs `(planned)`)
 2. `/selo-flow:write-plan {slug}` → `.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/plan.md`

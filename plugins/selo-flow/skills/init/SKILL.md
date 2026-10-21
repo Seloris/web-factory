@@ -7,7 +7,7 @@ description: "Set up the current repository as a selo-flow project: interview th
 
 Turns the repository the session opened into a project the selo-flow workflow can run on. It writes instructions and, for a component whose stack pack ships a code skeleton, copies that skeleton into its empty folder so the first stage starts on green commands; it writes no application code of its own.
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, language, hard rules, commits). Talk to the person in their language from the first message (ask in the language they used).
+Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (the project, language, hard rules, commits). Talk to the person in their language from the first message (ask in the language they used).
 
 ## Modes
 

@@ -6,9 +6,11 @@ The workflow plugin: everything useful to two projects or more. Stack-agnostic: 
 .claude-plugin/plugin.json
 skills/
   init/                 set up the project: interview + templates (selo-flow.yaml, CLAUDE.md files, .planning/)
-  write-spec/           the only writer of 00_spec.md
-  write-plan/           plan.md, one section per component touched
-  implement/            stages, verification, commit; the last stage reviews the whole work
+  write-spec/           1.0 layout: the only writer of 00_spec.md
+  write-plan/           1.0 layout: plan.md, one section per component touched
+  blueprint/            one screen: the page and domain spec delta, decisions, stages, tests; one yes, one commit
+  build/                a blueprint's stages chained, review, browser test, the delta merged (or the worktree's landing)
+  implement/            the fastlane (and 1.0 plans): stages, verification, commit; the last stage reviews the whole work
   autopilot/            no question: reads the code, picks the fastlane or the feature lane (spec → plan → stages), one fresh subagent per step
   grill-me/             the interview that settles decisions
   review/               runs the reviewer agent and relays its findings; review {plan} records it
@@ -19,12 +21,12 @@ agents/
 scripts/
   manifest.mjs          the single manifest parser (library + CLI)
   timestamp.mjs         dev-plan folder timestamp
-  spec-check.mjs        an area spec's ids checked, the next free ones
+  spec-check.mjs        a spec's ids checked, the next free ones; --merge reads a blueprint's delta against the specs
   commit-hook.mjs       the PreToolUse hook on git commit: warns, never blocks
 hooks/hooks.json        the commit hook
-reference/              workflow-rules.md (read first by every skill), caveman.md (agent-to-agent voice), ui-design.md (the design rules of every front)
+reference/              rules.md (read first by every skill), caveman.md (agent-to-agent voice), ui-design.md (the design rules of every front)
 skins/                  the looks of a front: the token contract, recipes.css, one folder per skin (tokens.css, SKIN.md)
-templates/              what init writes into a project
+templates/              what init writes into a project; planning/ holds the page, domain and blueprint templates
 stacks/                 stack packs (component templates + skills), read in place
 examples/two-components/   the test project the tests run against (echo commands)
 docs/                   workflow.md, flow.md (diagram), manifest.md, cheatsheet.md

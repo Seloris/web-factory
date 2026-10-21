@@ -7,7 +7,7 @@ description: "Take a free request, an area slug or a plan folder to finished wor
 
 The session is the orchestrator: it runs the steps one after another, each as a fresh subagent, and reads only their reports. It never reads or writes the project's code, never asks the person, and stops only on a real blocker.
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first, then the manifest: `models` (one per role), `stages`, `baseBranch`, each component's `url` and `commands.demo`.
+Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first, then the manifest: `models` (one per role), `stages`, `baseBranch`, each component's `url` and `commands.demo`.
 
 ## Input
 

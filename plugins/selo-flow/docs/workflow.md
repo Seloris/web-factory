@@ -2,7 +2,7 @@
 
 `flow.md` draws the whole path in one diagram; `cheatsheet.md` lists the commands.
 
-Four phases, each a skill, chained as needed and usable in any session opened at a project's root with the plugin loaded (see `reference/workflow-rules.md`). The session runs them: a spec, a plan or an implementation asks the person when the answer changes the result, which a subagent cannot; `autopilot` is the one exception, chaining them in autonomous mode (below). Two agents serve them: `reviewer` (every review, always a subagent: it has no stake in the code) and `runner` (the commands whose output would flood the session).
+Four phases, each a skill, chained as needed and usable in any session opened at a project's root with the plugin loaded (see `reference/rules.md`). The session runs them: a spec, a plan or an implementation asks the person when the answer changes the result, which a subagent cannot; `autopilot` is the one exception, chaining them in autonomous mode (below). Two agents serve them: `reviewer` (every review, always a subagent: it has no stake in the code) and `runner` (the commands whose output would flood the session).
 
 | Phase | Skill | Output |
 |---|---|---|
@@ -21,6 +21,15 @@ Everything is committed on the manifest's `base_branch`: no feature branch, no s
 - **Feature lane, "we specify and we develop":** `write-spec` (a short grill, new FRs marked `(planned)`), `write-plan` (*Business decisions* first, *Technical defaults* below), then the stages, one commit each, each removing `(planned)` from the FRs it builds; the last stage reviews the whole plan once and runs the full suites and the demo browser test.
 
 Both end the same way: the review, the full suites of the touched components, the browser test on the demo, the commit(s).
+
+## Blueprint lane (2.0 layout)
+
+A project whose specs are `.planning/pages/{page}.md` (one per route) and `.planning/domain/{sheet}.md` (the rules shared by several pages) works with blueprints instead of a spec step and a plan step; `reference/rules.md` holds every rule.
+
+- `/selo-flow:blueprint {request}`: a short grill, then one screen in `.planning/blueprints/{date}-{name}.md`: the spec delta (`- home + FR-18 — …`, `- todo ~ BR-03 — « before » → « after »`), the Business decisions, the Technical defaults, the stages with their commit subjects, the tests, the Progress. One yes, one commit; the specs are untouched.
+- `/selo-flow:build {blueprint}`: every stage chained in one session (` — stage N` for one), each one commit carrying `Spec: pending ({blueprint})`; the decisions the build takes go under `### Decided during build`, with a `~` delta line when they change an FR or a BR. Then one review (the delta's FRs one by one, the decisions), the full suites, the browser test (on the demo, else on the dev server), and the delta merged: `spec-check --merge` gives the final ids and stops on a "before" text that changed meanwhile; one `docs({name}): spec merged` commit with the final `Spec:` line.
+- **Worktree variant.** On a branch other than the base branch, commits go on that branch; the work lands on the base branch as one squashed commit, after a sync and the delta merge, on the person's yes (`rules.md`, **Where commits go**).
+- The commit hook accepts `Spec: pending (…)` while the blueprint exists and is not merged, and checks each file of a `Spec: home +FR-18 · todo ~BR-03` line.
 
 ## Autopilot
 
