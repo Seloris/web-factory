@@ -1,4 +1,4 @@
-# selo 2.0 — proposal (v1, 2026-10-21)
+# selo 2.0 — proposal (v2, 2026-10-21)
 
 Working document, meant to continue the reflection. Basis: a full read of selo-flow 1.0.0 (8 skills, 2 agents, `workflow-rules.md`, docs, templates), the `samples/todo-app` history (spec `home`, four plans), the 1.0.0 proposal in `docs/revamp-1.0.0/`, and two grill-me rounds with the person on 2026-10-21 (§3). Nothing in the plugin is changed yet.
 
@@ -63,6 +63,18 @@ Round 2:
 - Spec ↔ code traceability? → **Keep ids + the `Spec:` line**, `spec-check` and the hook; drop only what served the board.
 - With a short brief, which model codes? → **Opus implements** (`standard` preset: implementer = opus). It takes the detail decisions the plan used to spell out.
 
+Round 3 (the open questions Q1–Q9 of v1):
+
+- Q1, page slug? → **A business name** chosen at creation (`todo-detail`); the route is a header line of the spec (`Route: /todos/:id`). A renamed route changes one line, not a file.
+- Q2, a page in two fronts? → **A folder per front only from two fronts on**: `pages/home.md` with one front, `pages/{component}/home.md` with two or more.
+- Q3, a map of the pages? → **None.** The `pages/` folder is enough.
+- Q4, the done footer without the board? → **Kept, lighter**: the "keep its shape for the board" rule and the recap-only footer of a free request without a commit go.
+- Q5, a spec-only edit? → **No dedicated skill.** A free request does it; the project's `CLAUDE.md` carries the spec rules.
+- Q6, a mockup as input? → **Input and check**: an image given to `blueprint` is saved in `blueprints/assets/` and cited; `/selo:try` takes a screenshot and compares it with the mockup in its report.
+- Q7, marketplace name? → **Renamed `selo`**: `selo@selo`, one name everywhere.
+- Q8, "Specs of the day"? → **Left in `IDEAS.md`**, out of 2.0.
+- Q9, commit scope? → **A blueprint's commits use the blueprint's name** (`feat(due-date): api — …`); the per-page recap comes from the `Spec:` lines. **A fastlane commit uses the page it touches** (`fix(home): …`), the domain when no page (`fix(todo): …`), `app` for the shell.
+
 ## 4. The model
 
 ### 4.1 Pages and domains
@@ -81,7 +93,8 @@ Round 2:
   technical-debt.md
 ```
 
-- **A page spec** = one route of a front. Its slug is the route's name (`home`, `todo-detail`, `settings-billing`). FRs grouped by zone of the page, in the order the person meets them.
+- **A page spec** = one route of a front. Its slug is a business name chosen at creation (`home`, `todo-detail`, `settings-billing`); its header carries the route (`Route: /todos/:id`). FRs grouped by zone of the page, in the order the person meets them.
+- **Several fronts**: from the second front on, pages go under `pages/{component}/`; a single-front project stays flat.
 - **A domain sheet** = what is true whatever the page: the entity's glossary, its BRs, its lifecycle. A page spec cites `BR` ids of a domain sheet, never restates them.
 - **No page** (an API-only rule, a job, an email): a domain sheet holds the FR.
 - **`app`** is the one reserved page-less sheet for the shell: layout, navigation, sign-in, errors, i18n.
@@ -111,8 +124,8 @@ Pages: `home` · Domain: `todo` · Components: `api`, `web`
 - Route for FR-15 → `PATCH /v1/todos/{id}/due-date`, twin of the pin route.
 
 ## Stages
-1. api — `feat(home): api — optional due date on a todo`
-2. web — `feat(home): web — due dates and late todos in the list`
+1. api — `feat(due-date): api — optional due date on a todo`
+2. web — `feat(due-date): web — due dates and late todos in the list`
 
 ## Tests
 - api: create with/without a date, invalid day 400, PATCH set/clear, 404.
@@ -126,6 +139,8 @@ Pages: `home` · Domain: `todo` · Components: `api`, `web`
 ```
 
 The due-date plan of the sample rewritten this way is ≈ 35 lines instead of 174. What disappears is file-level detail, which the implementer reads from the code it is about to change.
+
+**Mockup.** An image given to `/selo:blueprint` is saved in `blueprints/assets/` and cited under a `## Mockup` section; the last stage's browser test (`/selo:try`) takes a screenshot of the page and compares it with the mockup in its report.
 
 **Lifecycle.** Committed with its delta, the page spec untouched. `/selo:build` runs the stages, ticks Progress, and on the last stage, after the review: applies the delta to the page and domain specs (through `spec-check`, which gives the final ids), ticks `Spec merged`, commits. A blueprint is never edited after `Spec merged`; a new iteration is a new blueprint.
 
@@ -156,10 +171,9 @@ A Fastlane that meets a new entity or BR stops before its commit and proposes `/
 | `/selo:autopilot {…}` | same | options: `— fastlane`, `— blueprint`, `— until blueprint`, `— no browser` |
 | `/selo:review [scope]` | same | scopes: nothing, a range, a blueprint, a page (`review home`: spec vs code) |
 | `/selo:grill {…}` | `/selo-flow:grill-me` | |
-| `/selo:try {component}` | `/selo-flow:test-in-browser` | |
-| `/selo:spec {page} {change}` | `write-spec` update mode | a spec-only edit (a wording, a found gap); rare |
+| `/selo:try {component}` | `/selo-flow:test-in-browser` | compares with the blueprint's mockup when there is one |
 
-Eight skills become nine short ones, but the person types three in practice: `fastlane`, `blueprint`, `autopilot`.
+Eight skills stay eight, but the person types three in practice: `fastlane`, `blueprint`, `autopilot`. A spec-only edit (a wording, a found gap) is a free request: the project's `CLAUDE.md` carries the spec rules.
 
 ### 4.5 Agents and models
 
@@ -172,10 +186,10 @@ Eight skills become nine short ones, but the person types three in practice: `fa
 
 - Delete `plugins/selo-flow-board/` and its entry in `.claude-plugin/marketplace.json`; the root `CLAUDE.md` loses its board lines and commands.
 - `workflow-rules.md`: drop "a second `-m`, never `-F`: the board reads the subject" (keep `-m` twice, it is still the simplest); drop "the board reads it, keep its shape" from the done footer.
-- `templates/CLAUDE.md`: drop "The board and its companion apps read it: keep its shape". Open: keep the done footer at all? It still helps the person scan 3–5 sessions (see §8).
+- `templates/CLAUDE.md`: the done footer stays, lighter: drop "The board and its companion apps read it: keep its shape" and the recap-only footer of a free request answered without a commit.
 - `docs/manifest.md`, `skins/README.md`, `skills/init/SKILL.md`: their board mentions.
-- `IDEAS.md`: its `## board` idea ("Specs of the day") loses its home; the person decides its fate (a `/selo:today` command reading the day's `Spec:` lines is one option).
-- Rename: plugin `selo-flow` → `selo`, marketplace kept or renamed, manifest `selo-flow.yaml` → `selo.yaml` (`setup update` renames it, as `init update` renamed `factory.yaml`).
+- `IDEAS.md`: its "Specs of the day" idea stays there, out of 2.0; its `## board` scope heading is the person's to rename.
+- Rename: plugin `selo-flow` → `selo`, marketplace `selo-flow` → `selo` (install `selo@selo`), manifest `selo-flow.yaml` → `selo.yaml` (`setup update` renames it and rewrites the project's `extraKnownMarketplaces` and `enabledPlugins`, as `init update` renamed `factory.yaml`).
 
 ## 6. Docs
 
@@ -197,24 +211,16 @@ One reference, one cheatsheet:
 
 Breaking for every project: version 2.0.0, with the rollback note of 1.0.0 (pin the previous version).
 
-## 8. Open questions for the next round
+## 8. Open questions
 
-- **Q1 — Page slug vs route.** Slug from the route path (`/todos/:id` → `todo-detail`) or a free business name? A route renamed later would leave a stale slug.
-- **Q2 — A page in two fronts.** A back-office and a public front both with a "home": `pages/{component}/home.md` or a prefix?
-- **Q3 — Blueprint for a new page with no front yet.** The blueprint creates the page spec at merge; should the person see a page "map" (list of pages and their status) somewhere? A generated `.planning/pages/README.md`?
-- **Q4 — Done footer.** Keep it without the board (it still marks "finished" across parallel sessions) or drop it with the board?
-- **Q5 — `/selo:spec`.** Needed as its own skill, or a `— spec only` option of fastlane?
-- **Q6 — Visual input.** A web feature is often a mockup first. Should `blueprint` take an image and store it in `blueprints/assets/` as the first input, and `try` compare the result against it?
-- **Q7 — Marketplace name.** Keep `selo-flow` as the marketplace (install `selo@selo-flow`) or rename to `selo` too?
-- **Q8 — The "Specs of the day" idea.** Now that the board goes: a command (`/selo:today`), the done footer, or dropped?
-- **Q9 — Commit scope of a multi-page blueprint.** `feat(home): …` names one page; a blueprint touching `home` and `todo-detail` takes its main page, the domain (`feat(todo): …`), or the blueprint's name?
+Q1–Q9 of v1 are settled (§3, round 3). None is open; the next step is the prototype of §10.
 
 ## 9. Risks
 
 - **Opus as implementer costs more per stage.** Offset: no 174-line plan to write and re-read; to measure on the sample (one blueprint, cost and time vs `add-due-date`).
 - **Short brief, more drift.** The implementer decides details the plan fixed. Mitigation: Business decisions stay in the blueprint; the reviewer checks the delta's FRs one by one; Technical defaults record the non-obvious choices.
 - **Semantic conflict at merge.** A `~` or `-` in a delta whose "before" text changed during the build stops the merge and needs the person; frequent with 3–5 sessions on one page, rare otherwise.
-- **Delta merged at the end.** Between the blueprint and its merge, the page spec does not show the work in flight. Mitigation: `review home` and the future page map list the open blueprints of a page.
+- **Delta merged at the end.** Between the blueprint and its merge, the page spec does not show the work in flight. Mitigation: `review home` lists the open blueprints of a page.
 - **Migration of real projects.** Splitting areas into pages and domains changes ids' files: the `Spec:` lines of old commits keep the old slugs. Acceptable: git history is read rarely, and the area-to-file map is recorded once in the migration commit.
 
 ## 10. Order of work (proposal)
