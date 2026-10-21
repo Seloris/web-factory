@@ -292,6 +292,12 @@ Breaking for every project: version 2.0.0, with the rollback note of 1.0.0 (pin 
 
 Q1–Q13 are settled (§3, rounds 3 and 5), and the two ideas of round 4 too. None is open. The prototype of §10 is done (2026-10-22); the next step is §10 step 2.
 
+Round 6 (2026-10-22, before the implementation):
+
+- Where does the ops export go? → **Step 7 of §10, after `run.mjs`.** Only the footer's recap line (§5) comes with step 2.
+- The `proto/blueprint-v2` branch? → **Kept apart, not merged.** On `feat/revamp` the sample stays in 1.0.0 shape: it is the real case for `setup update` (step 3), and the branch holds the expected result (`pages/home.md`, `domain/todo.md`).
+- Versioning during the revamp? → **One bump to 2.0.0**, with its `CHANGELOG.md` entry, in one commit before the branch is merged, as for 1.0.0. No intermediate version on the branch; no project installs it before.
+
 ## 9. Risks
 
 - **Opus as implementer costs more per stage.** Offset: no 174-line plan to write and re-read. Measured in the prototype: a two-component page (≈ 520 lines of code, 192 of tests) built and reviewed in 12 min for $5.30, opus throughout, with the advisor called once before the code; `add-due-date` was not measured, so the comparison stays open.
@@ -310,3 +316,5 @@ Q1–Q13 are settled (§3, rounds 3 and 5), and the two ideas of round 4 too. No
 4. `autopilot` on the new lanes, docs collapsed to two files.
 5. Setup on an existing repository (§4.4): the packs' `## Routes` section, `setup specs`, the first-touch bootstrap in `fastlane` and `blueprint`.
 6. `run.mjs` and its tests (slot choice, stale pid, ports taken), `/selo:run`, the manifest's ports, the `react-express` pack reading `PORT` and `API_URL`, `try` on the slot, the `selo-run.mjs` launcher written by `setup` and the pack's `npm run app` (§4.8).
+7. The ops export (`ops-export.md`): the hooks and the JSON for Selo Ops.
+8. Version 2.0.0 and its `CHANGELOG.md` entry, one commit, then the branch merged (§8, round 6).
