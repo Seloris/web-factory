@@ -1,3 +1,4 @@
+<!-- selo-flow:begin contributing -->
 # Development process
 
 1. Work on `{{base_branch}}`: no feature branch. Spec, plan, stages and fixes are each one commit, naming its files (`git commit --only -- {files}`), never `-a`, `git add -A`, `git add .` or `--amend`.
@@ -42,3 +43,4 @@ fix(auth): token refresh on 401
 docs(orders): plan add-cutoff-time
 tools(tooling): selo-flow init
 ```
+<!-- selo-flow:end contributing -->

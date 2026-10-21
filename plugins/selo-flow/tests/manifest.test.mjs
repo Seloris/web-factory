@@ -72,6 +72,7 @@ test("readManifest: the example project", () => {
   const m = readManifest(join(example, "web"));
   assert.equal(m.root, example);
   assert.equal(m.name, "two-components");
+  assert.equal(m.seloFlow, "1.0.0");
   assert.equal(m.baseBranch, "main");
   assert.deepEqual(m.language, { chat: "fr", repo: "en" });
   assert.equal(m.models.preset, "standard");
@@ -132,6 +133,7 @@ test("findRoot: the project's selo-flow.yaml from any folder under it, never pas
     assert.equal(findRoot(join(nested, "src")), nested, "the nested project's own manifest wins");
     writeFileSync(join(nested, "CLAUDE.md"), "```factory\nname: legacy\n```\n");
     assert.equal(readManifest(nested).name, "inner", "a ```factory block in CLAUDE.md is no longer a manifest");
+    assert.equal(readManifest(nested).seloFlow, null, "no selo-flow key: a project from before 1.0.0");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

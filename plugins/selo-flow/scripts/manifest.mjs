@@ -251,6 +251,8 @@ export const readManifest = (dir = process.cwd()) => {
   return {
     root,
     name: String(spec.name),
+    // The plugin version that wrote or last updated the project (`init`, `init update`); null before 1.0.0.
+    seloFlow: spec["selo-flow"] == null ? null : String(spec["selo-flow"]),
     baseBranch: spec.base_branch ? String(spec.base_branch) : "main",
     language: { chat: spec.language?.chat ?? "en", repo: spec.language?.repo ?? "en" },
     models: resolveModels(spec.models),

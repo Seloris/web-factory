@@ -60,10 +60,10 @@ Commit: `refactor(selo-flow): one review, no branches, no squash, no retro`
 
 ### Stage 3 — `init update`
 Commit: `feat(selo-flow): init update brings a project up to date`
-- [ ] `init` writes the plugin-owned parts of mixed files between `<!-- selo-flow:begin {id} -->` and `<!-- selo-flow:end {id} -->`
-- [ ] `init update`: rewrites tagged blocks, overwrites plugin-owned files, adds missing keys (manifest, component blocks, `.claude/settings.json`, `.gitignore`), never touches project content; first pass on an untagged project rewrites from the template and lets the person read the `git diff`
-- [ ] `init update` renames `factory.yaml` to `selo-flow.yaml` and writes `selo-flow: {version}`
-- [ ] The "skill to update an existing project" idea leaves `IDEAS.md`
+- [x] `init` writes the plugin-owned parts of mixed files between `<!-- selo-flow:begin {id} -->` and `<!-- selo-flow:end {id} -->`
+- [x] `init update`: rewrites tagged blocks, overwrites plugin-owned files, adds missing keys (manifest, component blocks, `.claude/settings.json`, `.gitignore`), never touches project content; first pass on an untagged project rewrites from the template and lets the person read the `git diff`
+- [x] `init update` renames `factory.yaml` to `selo-flow.yaml` and writes `selo-flow: {version}`
+- [x] The "skill to update an existing project" idea leaves `IDEAS.md`
 
 ### Stage 4 — living specs and fastlane (ex-0.10.0)
 Commit: `feat(selo-flow): areas, Spec lines and the fastlane`
@@ -107,7 +107,7 @@ Commit: `fix(selo-flow): review — {summary}` (only when the review leads to fi
 - [x] Stage 0 — docs
 - [x] Stage 1 — rename
 - [x] Stage 2 — cleanup and shared develop
-- [ ] Stage 3 — `init update`
+- [x] Stage 3 — `init update`
 - [ ] Stage 4 — living specs and fastlane
 - [ ] Stage 5 — demo
 - [ ] Stage 6 — docs, sample, release

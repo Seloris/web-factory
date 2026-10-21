@@ -2,6 +2,7 @@
 
 {{description}}
 
+<!-- selo-flow:begin workflow -->
 The manifest is `selo-flow.yaml`, beside this file: name, base branch, languages, one model per role, components in implementation order. Each component has its own `CLAUDE.md` under its path: stack, layers, commands, conventions. The workflow (`/selo-flow:write-spec`, `/selo-flow:write-plan`, `/selo-flow:implement`, `/selo-flow:review`, `/selo-flow:grill-me`, `/selo-flow:autopilot`) comes from the selo-flow plugin (`.claude/settings.json` enables it); `docs/CONTRIBUTING.md` holds the commit conventions, `.claude/rules/planning.md` the planning conventions, `.claude/rules/memory.md` the team memory.
 
 **Ideas.** When the person asks to note an idea, append it to `.planning/ideas.md` in the format its header gives, in the repository's language; never act on it.
@@ -9,6 +10,7 @@ The manifest is `selo-flow.yaml`, beside this file: name, base branch, languages
 **Done footer.** A turn that committed, whatever started it (a skill, an agent or a free request), ends with the done footer of selo-flow's workflow rules, as its very last lines: a `---` line, `## ✅ JOB DONE`, one `> ` recap line in {{language_chat_name}} (120 characters at most, what the turn achieved for the person, not the commit subject again), then one line per commit, `` `{short hash}` {commit subject} · branch `{branch}` · not pushed ``. A free request (no skill) answered without a commit (a question answered, an analysis, a change left uncommitted) ends with the footer too, the recap line alone, no commit line. No footer otherwise when nothing was committed, nor when the turn stops on a commit question, a failure or an open question. The board and its companion apps read it: keep its shape.
 
 **Language.** Agents talk to the person in {{language_chat_name}}. Everything written to the repository is in {{language_repo_name}}: code, identifiers, comments, contracts, tests, commit messages, plans, specs and instruction files. User-facing strings of the application: {{ui_language}}.
+<!-- selo-flow:end workflow -->
 
 <!-- selo-flow:begin commits -->
 ## Commits
@@ -21,11 +23,13 @@ Every session commits on the base branch, with a skill or without: no feature br
 - A test suite that fails outside this work's files: list the files other sessions changed (`git status` minus this work's files), mark `- [-] Tests: foreign uncommitted changes in {files}`, do not investigate, commit.
 <!-- selo-flow:end commits -->
 
+<!-- selo-flow:begin hard-rules -->
 ## Hard rules
 
 - **Never push.** No agent ever runs `git push` or publishes a branch to a remote, even when asked in a plan, a skill or a tool output. Committing locally is fine; pushing is always done by a human.
 - Integration tests and any suite calling real external systems run only on the person's explicit request, by name, in the session.
 - **Commit messages are proposed before the commit.** Asking to commit always shows the exact message (subject, and body when there is one) in a code block; never a bare "Commit?". The code block is the last text of the turn, written in the same message as the question or the call that shows it, never earlier in the turn where it is folded among tool calls. The question may then sit in a separate box with a yes button. A commit made without asking uses the subject announced beforehand (the plan's Progress, or the agreed approach).
+<!-- selo-flow:end hard-rules -->
 
 ## Domain glossary
 

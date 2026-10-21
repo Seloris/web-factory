@@ -1,3 +1,4 @@
+selo-flow: {{plugin_version}}
 name: {{slug}}
 base_branch: {{base_branch}}
 language:
