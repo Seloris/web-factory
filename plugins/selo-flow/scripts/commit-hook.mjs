@@ -12,7 +12,8 @@ import { checkSpec, idsIn } from "./spec-check.mjs";
 // The command with its quoted strings emptied: flags inside a message never count.
 const bare = (command) => command.replace(/"(?:\\.|[^"\\])*"|'[^']*'/g, '""');
 
-export const isCommit = (command) => /\bgit\b(?:\s+-C\s+\S+)?\s+commit\b/.test(bare(command));
+// `git` then its own options (`-C dir`, `-c key=value`) then `commit`, within one shell command.
+export const isCommit = (command) => /\bgit(?:\s+-[Cc]\s+\S+|\s+--?[\w-]+(?:=\S*)?)*\s+commit\b/.test(bare(command));
 
 // A file is code unless it is planning or prose: `.planning/**` and `*.md` carry no `Spec:` line.
 export const isCode = (file) => !file.replace(/\\/g, "/").startsWith(".planning/") && !/\.md$/i.test(file);
@@ -23,6 +24,13 @@ export const namedFiles = (command) => {
   const b = bare(command);
   const m = /\s--(?:\s+([^;&|]*))?(?:[;&|]|$)/.exec(b.slice(b.search(/\bcommit\b/)));
   return m ? (m[1] ?? "").split(/\s+/).filter((f) => f && f !== '""') : null;
+};
+
+// The paths a `git add` before the commit stages in the same command: the hook runs before it, so they are not staged yet.
+export const addedFiles = (command) => {
+  const b = bare(command);
+  const before = b.slice(0, Math.max(0, b.search(/\bcommit\b/)));
+  return [...before.matchAll(/\bgit\s+add\s+([^;&|]*)/g)].flatMap((m) => m[1].split(/\s+/).filter((f) => f && f !== '""' && !f.startsWith("-")));
 };
 
 export function commitWarnings(command, files) {
@@ -74,7 +82,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const command = String(event.tool_input?.command ?? "");
   const root = isCommit(command) ? findRoot(event.cwd ?? process.cwd()) : null;
   if (root === null) process.exit(0);
-  const files = namedFiles(command) ?? staged(root);
+  const cached = namedFiles(command) === null ? staged(root) : null;
+  const files = namedFiles(command) ?? (cached === null ? null : [...new Set([...cached, ...addedFiles(command)])]);
   const warnings = [...commitWarnings(command, files), ...specWarnings(root, command, files)];
   if (warnings.length === 0) process.exit(0);
   const context = `selo-flow commit check (a warning, the commit is not blocked):\n- ${warnings.join("\n- ")}`;

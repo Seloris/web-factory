@@ -73,7 +73,7 @@ Feature: `{slug}` · Components: `api`, `web` · Spec: US-03, FR-02, BR-05
 
 - Omit the sections of untouched components and layers.
 - Paths are rooted at the component's `path`.
-- When a plan touches several components, `implement` runs it in one session per component, in stage order: a stage with a `handoff` ends by running it and committing its file; the next stage starts with its `prepare`.
+- When a plan touches several components, `implement` runs it in one session per component, in stage order (or several stages in one session with `— stages {N}-{M} (…), chained`): a stage with a `handoff` ends by running it and committing its file; the next stage starts with its `prepare`.
 
 ### Progress checklist
 
@@ -113,7 +113,7 @@ The checks made once every stage is done, one checkbox each, in a section of the
 - [ ] Browser test: the change tested on `web`'s demo (`test-in-browser` skill)
 ```
 
-- **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings left open), `/selo-flow:review {plan folder}` ticks it once they are settled.
+- **Review:** always. The review of the plan's last stage covers the whole plan (the plan's commits: those whose subject has the plan's scope, from the one that added `plan.md` to `HEAD`; other sessions' commits sit between them) and ticks it once no finding is left, fixed or left open with the person's agreement. When the last stage leaves it unticked (findings left open), `/selo-flow:review {plan folder}` ticks it once they are settled.
 - **Tests:** whenever a touched component declares `commands.test`, listing those components. Each stage runs its own component's full suite already; this item records one run of every listed suite, in full, on the plan's final code. Ticked when all of them passed; a code change after the tick re-runs every listed suite, or unticks it.
 - **Browser test:** only when a touched component declares a `url`; run by default when it also has `commands.demo`. Ticked when every scenario passed.
 - **Integration tests:** only when the person asked for integration tests and the Tests section names them, `- [ ] Integration tests: {names} green`. Ticked when the person asked for the run and every test passed.

@@ -9,7 +9,7 @@ skills/
   write-spec/           the only writer of 00_spec.md
   write-plan/           plan.md, one section per component touched
   implement/            stages, verification, commit; the last stage reviews the whole work
-  autopilot/            spec → plan → stages with no question, one fresh subagent per step
+  autopilot/            no question: reads the code, picks the fastlane or the feature lane (spec → plan → stages), one fresh subagent per step
   grill-me/             the interview that settles decisions
   review/               runs the reviewer agent and relays its findings; review {plan} records it
   test-in-browser/      click through a front component locally
@@ -22,7 +22,8 @@ scripts/
   spec-check.mjs        an area spec's ids checked, the next free ones
   commit-hook.mjs       the PreToolUse hook on git commit: warns, never blocks
 hooks/hooks.json        the commit hook
-reference/              workflow-rules.md (read first by every skill), caveman.md (agent-to-agent voice)
+reference/              workflow-rules.md (read first by every skill), caveman.md (agent-to-agent voice), ui-design.md (the design rules of every front)
+skins/                  the looks of a front: the token contract, recipes.css, one folder per skin (tokens.css, SKIN.md)
 templates/              what init writes into a project
 stacks/                 stack packs (component templates + skills), read in place
 examples/two-components/   the test project the tests run against (echo commands)

@@ -12,8 +12,9 @@ The parser walks up from the folder it is given to the nearest `selo-flow.yaml`,
 ## `selo-flow.yaml`
 
 ```yaml
+selo-flow: 1.0.0               # the plugin version that wrote or last updated the project (init, init update)
 name: my-app
-base_branch: main              # the branch features are cut from and squashed into
+base_branch: main              # the branch every session commits on
 language:
   chat: fr                     # what agents speak to the user
   repo: en                     # everything written to the repository
@@ -26,7 +27,10 @@ components:                    # the order is the order of the stages; paths rel
     path: src/web
     needs: [api]                      # stages that must be committed first (optional)
     url: http://localhost:4200        # enables the "Browser test" validation item (optional)
+    demo_url: http://localhost:5181   # where its demo answers (optional; also allowed in the component block)
 ```
+
+A key the parser does not know (at the top level, in a component, its `commands`, `models` or `language`) is ignored and reported in the resolved manifest's `warnings`, as is a `demo` command without its `demo_url`; a skill tells the person.
 
 ### Models
 
@@ -63,14 +67,16 @@ commands:
   handoff: npm run export-openapi            # produces the manifest's handoff file (api stage end)
   prepare: npm run generate-client           # front stage start, from the previous handoff
   integration_tests: npm run test:integration -- --filter "{filter}"   # never run unasked
-  serve: npm run dev                         # starts the local server (a Windows Terminal tab, else a background command)
-serve_url: http://localhost:3000             # where the server answers once started (default: the component's url)
+  serve: npm run dev                         # starts the local dev server, when a test needs it and it does not answer
+  demo: npm run demo                         # starts the demo: seeded data on its own port, what the browser test runs on
+serve_url: http://localhost:3000             # where the dev server answers (default: the component's url)
+demo_url: http://localhost:3101              # where the demo answers
 logins: .claude/local/test-logins.md         # accounts for test-in-browser (git-ignored)
 ```
 
 Only `kind` and `commands.build` are required. A component without `test` gets no test step; one without `lint` gets no lint step.
 
-`serve` and `serve_url` let `test-in-browser` start, without asking, the servers that do not answer: the tested component's and those of the components it `needs`, in stage order, each awaited on its `serve_url` before the next starts. A server that already answers is left as it is. Where `wt.exe` is on the PATH, every server starts in a tab of one Windows Terminal window, `selo-flow`, titled after its component, so the person sees all of them; elsewhere, as a background command (the workflow rules' **Starting a server**). `serve` runs only when its server is down, so it can chain a prerequisite that needs the server stopped (`npm run db:migrate && npm run dev`). `serve_url` is separate from `url` because `url` makes a component browser-tested; any HTTP status on it counts as answering. The parser returns it as `serveUrl`, falling back to `url`.
+`demo` and `demo_url` are what `test-in-browser` runs on: the demo of the tested component and of those it `needs`, in stage order, each started in the background and awaited on its `demo_url`, under a lock (`{git-common-dir}/selo-flow/demo.lock`) so two sessions never share one, and stopped after the test. The person's dev servers and local data are never touched. With a `url` and a `demo`, the browser test runs by default on a plan's last stage. Without a demo, `serve` and `serve_url` start the dev servers that do not answer, stopped after the test the same way; a server that already answers is left as it is. `serve` runs only when its server is down, so it can chain a prerequisite that needs the server stopped (`npm run db:migrate && npm run dev`). `serve_url` is separate from `url` because `url` makes a component browser-tested; any HTTP status on either counts as answering. The parser returns them as `serveUrl` (falling back to `url`) and `demoUrl`.
 
 ## Stages
 
@@ -79,8 +85,9 @@ One stage per component, in the manifest's order, honouring `needs`. A stage:
 1. starts with its `commands.prepare` when it has one (the front regenerates its client from the API's handoff);
 2. implements the component's layers in order, tests first;
 3. verifies: `build`, `test` in full, `lint` on the changed files;
-4. is reviewed by the `reviewer` agent when asked (` — with review` in its prompt);
-5. ends with `commands.handoff` when it has one, and one commit.
+4. ends with `commands.handoff` when it has one, and one commit on the base branch.
+
+The last stage also runs the `reviewer` agent on the whole work, the full suites of every touched component and the browser test on the demo.
 
 A project with one component has one stage; nothing in the plugin's skills knows the words "API" or "front".
 
@@ -89,7 +96,7 @@ A project with one component has one stage; nothing in the plugin's skills knows
 ```js
 import { readManifest } from "<plugin root>/scripts/manifest.mjs";
 const m = readManifest(process.cwd());   // walks up to the nearest selo-flow.yaml, stopping at a .git folder
-m.name; m.baseBranch; m.models.planner; m.components[0].commands.build;
+m.seloFlow; m.name; m.baseBranch; m.models.planner; m.components[0].commands.build; m.warnings;
 ```
 
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root prints the resolved manifest as JSON, which is how a skill reads it without parsing YAML itself.

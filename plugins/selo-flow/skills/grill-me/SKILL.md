@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: "Grill the person on a spec, a dev-plan, a request or a project setup: at most two rounds of the session's question tool, the recommended answer first, the rest left as open questions, then hand the decisions to write-spec, write-plan, implement or init. Writes nothing itself. Run it only when the person types /grill-me or accepts the offer: write-spec, write-plan, init and any agent facing an ambiguous request offer it, never start it on their own. With — autonomous (under autopilot), every question takes its recommended answer, and one with no recommendation stops the pipeline."
+description: "Grill the person on a spec, a dev-plan, a request or a project setup: at most two rounds of the session's question tool, the recommended answer first, the rest left as open questions, then hand the decisions to write-spec, write-plan, implement or init. Writes nothing itself. Run it on /grill-me, when write-spec starts a new area (unless the request already carries its decisions), or when the person accepts the offer: write-plan, init and any agent facing an ambiguous request offer it, never start it on their own. With — autonomous (under autopilot), every question takes its recommended answer, and one with no recommendation stops the pipeline."
 ---
 
 # Grill me
@@ -9,11 +9,11 @@ Interview the person until the spec, plan, request or setup has no open decision
 
 Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, manifest, language, subagents).
 
-Run only on `/selo-flow:grill-me` or after the person said yes to the offer. Offering it is cheap; running it costs several rounds, so never start it unasked.
+Run on `/selo-flow:grill-me`, from `write-spec` on a new area (it runs it unless the request already carries its decisions: ids cited, rules stated one by one), or after the person said yes to the offer. Elsewhere, offering it is cheap; running it costs several rounds, so never start it unasked.
 
 ## Target
 
-- **Spec** (`/selo-flow:grill-me {slug}`, or offered by `write-spec`): business questions only. Who, when, which rule, what happens in each edge case: unauthorized user, empty list, concurrent edits, limits, multi-tenant or multi-scope cases when the project has them. A technical question (endpoint, contract, table, component) is parked for the plan: note it and move on.
+- **Spec** (`/selo-flow:grill-me {slug}`, or run by `write-spec` on a new area): business questions only. Who, when, which rule, what happens in each edge case: unauthorized user, empty list, concurrent edits, limits, multi-tenant or multi-scope cases when the project has them. A technical question (endpoint, contract, table, component) is parked for the plan: note it and move on.
 - **Plan** (`/selo-flow:grill-me plan {plan folder}`, or offered by `write-plan`): technical decisions too, checked against the spec ids and the conventions of the components in scope (their `CLAUDE.md`, the project's `.claude/rules/`). A business gap found here is a spec question first.
 - **Request** (offered by any agent when a request is ambiguous): whatever blocks the work.
 - **Setup** (offered by `init`): the manifest's values: components, stacks, commands, models, base branch.

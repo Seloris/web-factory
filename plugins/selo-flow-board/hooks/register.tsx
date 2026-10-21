@@ -129,14 +129,16 @@ async function startRun($: EngineInterface, run: Pick<SeloFlowBoardRun, 'feature
 
 /** The skills whose call, typed or through the Skill tool, starts a run. */
 const RUN_SKILLS = new Set(['write-spec', 'write-plan', 'implement', 'review', 'autopilot'])
-/** The skills that take a free request: their run starts with no feature, named at the spec's commit. */
-const REQUEST_SKILLS = new Set(['write-spec', 'autopilot'])
+/** The skills that take a free request: their run starts with no feature, named at its first commit (the spec's, or the fastlane's). */
+const REQUEST_SKILLS = new Set(['write-spec', 'implement', 'autopilot'])
 
 /** A `/selo-flow:…` text that names a feature records a run on the step it lands on; `agentId` names the subagent it runs in. */
 async function recordRun($: EngineInterface, text: string, agentId?: string): Promise<void> {
   const command = parseSeloFlowCommand(text)
   if (command === null || (command.feature === null && !REQUEST_SKILLS.has(command.skill))) return
   const feature = (await read($, board))?.features.find(f => f.slug === command.feature)
+  // `review HEAD`, `review develop`: a range read as a bare slug; only a known area is a spec review.
+  if (command.skill === 'review' && command.folder === null && feature === undefined) return
   await startRun($, { feature: command.feature, folder: command.folder, command: command.skill, step: runStep(command, feature && withPlan(feature, command.folder)), lastStep: runLastStep(command), agentId })
   refreshQuietly($)
 }

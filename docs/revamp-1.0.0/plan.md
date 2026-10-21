@@ -86,13 +86,13 @@ Commit: `feat(selo-flow): browser tests run on the demo`
 
 ### Stage 6 — docs, sample, release
 Commit: `feat(selo-flow): release 1.0.0`
-- [ ] `docs/workflow.md`, `flow.md`, `manifest.md`, `cheatsheet.md`, both READMEs in sync with the skills
-- [ ] `samples/todo-app`: `/selo-flow:init update`, then one fastlane request and one feature-lane request run through the workflow
-- [ ] Both `plugin.json` at `1.0.0`; `CHANGELOG.md` entries (the factory's and the board's own)
+- [x] `docs/workflow.md`, `flow.md`, `manifest.md`, `cheatsheet.md`, both READMEs in sync with the skills
+- [x] `samples/todo-app`: `/selo-flow:init update`, then one fastlane request and one feature-lane request run through the workflow
+- [x] Both `plugin.json` at `1.0.0`; `CHANGELOG.md` entries (the factory's and the board's own)
 
 ### Stage 7 — review
 Commit: `fix(selo-flow): review — {summary}` (only when the review leads to fixes)
-- [ ] The `reviewer` agent on the whole branch (`git log develop..revamp/selo-flow`), findings settled with the person
+- [x] The `reviewer` agent on the whole branch (`git log develop..revamp/selo-flow`), findings settled with the person (fixed; left open as uncertain or cosmetic: plugin 12, board 4, 6, 7, 8)
 - [ ] Compact the branch when it needs it (the person's request, 2026-10-21): fix-up and review commits are folded into the stage they fix, or the whole branch into one `feat(selo-flow): release 1.0.0` commit; the message is shown first, and the old `HEAD` hash is given to get the branch back
 - [ ] The person merges into `develop` and pushes
 
@@ -110,5 +110,5 @@ Commit: `fix(selo-flow): review — {summary}` (only when the review leads to fi
 - [x] Stage 3 — `init update`
 - [x] Stage 4 — living specs and fastlane
 - [x] Stage 5 — demo
-- [ ] Stage 6 — docs, sample, release
+- [x] Stage 6 — docs, sample, release
 - [ ] Stage 7 — review

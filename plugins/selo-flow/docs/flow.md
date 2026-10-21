@@ -5,50 +5,45 @@ How a feature, a change or a bug fix travels through selo-flow, from the request
 ```mermaid
 flowchart TD
     request([Request: feature, change, bug fix])
-    decide{Large, risky or<br/>multi-stage change?}
+    lane{One component, no new<br/>business rule or entity?}
 
-    request --> decide
-    decide -- "no (default)" --> implDirect
-    decide -- "yes, and the person asks for a plan" --> spec
+    request --> lane
+    lane -- "yes: fastlane" --> implDirect
+    lane -- "no: feature lane" --> spec
 
-    implDirect["/selo-flow:implement {request}<br/><i>straight from the request, no plan</i>"]
+    implDirect["/selo-flow:implement {request}<br/><i>the area's spec delta in the same commit</i>"]
 
-    spec["/selo-flow:write-spec {feature}<br/><i>optional: else offered from the plan or the code</i>"]
-    plan["/selo-flow:write-plan {slug}<br/><i>drafted, summarised, committed on an explicit yes</i>"]
+    spec["/selo-flow:write-spec {request}<br/><i>short grill, new FRs (planned)</i>"]
+    plan["/selo-flow:write-plan {slug}<br/><i>Business decisions first</i>"]
     reviewPlan["/selo-flow:review plan {plan folder}<br/><i>optional</i>"]
-    implPlan["/selo-flow:implement {plan folder}"]
+    implPlan["/selo-flow:implement {plan folder} — stage N"]
 
     spec --> plan --> reviewPlan --> implPlan
 
-    subgraph stage["One stage per session, per component, in the manifest's order"]
+    subgraph stage["One stage per component, in the manifest's order"]
         direction LR
         tests["Tests first<br/><i>layer by layer</i>"]
-        verify["Verify<br/><i>build, tests, lint</i>"]
-        review["Reviewer<br/><i>read-only, on request (— with review)</i>"]
-        commit["Commit<br/><i>one per stage, never pushed</i>"]
-        tests --> verify --> review --> commit
+        verify["Verify<br/><i>build, full test, lint</i>"]
+        commit["Commit on the base branch<br/><i>named files, Spec: line</i>"]
+        tests --> verify --> commit
     end
 
     implDirect --> stage
     implPlan --> stage
-    stage -- "next stage: new session, same branch" --> stage
-    stage -- "last stage committed,<br/>Review left" --> final
-    stage -- "last stage committed,<br/>Review ticked" --> close
-    final["/selo-flow:implement … final review<br/><i>review, then full tests, browser test,<br/>integration tests on the person's yes</i>"]
-    final --> close
+    stage -- "next stage" --> stage
+    stage -- "last stage" --> last
 
-    close["Plan finalized<br/><i>squash to one commit proposed, on the person's yes</i>"]
+    last["Review of the whole work, full suites,<br/>browser test on the demo"]
     push([A human pushes])
 
-    close --> push
+    last --> push
 ```
 
 ## Reading the diagram
 
-- **Default path.** A request goes straight to `implement`, without a plan. Planning is for large, risky or multi-stage changes, and only when the person asks for it.
-- **With a plan.** `write-spec` first when business behaviour is new; a feature with no spec gets one offered, derived from the plan (or, without a plan, from the code); `write-plan` always; the plan is committed only after an explicit yes (silence is not approval); `review plan` is optional.
-- **The stage loop.** Each stage runs in a fresh session: tests first, then the component's build, test and lint commands (the noisy ones through `runner`), then the `reviewer` agent when asked (the stage prompt's ` — with review`), then one commit. Integration tests run only on the person's explicit request.
-- **Final review.** With a plan, the Validation checklist records the review and the tests. What the last stage left open, `implement … final review` settles: the review, then the full tests, the browser test and the integration tests the person says yes to; a declined one is marked `[-]`.
-- **Autopilot.** `/selo-flow:autopilot {request | slug | plan folder}` walks the plan path from where it stands to the plan finalized, each step a fresh-context subagent, no question: the recommended answers are taken and recorded in the spec and the plan. The squash is proposed, never run.
-- **Retro.** Every step offers `/selo-flow:retro` last: the session's lessons written to `.planning/retros/`, applied later by `/selo-flow:retro apply` on the person's yes. It sits beside the path, not on it.
-- **Plan finalized.** Once the last stage is committed (and, with a plan, `Review` is ticked: the optional items do not hold it back), the step that got there proposes to squash the branch to one commit, on the person's yes; one put off runs later with `implement … close the branch`. Agents never push.
+- **Two lanes.** The fastlane goes straight to `implement`, no plan: one commit per component touched, its spec delta inside. The feature lane writes the spec, then the plan, then the stages. `autopilot` reads the code and picks the lane itself (` — fastlane`, ` — with plan` force it); a fastlane that meets a new rule or entity stops before its commit and moves to the feature lane.
+- **The spec follows the code.** Every change of behaviour updates its area's spec in the same commit, and the commit body says how: `Spec: {slug} +FR-48 ~FR-13`, or `Spec: none ({reason})`. `spec-check` checks the ids; the commit hook warns when the line is missing.
+- **The stage loop.** Tests first, then the component's build, full test and lint (the noisy ones through `runner`), then one commit naming its files on the base branch. Integration tests run only on the person's explicit request.
+- **The last stage.** It reviews the whole work once (the `reviewer` agent), runs the full suites of every touched component and the browser test on the demo (` — without browser test` skips it). Findings left open are settled later with `/selo-flow:review {plan folder}`.
+- **Autopilot.** `/selo-flow:autopilot {request | slug | plan folder}` walks the lane it picked, each step a fresh-context subagent, no question: the recommended answers are taken and listed as Business decisions and Technical defaults.
+- **No branch, no squash.** Every commit lands on the base branch as it is made; agents never push.

@@ -158,3 +158,19 @@ test("readManifest: an unknown key is a warning, never an error", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("readManifest: unknown roles and language keys are warned, so is a demo without its address", () => {
+  const dir = mkdtempSync(join(tmpdir(), "selo-flow-keys-"));
+  try {
+    writeFileSync(join(dir, "selo-flow.yaml"), "name: x\nmodels:\n  preset: standard\n  advisor: opus\nlanguage:\n  chat: fr\n  ui: fr\ncomponents:\n  - {name: a, path: a}\n");
+    mkdirSync(join(dir, "a"));
+    writeFileSync(join(dir, "a", "CLAUDE.md"), "```component\nkind: front\ncommands:\n  demo: npm run demo\n```\n");
+    assert.deepEqual(readManifest(dir).warnings, [
+      'selo-flow.yaml, models: unknown key "advisor" (ignored)',
+      'selo-flow.yaml, language: unknown key "ui" (ignored)',
+      `${join("a", "CLAUDE.md")}: commands.demo without demo_url (the browser test runs on the dev servers)`,
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

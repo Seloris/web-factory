@@ -7,9 +7,11 @@
     ],
     "deny": [
       "Bash(git push:*)",
-      "Bash(git * push:*)",
+      "Bash(git -C * push*)",
+      "Bash(git -c * push*)",
       "PowerShell(git push:*)",
-      "PowerShell(git * push:*)"
+      "PowerShell(git -C * push*)",
+      "PowerShell(git -c * push*)"
     ]
   },
   "extraKnownMarketplaces": {

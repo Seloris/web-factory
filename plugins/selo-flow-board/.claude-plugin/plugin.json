@@ -1,6 +1,6 @@
 {
   "name": "selo-flow-board",
-  "version": "0.12.0",
+  "version": "1.0.0",
   "description": "A pane that follows selo-flow's features, their dev plans and the stages running in other sessions, and prepares the next /selo-flow: prompt.",
   "author": {
     "name": "Daniel Djordjevic"

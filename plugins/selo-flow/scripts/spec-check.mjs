@@ -64,7 +64,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   }
   const cited = idsIn(optionOf(argv, "--cite") ?? "");
   const plan = optionOf(argv, "--plan");
-  if (plan) cited.push(...planIds(readFileSync(join(resolve(plan), "plan.md"), "utf8")).filter((id) => !cited.includes(id)));
+  if (plan) {
+    const planFile = join(resolve(plan), "plan.md");
+    if (!existsSync(planFile)) {
+      console.error(`No plan at ${planFile}`);
+      process.exit(2);
+    }
+    cited.push(...planIds(readFileSync(planFile, "utf8")).filter((id) => !cited.includes(id)));
+  }
   const r = checkSpec(readFileSync(file, "utf8"), cited, { done: argv.includes("--done") });
   console.log(JSON.stringify(r, null, 2));
   process.exit(r.ok ? 0 : 1);

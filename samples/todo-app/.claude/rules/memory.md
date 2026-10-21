@@ -2,6 +2,7 @@
 description: "Team memory: shared, versioned project facts that are not obvious from the code, and how to add, promote or remove an entry. Always relevant."
 ---
 
+<!-- selo-flow:begin memory -->
 # Team memory
 
 Shared, versioned memory for every agent and every teammate. It holds stable project facts that are not obvious from the code and not yet covered by a `CLAUDE.md` or another rule file.
@@ -14,9 +15,12 @@ Shared, versioned memory for every agent and every teammate. It holds stable pro
 - **Promote** an entry that has become a convention for a component into its `CLAUDE.md` (or a `.claude/rules/` file), and remove it here.
 - **Fix or remove** an entry you find wrong or stale; never leave two entries that contradict each other.
 - Keep this file under ~50 entries. Changes go through the normal review like any other file.
+<!-- selo-flow:end memory -->
 
 ## Entries
 
+<!-- selo-flow:begin known-failing-tests -->
 ## Known failing tests
 
-Tests that already fail on the base branch, independently of the current work. When a test fails, check this list first: if it is here, do not investigate it or re-run it without your changes to prove it, just mention it in the report. Add a test here once you have proven it fails without your changes; remove it when it is fixed.
+Tests that already fail on the base branch, independently of the current work. When a test fails, check this list first: if it is here, do not investigate it or re-run it without your changes to prove it, just mention it in the report. Add a test once you have proven it fails without your changes, as a line under this block's end tag (`- {test} — {why}`; inside the block, `init update` would drop it); remove it when it is fixed.
+<!-- selo-flow:end known-failing-tests -->

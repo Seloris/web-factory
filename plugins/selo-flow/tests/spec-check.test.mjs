@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkSpec, planIds, specPath } from "../scripts/spec-check.mjs";
-import { commitWarnings, isCode, isCommit, namedFiles } from "../scripts/commit-hook.mjs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { addedFiles, commitWarnings, isCode, isCommit, namedFiles, specWarnings } from "../scripts/commit-hook.mjs";
 
 const spec = `# Live sessions — Spec
 ## Functional Requirements
@@ -51,6 +54,8 @@ test("planIds and specPath", () => {
 test("commit hook: what a commit command names", () => {
   assert.equal(isCommit('git add a.ts && git commit --only -m "feat(x): y" -- a.ts'), true);
   assert.equal(isCommit("git -C api commit -m x"), true);
+  assert.equal(isCommit("git -c user.name=t -c user.email=t@t commit -m x -- a.ts"), true);
+  assert.equal(isCommit("git --no-pager commit -m x"), true);
   assert.equal(isCommit('git log --grep "commit"'), false);
   assert.deepEqual(namedFiles('git commit --only -m "feat(x): y -- z" -m "Spec: x +FR-02" -- api/a.ts .planning/features/x/00_spec.md'), ["api/a.ts", ".planning/features/x/00_spec.md"]);
   assert.equal(namedFiles('git commit -m "x"'), null);
@@ -68,4 +73,24 @@ test("commit hook: warnings, never on a clean named commit", () => {
   assert.match(commitWarnings('git add -A && git commit -m "x" -m "Spec: none (tooling)"', null).join(), /git add -A/);
   assert.match(commitWarnings('git commit --amend --no-edit', null).join(), /--amend/);
   assert.deepEqual(commitWarnings('git commit -m "a message about -a and --amend" -m "Spec: none (refactor)"', ["a.ts"]), [], "flags inside a message do not count");
+});
+
+test("commit hook: the files a git add before the commit stages", () => {
+  assert.deepEqual(addedFiles('git add api/a.ts web/b.ts && git commit -m "feat(x): y"'), ["api/a.ts", "web/b.ts"]);
+  assert.deepEqual(addedFiles('git add -N api/a.ts; git commit -m "git add z"'), ["api/a.ts"], "flags and messages do not count");
+  assert.deepEqual(addedFiles('git commit -m "x"'), []);
+});
+
+test("commit hook: a spec of the commit with a duplicate id and a Spec: line citing an unknown id", () => {
+  const root = mkdtempSync(join(tmpdir(), "selo-flow-hook-"));
+  try {
+    mkdirSync(join(root, ".planning", "features", "live"), { recursive: true });
+    writeFileSync(join(root, ".planning", "features", "live", "00_spec.md"), spec + "\n- **FR-48** — Another addition.\n");
+    const [warning, ...rest] = specWarnings(root, 'git commit -m "feat(live): y" -m "Spec: live +FR-99"', [".planning/features/live/00_spec.md", "api/a.ts"]);
+    assert.deepEqual(rest, []);
+    assert.match(warning, /^spec-check live: duplicate ids FR-48; ids of the Spec: line missing from the spec FR-99 \(next free: FR-51, BR-24\)\.$/);
+    assert.deepEqual(specWarnings(root, 'git commit -m "x"', ["api/a.ts"]), [], "no spec in the commit: nothing checked");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

@@ -4,6 +4,7 @@
 1. Work on `{{base_branch}}`: no feature branch. Spec, plan, stages and fixes are each one commit, naming its files (`git commit --only -- {files}`), never `-a`, `git add -A`, `git add .` or `--amend`.
 2. A plan's last stage is reviewed by the `reviewer` agent on the whole plan; `/selo-flow:review {plan folder}` when it left the review open.
 3. Push (a human, never an agent).
+<!-- selo-flow:end contributing -->
 
 # Commit conventions
 
@@ -32,6 +33,7 @@ A simplified Conventional Commits.
 
 - `<slug>`: the feature slug from `.planning/features/`, or `tooling` / `shared` (optional for `chore`, `ops`, `style`).
 - A stage commit names its stage before the description: `feat(orders): api — cutoff time per site`.
+- A commit that touches code carries a `Spec:` line in its body: `Spec: orders +FR-14 ~FR-03 -FR-07`, or `Spec: none (refactor)`.
 
 ## Examples
 
@@ -43,4 +45,3 @@ fix(auth): token refresh on 401
 docs(orders): plan add-cutoff-time
 tools(tooling): selo-flow init
 ```
-<!-- selo-flow:end contributing -->

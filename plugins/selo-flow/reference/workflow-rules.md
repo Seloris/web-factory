@@ -12,7 +12,7 @@ Useful to two projects or more: the plugin. Specific to one project: its `CLAUDE
 
 ## The manifest
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the JSON: `name`, `baseBranch`, `language`, `models`, `components` (name, path, kind, stack, skin, layers, commands, handoff, needs, url, demoUrl, logins), `stages` and `warnings` (unknown keys, ignored: tell the person). A component with `missingFile` has no `CLAUDE.md`: send the person to `/selo-flow:init component {name}`. Never parse `selo-flow.yaml` yourself. A component's `CLAUDE.md` loads when you work under its path; read it yourself when you plan for it from elsewhere.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the JSON: `name`, `baseBranch`, `language`, `models`, `components` (name, path, kind, stack, skin, layers, commands, handoff, needs, url, serveUrl, demoUrl, logins), `stages` and `warnings` (unknown keys, ignored: tell the person). A component with `missingFile` has no `CLAUDE.md`: send the person to `/selo-flow:init component {name}`. Never parse `selo-flow.yaml` yourself. A component's `CLAUDE.md` loads when you work under its path; read it yourself when you plan for it from elsewhere.
 
 ## Two lanes
 
@@ -42,6 +42,7 @@ Work is committed on `baseBranch`: no feature branch, no squash. Several session
 - commit in one command, naming the files this work wrote: `git add {new files} && git commit --only -m "{subject}" -m "{body}" -- {files}` (a second `-m` for the body, never `-F`: the board reads the subject from the command); `--only` leaves out what other sessions staged; never `-a`, `git add -A`, `git add .` or `--amend`;
 - a file you must change that holds another session's uncommitted edits: do not write it; wait up to five minutes for that session's commit, else stop and name the file;
 - a dirty tree is not a blocker;
+- **a plan's commits** are those whose subject has the plan's scope `({slug})`, from the one that added its `plan.md` (`git log --diff-filter=A --format=%H -- {plan folder}plan.md`) to `HEAD`: the commits of other sessions sit between them, and a review or a report never takes the whole range;
 - a suite that fails outside this work's files: list the files other sessions changed (`git status` minus this work's list), mark `- [-] Tests: foreign uncommitted changes in {files}`, do not investigate, commit; the last stage's full suites re-run it.
 
 ## Subagents

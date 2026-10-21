@@ -1096,3 +1096,35 @@ test('a turn ending on a commit question waits for the commit, the yes works, th
   await $.turn.complete({ answer: DONE_TURN, durationMs: 10, isAborted: false, turnId: 't2', reason: 'answer' })
   expect(run()).toMatchObject({ status: 'done', phase: 'job-done', pendingCommit: null, recap: { text: 'Liste branchée sur l’API, 12 tests verts.' } })
 })
+
+test('a fastlane implement from an autopilot takes its feature at its commit, and the pipeline ends done', async ($, on) => {
+  const store = mockProject(on)
+  let spawned = 0
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('agent.spawn', () => ({ agentId: `agent-${++spawned}`, model: 'sonnet' }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: '/selo-flow:autopilot add a counter', wait: false, origin: { kind: 'composer' } })
+  const pilot = () => store.get('run:session-aaaa-1111:1000000') as Record<string, unknown>
+  await store.clock.advance(1000)
+  await $.agent.spawn({ prompt: '/selo-flow:implement add a counter — autonomous' })
+  expect(store.get('run:session-aaaa-1111:1001000')).toMatchObject({ feature: null, command: 'implement', agentId: 'agent-1' })
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "feat(demo): web — counter"', agentId: 'agent-1' } as never)
+  expect(store.get('run:session-aaaa-1111:1001000')).toMatchObject({ feature: 'demo', status: 'done' })
+  await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer', agentId: 'agent-1' } as never)
+  await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  expect(pilot()).toMatchObject({ feature: 'demo', status: 'done' })
+})
+
+test('a review of a range records no run; a review of a known area records a spec run', async ($, on) => {
+  const store = mockProject(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: '/selo-flow:review HEAD', wait: false, origin: { kind: 'composer' } })
+  expect([...store.keys()].filter(k => String(k).startsWith('run:'))).toEqual([])
+  await $.prompt.submit({ text: '/selo-flow:review demo', wait: false, origin: { kind: 'composer' } })
+  expect(store.get('run:session-aaaa-1111:1000000')).toMatchObject({ feature: 'demo', command: 'review', step: 'spec' })
+})

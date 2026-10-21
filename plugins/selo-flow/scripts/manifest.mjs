@@ -229,6 +229,9 @@ const readComponent = (root, c, warnings) => {
   warnings.push(...unknownKeys(spec, BLOCK_KEYS, base.file), ...unknownKeys(spec.commands, COMMAND_KEYS, `${base.file}, commands`));
   const commands = {};
   for (const key of COMMAND_KEYS) if (spec.commands?.[key] != null) commands[key] = String(spec.commands[key]);
+  const demoUrl = c.demo_url ?? spec.demo_url ?? null;
+  // Without its address the demo cannot be awaited: test-in-browser falls back to the dev servers.
+  if (commands.demo && demoUrl === null) warnings.push(`${base.file}: commands.demo without demo_url (the browser test runs on the dev servers)`);
   const skin = spec.skin == null ? null : String(spec.skin);
   if (skin !== null && !existsSync(join(SKINS_DIR, skin, "tokens.css"))) throw new Error(`Manifest: component "${c.name}" names unknown skin "${skin}" in ${base.file}`);
   return {
@@ -242,7 +245,7 @@ const readComponent = (root, c, warnings) => {
     logins: spec.logins ?? null,
     url: c.url ?? spec.url ?? null,
     serveUrl: c.serve_url ?? spec.serve_url ?? c.url ?? spec.url ?? null,
-    demoUrl: c.demo_url ?? spec.demo_url ?? null,
+    demoUrl,
   };
 };
 
@@ -252,7 +255,11 @@ export const readManifest = (dir = process.cwd()) => {
   const spec = parseYaml(readFileSync(join(root, MANIFEST_FILE), "utf8")) ?? {};
   if (!spec.name) throw new Error("Manifest: `name` is required");
   if (!Array.isArray(spec.components) || spec.components.length === 0) throw new Error("Manifest: `components` must list at least one component");
-  const warnings = unknownKeys(spec, MANIFEST_KEYS, "selo-flow.yaml");
+  const warnings = [
+    ...unknownKeys(spec, MANIFEST_KEYS, "selo-flow.yaml"),
+    ...unknownKeys(spec.models, [...ROLES, "preset"], "selo-flow.yaml, models"),
+    ...unknownKeys(spec.language, ["chat", "repo"], "selo-flow.yaml, language"),
+  ];
   const components = spec.components.map((c, i) => {
     if (!c || !c.name || !c.path) throw new Error(`Manifest: component #${i + 1} needs \`name\` and \`path\``);
     return readComponent(root, c, warnings);

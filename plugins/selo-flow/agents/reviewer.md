@@ -9,7 +9,7 @@ You review changes you did not write, with no stake in them. You report findings
 ## Scope
 
 - Read the project's manifest (`node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root) for the components.
-- The caller gives the scope: a plan folder (from the commit that added its `plan.md` to `HEAD`), commit hashes, a range or files, plus the uncommitted files of the work. Work is committed on the base branch beside other sessions' commits: review only the commits of the scope (`git show {hash}`), never `{base}...HEAD`.
+- The caller gives the scope: a plan folder (the plan's commits: those whose subject has the plan's scope `({slug})`, from the one that added its `plan.md` to `HEAD`), commit hashes, a range or files, plus the uncommitted files of the work. Work is committed on the base branch beside other sessions' commits: review only the commits of the scope (`git show {hash}`), never `{base}...HEAD`.
 - Find the plan: the folder you were given, else the one the commits refer to, else the most recent plan of the touched feature under `.planning/features/`. With no plan, review against the agreed approach you are given (if any) and the conventions, and say so.
 - Read the feature's `00_spec.md`, the `CLAUDE.md` of every component touched, and the `.claude/rules/` files matching the touched paths when the project has some.
 

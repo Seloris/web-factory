@@ -1,42 +1,42 @@
 # Cheat sheet
 
-Sessions open at the project's root with the plugin loaded. Paths start there (`.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/`). Skills carry the plugin's prefix: `/selo-flow:…`.
+Sessions open at the project's root with the plugin loaded. Paths start there (`.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/`). Skills carry the plugin's prefix: `/selo-flow:…`. Everything is committed on the base branch.
 
 ## Which path?
 
 | I want to… | Do this |
 |---|---|
 | Set up the project | `/selo-flow:init` |
+| Bring the project up to date with the plugin | `/selo-flow:init update` |
 | Give a front a skin, or switch it | `/selo-flow:init skin {component} {skin}`, then a plan to apply it to existing screens |
 | Ask a question | Just ask. No skill. |
-| Code a small or medium change, a fix | `/selo-flow:implement {request}` (no plan) |
-| Design a new feature or a big change | `/selo-flow:write-spec {feature}` if business behaviour is new, then `/selo-flow:write-plan {slug}` (a feature with no spec gets one offered from the plan) |
+| Change something, fix a bug (the fastlane) | `/selo-flow:implement {request}` |
+| Specify then develop a feature (the feature lane) | `/selo-flow:write-spec {request}`, then `/selo-flow:write-plan {slug}` |
 | Implement an existing plan | `/selo-flow:implement {plan folder}` |
-| Run everything with no click: spec, plan, stages, final review | `/selo-flow:autopilot {request}` (or `{slug}`, or `{plan folder}` to resume); ` — until spec`, ` — until plan`, ` — with browser test` |
-| Review the branch | `/selo-flow:review` |
-| Review a plan before coding | `/selo-flow:review plan {plan folder}` |
+| Let it choose the lane and do everything, no click | `/selo-flow:autopilot {request}` (or `{slug}`, or `{plan folder}` to resume); ` — fastlane`, ` — with plan`, ` — until spec`, ` — until plan`, ` — without browser test` |
+| Review recent work | `/selo-flow:review` (or a range, files) |
+| Review a plan before coding, or settle a plan's open review | `/selo-flow:review plan {plan folder}`, `/selo-flow:review {plan folder}` |
+| Check a whole area's spec against the code | `/selo-flow:review {slug}` |
+| Rewrite an old spec in the present tense | `/selo-flow:write-spec {slug} — rewrite` |
 | Settle open decisions first | `/selo-flow:grill-me {slug}` |
-| Draw the lessons of the session (what went well, badly, what to change) | `/selo-flow:retro` (writes `.planning/retros/`, applies nothing) |
-| Apply the lessons collected | `/selo-flow:retro apply` (one change at a time, on your yes) |
-| Click through the app locally | `/selo-flow:test-in-browser {component} …` (starts the servers that do not answer, in Windows Terminal tabs when it is there, leaves them running) |
+| Click through the app on its demo | `/selo-flow:test-in-browser {component} …` (starts the demo in the background, stops it after) |
 
-## Without a plan (default)
+## Fastlane
 
 ```
 /selo-flow:implement Add a cutoff time on order publication
 ```
 
-One stage per session, in the manifest's component order. Each stage: tests first, build + tests + lint, one commit. Add ` — with review` to a stage prompt to run the reviewer after it (the pane's review checkbox). The last stage proposes the squash (later: `/selo-flow:implement close the branch {branch}`).
+The area's code is read, then each component touched: tests first, build + full test + lint, the spec delta. On the last one: the review of the whole work, the full suites, the browser test on the demo. Then one commit per component, each with its `Spec:` line. A change that creates a business rule or an entity stops and asks for the feature lane.
 
-## With a plan
+## Feature lane
 
-1. `/selo-flow:write-spec {feature}` → `.planning/features/{slug}/00_spec.md` (optional, business only: else offered from the plan or the code)
+1. `/selo-flow:write-spec {request}` → `.planning/features/{slug}/00_spec.md` (a short grill, new FRs `(planned)`)
 2. `/selo-flow:write-plan {slug}` → `.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/plan.md`
 3. Read the summary and the commit messages it proposes (the plan's and each stage's), say **yes** to commit it (silence is not approval)
 4. Optional: `/selo-flow:review plan {plan folder}`
 5. New session per stage: `/selo-flow:implement {plan folder} — stage {N} ({component})`, or all the remaining ones in one session: `/selo-flow:implement {plan folder} — stages {N}-{M} ({components}), chained`
-6. When the plan's `Review` is still `[ ]`: `/selo-flow:implement {plan folder} — final review` (review, then the full tests, the browser test and the integration tests you say yes to; a declined one is marked `[-]`)
-7. Plan finalized (every stage and `Review` ticked): the step that finalized it proposes the squash; later: `/selo-flow:implement {plan folder} — close the branch`
+6. The last stage reviews the whole plan, runs the full suites and the demo browser test. Findings left open: `/selo-flow:review {plan folder}` once they are fixed.
 
 Each step ends with the next prompt ready to copy.
 
@@ -46,12 +46,21 @@ Each step ends with the next prompt ready to copy.
 /selo-flow:autopilot Add a cutoff time on order publication
 ```
 
-The whole path above, each step a fresh subagent, no question: every `grill-me` question takes its recommended answer, every default is taken, and the spec and the plan list them under `## Decisions taken autonomously`. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; relaunch the same command to resume. Ends with the commits, the decisions, the `[-]` items and the squash prompt (never run).
+It reads the code first and picks the lane, then runs it, each step a fresh subagent, no question: every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; relaunch the same command to resume.
+
+## Commits
+
+```
+git add {new files} && git commit --only -m "feat(orders): api — cutoff time" -m "Spec: orders +FR-12 ~FR-03" -- {files}
+```
+
+- Name the files: never `-a`, `git add -A`, `git add .` or `--amend` (other sessions share the checkout).
+- A code commit carries `Spec: {slug} +FR-NN ~FR-NN -FR-NN`, or `Spec: none ({reason})`. The commit hook warns when it is missing.
+- A file another session is editing: wait for its commit, or stop.
 
 ## Remember
 
 - Agents **never push**. You push.
 - Integration tests run only when you ask, by name.
 - `✅ JOB DONE` footer = the job is done: its commits, on the branch named; a free request answered without a commit shows the recap alone.
-- Every step offers `/selo-flow:retro` last: run it when the session taught something; `/selo-flow:retro apply` later, when the open lessons pile up.
 - The session's model is yours to pick: the manifest's `models` says which one each role is meant for.
