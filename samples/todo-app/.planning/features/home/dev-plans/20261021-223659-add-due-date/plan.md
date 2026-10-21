@@ -153,11 +153,11 @@ None: `web/CLAUDE.md` forbids front tests. The browser test of the Validation co
 
 ### Stage 1 — api
 Commit: `feat(home): api — optional due date on a todo`
-- [ ] db: `dueDate` column, migration `add_todo_due_date`
-- [ ] services: `dueDateSchema`, `dueDate` in `todoSchema` and the repository columns, `insert` with `dueDate`, `setDueDate`, `createTodo` with `dueDate`, `setTodoDueDate`, `buildTodo` default, service tests
-- [ ] routes: `createTodoBodySchema.dueDate`, `setTodoDueDateBodySchema`, `PATCH /v1/todos/{id}/due-date` registered and routed, route tests, existing expectations updated
-- [ ] Conventions: `api/CLAUDE.md` and root `CLAUDE.md` titles
-- [ ] Handoff: `api/openapi.json` exported, `Todo.dueDate` required, nullable, `format: date`, the new path referencing `Todo` and `ProblemDetails`
+- [x] db: `dueDate` column, migration `add_todo_due_date`
+- [x] services: `dueDateSchema`, `dueDate` in `todoSchema` and the repository columns, `insert` with `dueDate`, `setDueDate`, `createTodo` with `dueDate`, `setTodoDueDate`, `buildTodo` default, service tests
+- [x] routes: `createTodoBodySchema.dueDate`, `setTodoDueDateBodySchema`, `PATCH /v1/todos/{id}/due-date` registered and routed, route tests, existing expectations updated
+- [x] Conventions: `api/CLAUDE.md` and root `CLAUDE.md` titles
+- [x] Handoff: `api/openapi.json` exported, `Todo.dueDate` required, nullable, `format: date`, the new path referencing `Todo` and `ProblemDetails`
 
 ### Stage 2 — web
 Commit: `feat(home): web — due dates and late todos in the list`

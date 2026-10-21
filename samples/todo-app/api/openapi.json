@@ -27,6 +27,13 @@
           "isPinned": {
             "type": "boolean"
           },
+          "dueDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -38,6 +45,7 @@
           "tag",
           "isCompleted",
           "isPinned",
+          "dueDate",
           "createdAt"
         ]
       },
@@ -151,6 +159,13 @@
                       "null"
                     ],
                     "maxLength": 30
+                  },
+                  "dueDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date"
                   }
                 },
                 "required": [
@@ -319,6 +334,77 @@
                 },
                 "required": [
                   "isPinned"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated todo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id or the body is invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The todo does not exist",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/todos/{id}/due-date": {
+      "patch": {
+        "summary": "Set, change or clear a todo's due date",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dueDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date"
+                  }
+                },
+                "required": [
+                  "dueDate"
                 ]
               }
             }

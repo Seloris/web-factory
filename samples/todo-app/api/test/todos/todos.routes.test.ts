@@ -46,8 +46,8 @@ describe("GET /v1/todos", () => {
     // Assert
     expect(res.status).toBe(200);
     expect(todoListSchema.parse(res.body)).toEqual([
-      { id: newest?.id, name: "Newest", tag: null, isCompleted: false, isPinned: false, createdAt: "2026-10-17T10:00:00.000Z" },
-      { id: oldest?.id, name: "Oldest", tag: null, isCompleted: false, isPinned: false, createdAt: "2026-10-16T10:00:00.000Z" },
+      { id: newest?.id, name: "Newest", tag: null, isCompleted: false, isPinned: false, dueDate: null, createdAt: "2026-10-17T10:00:00.000Z" },
+      { id: oldest?.id, name: "Oldest", tag: null, isCompleted: false, isPinned: false, dueDate: null, createdAt: "2026-10-16T10:00:00.000Z" },
     ]);
   });
 
@@ -81,6 +81,7 @@ describe("POST /v1/todos", () => {
       tag: null,
       isCompleted: false,
       isPinned: false,
+      dueDate: null,
       createdAt: "2026-10-17T09:00:00.000Z",
     });
     expect(await findTodo(todo.id)).toMatchObject({ name: "Buy bread", tag: null, isCompleted: false });
@@ -150,6 +151,58 @@ describe("POST /v1/todos", () => {
     const todo = todoSchema.parse(res.body);
     expect(todo.tag).toBe("Groceries");
     expect((await findTodo(todo.id))?.tag).toBe("Groceries");
+  });
+});
+
+describe("POST /v1/todos with a due date", () => {
+  it("returns 201 with the due date given", async () => {
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name: "Pay rent", dueDate: "2026-10-24" });
+
+    // Assert
+    expect(res.status).toBe(201);
+    const todo = todoSchema.parse(res.body);
+    expect(todo.dueDate).toBe("2026-10-24");
+    expect((await findTodo(todo.id))?.dueDate).toBe("2026-10-24");
+  });
+
+  it("returns 201 with a null due date when it is left out", async () => {
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name: "Pay rent" });
+
+    // Assert
+    expect(res.status).toBe(201);
+    const todo = todoSchema.parse(res.body);
+    expect(todo.dueDate).toBeNull();
+    expect((await findTodo(todo.id))?.dueDate).toBeNull();
+  });
+
+  it("accepts a past due date", async () => {
+    // Arrange
+    ctx.clock.set("2026-10-17T09:00:00.000Z");
+
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name: "Pay rent", dueDate: "2026-01-05" });
+
+    // Assert
+    expect(res.status).toBe(201);
+    const todo = todoSchema.parse(res.body);
+    expect(todo.dueDate).toBe("2026-01-05");
+    expect((await findTodo(todo.id))?.dueDate).toBe("2026-01-05");
+  });
+
+  it.each([
+    { label: "not an ISO day", dueDate: "24/10/2026" },
+    { label: "a day that does not exist", dueDate: "2026-02-30" },
+    { label: "in year 0", dueDate: "0000-01-01" },
+  ])("returns 400 with a body.dueDate error when the due date is $label", async ({ dueDate }) => {
+    // Act
+    const res = await request(ctx.app).post("/v1/todos").send({ name: "Pay rent", dueDate });
+
+    // Assert
+    expect(res.status).toBe(400);
+    expect(problemDetailsSchema.parse(res.body).errors).toHaveProperty(["body.dueDate"]);
+    expect(await ctx.db.select().from(todos)).toEqual([]);
   });
 });
 
@@ -245,6 +298,63 @@ describe("PATCH /v1/todos/{id}/pin", () => {
     expect(res.status).toBe(400);
     expect(problemDetailsSchema.parse(res.body).errors).toHaveProperty([field]);
     expect((await findTodo(seeded?.id ?? UNKNOWN_ID))?.isPinned).toBe(false);
+  });
+});
+
+describe("PATCH /v1/todos/{id}/due-date", () => {
+  it("sets a due date, changes it, then clears it with null", async () => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy bread" });
+    const id = seeded?.id ?? UNKNOWN_ID;
+
+    // Act
+    const set = await request(ctx.app).patch(`/v1/todos/${id}/due-date`).send({ dueDate: "2026-10-24" });
+    const dueDateAfterSet = (await findTodo(id))?.dueDate;
+    const changed = await request(ctx.app).patch(`/v1/todos/${id}/due-date`).send({ dueDate: "2026-11-02" });
+    const dueDateAfterChange = (await findTodo(id))?.dueDate;
+    const cleared = await request(ctx.app).patch(`/v1/todos/${id}/due-date`).send({ dueDate: null });
+
+    // Assert
+    expect(set.status).toBe(200);
+    expect(todoSchema.parse(set.body)).toMatchObject({ id, name: "Buy bread", dueDate: "2026-10-24" });
+    expect(dueDateAfterSet).toBe("2026-10-24");
+    expect(changed.status).toBe(200);
+    expect(todoSchema.parse(changed.body).dueDate).toBe("2026-11-02");
+    expect(dueDateAfterChange).toBe("2026-11-02");
+    expect(cleared.status).toBe(200);
+    expect(todoSchema.parse(cleared.body).dueDate).toBeNull();
+    expect((await findTodo(id))?.dueDate).toBeNull();
+  });
+
+  it("returns 404 when the todo does not exist", async () => {
+    // Act
+    const res = await request(ctx.app).patch(`/v1/todos/${UNKNOWN_ID}/due-date`).send({ dueDate: "2026-10-24" });
+
+    // Assert
+    expect(res.status).toBe(404);
+    expect(problemDetailsSchema.parse(res.body).code).toBe("not_found");
+  });
+
+  it.each([
+    { label: "the id is not a number", id: "abc", body: { dueDate: "2026-10-24" }, field: "params.id" },
+    { label: "the id is zero", id: "0", body: { dueDate: "2026-10-24" }, field: "params.id" },
+    { label: "the id is not an integer", id: "1.5", body: { dueDate: "2026-10-24" }, field: "params.id" },
+    { label: "the id exceeds the integer range", id: "2147483648", body: { dueDate: "2026-10-24" }, field: "params.id" },
+    { label: "dueDate is missing", id: "1", body: {}, field: "body.dueDate" },
+    { label: "dueDate is not a day", id: "1", body: { dueDate: "24/10/2026" }, field: "body.dueDate" },
+    { label: "dueDate is a day that does not exist", id: "1", body: { dueDate: "2026-02-30" }, field: "body.dueDate" },
+    { label: "dueDate is in year 0", id: "1", body: { dueDate: "0000-01-01" }, field: "body.dueDate" },
+  ])("returns 400 when $label", async ({ id, body, field }) => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy bread", dueDate: "2026-10-01" });
+
+    // Act
+    const res = await request(ctx.app).patch(`/v1/todos/${id}/due-date`).send(body);
+
+    // Assert
+    expect(res.status).toBe(400);
+    expect(problemDetailsSchema.parse(res.body).errors).toHaveProperty([field]);
+    expect((await findTodo(seeded?.id ?? UNKNOWN_ID))?.dueDate).toBe("2026-10-01");
   });
 });
 

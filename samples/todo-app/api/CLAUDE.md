@@ -1,4 +1,4 @@
-# api — the todo-app API: todos (list, create, complete, pin, delete)
+# api — the todo-app API: todos (list, create, complete, pin, set a due date, delete)
 
 ```component
 kind: api

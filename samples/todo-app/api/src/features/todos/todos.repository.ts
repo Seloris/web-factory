@@ -9,6 +9,7 @@ const todoColumns = {
   tag: todos.tag,
   isCompleted: todos.isCompleted,
   isPinned: todos.isPinned,
+  dueDate: todos.dueDate,
   createdAt: todos.createdAt,
 };
 
@@ -33,7 +34,7 @@ export function createTodoRepository(db: Database) {
       return row?.tag ?? null;
     },
 
-    async insert(row: { name: string; tag: string | null; createdAt: Date }): Promise<Todo> {
+    async insert(row: { name: string; tag: string | null; dueDate: string | null; createdAt: Date }): Promise<Todo> {
       const [inserted] = await db.insert(todos).values(row).returning(todoColumns);
       if (inserted === undefined) throw new Error("insert into todos returned no row");
       return toTodo(inserted);
@@ -46,6 +47,11 @@ export function createTodoRepository(db: Database) {
 
     async setPinned(id: number, isPinned: boolean): Promise<Todo | null> {
       const [updated] = await db.update(todos).set({ isPinned }).where(eq(todos.id, id)).returning(todoColumns);
+      return updated === undefined ? null : toTodo(updated);
+    },
+
+    async setDueDate(id: number, dueDate: string | null): Promise<Todo | null> {
+      const [updated] = await db.update(todos).set({ dueDate }).where(eq(todos.id, id)).returning(todoColumns);
       return updated === undefined ? null : toTodo(updated);
     },
 

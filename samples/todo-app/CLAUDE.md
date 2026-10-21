@@ -1,6 +1,6 @@
 # todo-app
 
-A task management application: create, list, complete, pin, filter and delete todos from the home page.
+A task management application: create, list, complete, pin, schedule, filter and delete todos from the home page.
 
 <!-- selo-flow:begin workflow -->
 The manifest is `selo-flow.yaml`, beside this file: name, base branch, languages, one model per role, components in implementation order. Each component has its own `CLAUDE.md` under its path: stack, layers, commands, conventions. The workflow (`/selo-flow:write-spec`, `/selo-flow:write-plan`, `/selo-flow:implement`, `/selo-flow:review`, `/selo-flow:grill-me`, `/selo-flow:autopilot`) comes from the selo-flow plugin (`.claude/settings.json` enables it); `docs/CONTRIBUTING.md` holds the commit conventions, `.claude/rules/planning.md` the planning conventions, `.claude/rules/memory.md` the team memory.

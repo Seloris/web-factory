@@ -15,6 +15,13 @@
       "when": 1792423501608,
       "tag": "0001_add_todo_is_pinned",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792615150455,
+      "tag": "0002_add_todo_due_date",
+      "breakpoints": true
     }
   ]
 }

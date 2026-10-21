@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, integer, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 
 export const todos = pgTable("todos", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -6,6 +6,7 @@ export const todos = pgTable("todos", {
   tag: varchar({ length: 30 }),
   isCompleted: boolean().notNull().default(false),
   isPinned: boolean().notNull().default(false),
+  dueDate: date({ mode: "string" }),
   // No database default: the service sets it from the clock.
   createdAt: timestamp({ withTimezone: true }).notNull(),
 });

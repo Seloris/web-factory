@@ -15,9 +15,13 @@ export function createTodoService({ todos, clock }: { todos: TodoRepository; clo
       return todos.list();
     },
 
-    async createTodo(input: { name: string; tag?: string | null | undefined }): Promise<Todo> {
+    async createTodo(input: {
+      name: string;
+      tag?: string | null | undefined;
+      dueDate?: string | null | undefined;
+    }): Promise<Todo> {
       const tag = await resolveTag(input.tag);
-      return todos.insert({ name: input.name, tag, createdAt: clock.now() });
+      return todos.insert({ name: input.name, tag, dueDate: input.dueDate ?? null, createdAt: clock.now() });
     },
 
     async setTodoCompleted(id: number, isCompleted: boolean): Promise<Todo> {
@@ -28,6 +32,12 @@ export function createTodoService({ todos, clock }: { todos: TodoRepository; clo
 
     async setTodoPinned(id: number, isPinned: boolean): Promise<Todo> {
       const todo = await todos.setPinned(id, isPinned);
+      if (todo === null) throw new NotFoundError("Todo", id);
+      return todo;
+    },
+
+    async setTodoDueDate(id: number, dueDate: string | null): Promise<Todo> {
+      const todo = await todos.setDueDate(id, dueDate);
       if (todo === null) throw new NotFoundError("Todo", id);
       return todo;
     },

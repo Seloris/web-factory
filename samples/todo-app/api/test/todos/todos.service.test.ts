@@ -19,7 +19,7 @@ describe("TodoService", () => {
     await ctx.reset();
   });
 
-  it("creates the todo not completed and not pinned, at the clock's time", async () => {
+  it("creates the todo not completed, not pinned and without a due date, at the clock's time", async () => {
     // Arrange
     ctx.clock.set("2026-10-17T08:30:00.000Z");
 
@@ -33,11 +33,36 @@ describe("TodoService", () => {
       tag: null,
       isCompleted: false,
       isPinned: false,
+      dueDate: null,
       createdAt: "2026-10-17T08:30:00.000Z",
     });
     const [row] = await ctx.db.select().from(todos).where(eq(todos.id, todo.id));
     expect(row?.createdAt.toISOString()).toBe("2026-10-17T08:30:00.000Z");
     expect(row?.isPinned).toBe(false);
+    expect(row?.dueDate).toBeNull();
+  });
+
+  it("creates a todo with a due date, stored as the exact day", async () => {
+    // Act
+    const todo = await service.createTodo({ name: "Pay rent", dueDate: "2026-10-24" });
+
+    // Assert
+    expect(todo.dueDate).toBe("2026-10-24");
+    const [row] = await ctx.db.select().from(todos).where(eq(todos.id, todo.id));
+    expect(row?.dueDate).toBe("2026-10-24");
+  });
+
+  it("creates a todo due before the clock's day", async () => {
+    // Arrange
+    ctx.clock.set("2026-10-17T08:30:00.000Z");
+
+    // Act
+    const todo = await service.createTodo({ name: "Pay rent", dueDate: "2026-10-01" });
+
+    // Assert
+    expect(todo.dueDate).toBe("2026-10-01");
+    const [row] = await ctx.db.select().from(todos).where(eq(todos.id, todo.id));
+    expect(row?.dueDate).toBe("2026-10-01");
   });
 
   it("reuses the casing of an existing tag typed with another casing", async () => {
@@ -140,6 +165,52 @@ describe("TodoService", () => {
   it("throws NotFoundError when pinning an unknown todo", async () => {
     // Act
     const act = service.setTodoPinned(999999, true);
+
+    // Assert
+    await expect(act).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("sets a todo's due date, changes it, then clears it", async () => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy milk" });
+    const id = seeded?.id ?? 999999;
+
+    // Act
+    const set = await service.setTodoDueDate(id, "2026-10-24");
+    const dueDateAfterSet = (await ctx.db.select().from(todos).where(eq(todos.id, id)))[0]?.dueDate;
+    const changed = await service.setTodoDueDate(id, "2026-11-02");
+    const dueDateAfterChange = (await ctx.db.select().from(todos).where(eq(todos.id, id)))[0]?.dueDate;
+    const cleared = await service.setTodoDueDate(id, null);
+
+    // Assert
+    expect(set).toMatchObject({ id, name: "Buy milk", dueDate: "2026-10-24" });
+    expect(dueDateAfterSet).toBe("2026-10-24");
+    expect(changed.dueDate).toBe("2026-11-02");
+    expect(dueDateAfterChange).toBe("2026-11-02");
+    expect(cleared.dueDate).toBeNull();
+    const [row] = await ctx.db.select().from(todos).where(eq(todos.id, id));
+    expect(row?.dueDate).toBeNull();
+  });
+
+  it("keeps the due date when marking the todo completed or pinning it", async () => {
+    // Arrange
+    const [seeded] = await ctx.seed.todos({ name: "Buy milk", dueDate: "2026-10-24" });
+    const id = seeded?.id ?? 999999;
+
+    // Act
+    const completed = await service.setTodoCompleted(id, true);
+    const pinned = await service.setTodoPinned(id, true);
+
+    // Assert
+    expect(completed.dueDate).toBe("2026-10-24");
+    expect(pinned.dueDate).toBe("2026-10-24");
+    const [row] = await ctx.db.select().from(todos).where(eq(todos.id, id));
+    expect(row).toMatchObject({ isCompleted: true, isPinned: true, dueDate: "2026-10-24" });
+  });
+
+  it("throws NotFoundError when setting the due date of an unknown todo", async () => {
+    // Act
+    const act = service.setTodoDueDate(999999, "2026-10-24");
 
     // Assert
     await expect(act).rejects.toBeInstanceOf(NotFoundError);

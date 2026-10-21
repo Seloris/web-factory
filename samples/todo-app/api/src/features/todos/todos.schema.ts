@@ -10,17 +10,22 @@ export const todoSchema = z
     tag: z.string().nullable(),
     isCompleted: z.boolean(),
     isPinned: z.boolean(),
+    dueDate: z.iso.date().nullable(),
     createdAt: z.iso.datetime(),
   })
   .meta({ id: "Todo" });
 
 export type Todo = z.infer<typeof todoSchema>;
 
+// PostgreSQL has no year 0: such a day would reach the database and fail as a 500.
+export const dueDateSchema = z.iso.date().refine((day) => day >= "0001-01-01");
+
 export const todoListSchema = z.array(todoSchema);
 
 export const createTodoBodySchema = z.object({
   name: z.string().trim().min(1).max(200),
   tag: z.string().trim().max(30).nullish(),
+  dueDate: dueDateSchema.nullish(),
 });
 
 // The upper bound is the integer column's: a larger id would reach Postgres and fail as a 500.
@@ -34,6 +39,10 @@ export const setTodoCompletedBodySchema = z.object({
 
 export const setTodoPinnedBodySchema = z.object({
   isPinned: z.boolean(),
+});
+
+export const setTodoDueDateBodySchema = z.object({
+  dueDate: dueDateSchema.nullable(),
 });
 
 const problemContent = { "application/problem+json": { schema: problemDetailsSchema } };
@@ -80,6 +89,21 @@ registry.registerPath({
   request: {
     params: todoIdParamsSchema,
     body: { required: true, content: { "application/json": { schema: setTodoPinnedBodySchema } } },
+  },
+  responses: {
+    200: { description: "The updated todo", content: { "application/json": { schema: todoSchema } } },
+    400: { description: "The id or the body is invalid", content: problemContent },
+    404: { description: "The todo does not exist", content: problemContent },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/v1/todos/{id}/due-date",
+  summary: "Set, change or clear a todo's due date",
+  request: {
+    params: todoIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: setTodoDueDateBodySchema } } },
   },
   responses: {
     200: { description: "The updated todo", content: { "application/json": { schema: todoSchema } } },
