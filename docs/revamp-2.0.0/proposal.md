@@ -68,7 +68,7 @@ Round 3 (the open questions Q1–Q9 of v1):
 - Q1, page slug? → **A business name** chosen at creation (`todo-detail`); the route is a header line of the spec (`Route: /todos/:id`). A renamed route changes one line, not a file.
 - Q2, a page in two fronts? → **A folder per front only from two fronts on**: `pages/home.md` with one front, `pages/{component}/home.md` with two or more.
 - Q3, a map of the pages? → **None.** The `pages/` folder is enough.
-- Q4, the done footer without the board? → **Kept, lighter**: the "keep its shape for the board" rule and the recap-only footer of a free request without a commit go.
+- Q4, the done footer without the board? → **Kept, lighter**: the "keep its shape for the board" rule goes. The recap-only footer of a free request without a commit **stays** (changed 2026-10-22): Selo Ops flags a session done on the footer (`ops-export.md` §5.3), and without it "done, nothing to commit" and "stopped halfway" look the same.
 - Q5, a spec-only edit? → **No dedicated skill.** A free request does it; the project's `CLAUDE.md` carries the spec rules.
 - Q6, a mockup as input? → **Input and check**: an image given to `blueprint` is saved in `blueprints/assets/` and cited; `/selo:try` takes a screenshot and compares it with the mockup in its report.
 - Q7, marketplace name? → **Renamed `selo`**: `selo@selo`, one name everywhere.
@@ -209,7 +209,7 @@ Eight skills stay eight, but the person types three in practice: `fastlane`, `bl
 
 - Delete `plugins/selo-flow-board/` and its entry in `.claude-plugin/marketplace.json`; the root `CLAUDE.md` loses its board lines and commands.
 - `workflow-rules.md`: drop "a second `-m`, never `-F`: the board reads the subject" (keep `-m` twice, it is still the simplest); drop "the board reads it, keep its shape" from the done footer.
-- `templates/CLAUDE.md`: the done footer stays, lighter: drop "The board and its companion apps read it: keep its shape" and the recap-only footer of a free request answered without a commit.
+- `templates/CLAUDE.md`: the done footer stays, lighter: "The board and its companion apps read it: keep its shape" becomes "Selo Ops reads it". The recap-only footer of a free request answered without a commit stays.
 - `docs/manifest.md`, `skins/README.md`, `skills/init/SKILL.md`: their board mentions.
 - `IDEAS.md`: its "Specs of the day" idea stays there, out of 2.0; its `## board` scope heading is the person's to rename.
 - Rename: plugin `selo-flow` → `selo`, marketplace `selo-flow` → `selo` (install `selo@selo`), manifest `selo-flow.yaml` → `selo.yaml` (`setup update` renames it and rewrites the project's `extraKnownMarketplaces` and `enabledPlugins`, as `init update` renamed `factory.yaml`).

@@ -25,15 +25,22 @@ What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Clau
 
 | Hook | Matcher | `ops.mjs` does |
 |---|---|---|
-| `SessionStart` | | Writes the session file (`status: live`, root, repo, `startedAt`), rescans the project. |
+| `SessionStart` | | Writes the session file (`status: live`, root, repo, `startedAt`, `transcriptPath`, `model` when the input has it), rescans the project. |
 | `UserPromptSubmit` | | A `/selo:{lane} …` prompt opens a run on its step (§5.2); any other prompt opens a `free` run, or keeps the current run when it answers its question (a commit's yes, an answer). Phase → `working`. |
 | `PreToolUse` | `Skill` | Same as above for a brief-driven call: an autopilot's subagents run the skills through the Skill tool, never from a typed prompt. `agent_id` makes it a subagent run. |
-| `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. |
+| `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. A `node {plugin}/scripts/ops.mjs mark …` command sets the run's `substep` and `sheets` (§5.4). |
+| `PostToolUse` | `Edit\|Write\|NotebookEdit` | Adds the path to the session's `touchedFiles`. A file under `.planning/blueprints/` names the run's `blueprint` (a draft has one before its commit); a file under `.planning/pages/` or `.planning/domain/` adds its sheet to `sheets`. |
+| `PostToolUse` | `mcp__ccd_turn__wrap_up` | Keeps the call's `ask` for this turn: in the desktop app the question sits in that box, not in the last line of text (§5.3). |
 | `SubagentStart` / `SubagentStop` | | Opens / closes the subagent's run, from `last_assistant_message`. |
-| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Rescans the project. |
+| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Rescans the project. |
+| `StopFailure` | | An API error ended the turn: phase `stopped`, `error` set. |
 | `SessionEnd` | | `status: ended`; a run still `working` becomes `stopped`. |
 
+Every hook also copies the input's `permission_mode` and `effort.level`, when present, to the session file: the latest value wins.
+
 A hook that is not in a selo project (no `selo.yaml` up the tree) exits at once. A hook never blocks, never prints to the agent except the commit hook's warnings, and gives up after 5 s. Interrupted sessions are not guessed by age any more: Selo Ops has the pid file, and a session file `live` whose pid is gone is `interrupted` for it (one rule, in one place).
+
+**A turn the person interrupts (Esc) fires no `Stop`** (Claude Code's hooks reference: Stop "does not run if the stoppage occurred due to a user interrupt"). The phase stays `working`; Selo Ops reads `working` with Claude Code's status `idle` as `interrupted-turn` (§6). The next prompt opens or resumes a run as usual.
 
 ## 4. The project file
 
@@ -49,7 +56,10 @@ type SeloProject = {
   repo: string | null
   branch: string | null
   baseBranch: string
+  /** Commits on `branch` that `baseBranch` does not have; null on the base branch itself or without git. */
   aheadCount: number | null
+  /** Commits on `branch` that its upstream does not have: what a human still has to push. Null without an upstream; then every commit of the branch is unpushed. */
+  unpushedCount: number | null
   /** Uncommitted paths (modified, staged, untracked). */
   changedCount: number
   manifest: {
@@ -147,6 +157,21 @@ type SeloSession = {
   startedAt: string
   /** `live` from SessionStart to SessionEnd. Whether the process is alive is Claude Code's pid file. */
   status: 'live' | 'ended'
+  /** From the hooks' input: where Selo Ops reads the transcript, without guessing its folder from the cwd. */
+  transcriptPath: string | null
+  /** SessionStart's `model`, when Claude Code gives it; the transcript stays the source for the model in use. */
+  model: string | null
+  /** The latest `permission_mode` and `effort.level` a hook received. */
+  permissionMode: string | null
+  effort: string | null
+  /** Every path this session wrote (Edit, Write, NotebookEdit), relative to `root`, deduplicated. */
+  touchedFiles: string[]
+  /** The touched files still uncommitted at the last `Stop` (`git status`): what this session leaves behind, apart from the other sessions on the checkout. */
+  dirtyFiles: string[]
+  /** `background_tasks` of the last `Stop`: the shells and agents still running after the turn. */
+  backgroundTasks: { id: string; type: string; status: string; description: string }[]
+  /** Can the person close the session? Computed at each `Stop` (§5.5). */
+  close: { ok: boolean; blockers: CloseBlocker[] }
   /** Every run of the session, newest first: the main loop's and its subagents'. */
   runs: Run[]
   /** The main loop's latest run: what a tile shows. An autopilot stands for its subagents. */
@@ -161,9 +186,9 @@ type Run = {
   lane: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
   /** The prompt's text after the command, shortened to 200 characters. */
   request: string
-  /** The blueprint the run works on (its `name`), once known: named by the command, or found when a stage commit lands. */
+  /** The blueprint the run works on (its `name`), once known: named by the command, written by the run (a draft), or found when a stage commit lands. */
   blueprint: string | null
-  /** The sheets the run's commits touched (their `Spec:` lines): a fastlane's page, a build's pages. */
+  /** The sheets the run works on: from `ops.mjs mark`, the spec files it writes, then its commits' `Spec:` lines. A fastlane names its page before coding. */
   sheets: string[]
   /**
    * `blueprint` (writing it), `stage:N`, `review`, `merge` (the delta merged into the sheets), `fastlane`, `try`, `grill`, `setup`, `free`.
@@ -172,6 +197,10 @@ type Run = {
   step: string
   /** The last stage of a `— stage N` build; null when the build runs every stage. */
   lastStep: string | null
+  /** Where the step stands, set by the skill through `ops.mjs mark` (§5.4); null before the first mark. */
+  substep: 'bootstrap' | 'tests' | 'code' | 'suites' | 'review' | 'try' | 'merge' | 'commit' | null
+  /** The `StopFailure` error, when an API error ended the run. */
+  error: string | null
   /**
    * Where the run stands for the person, from the end of the last turn:
    * `working` while a turn runs; `awaiting-commit`: the turn ended on a commit question (its message in a closing code block);
@@ -192,6 +221,14 @@ type Run = {
   since: string
   updatedAt: string
 }
+
+type CloseBlocker =
+  | 'not-done'          // phase is not `job-done`
+  | 'pending-commit'    // a commit proposed, not made
+  | 'question'          // a question waits for the person
+  | 'dirty-files'       // `dirtyFiles` not empty
+  | 'background-tasks'  // a background shell or agent still running
+  | 'subagents'         // a subagent run still open
 ```
 
 ### 5.2 Which run a prompt opens
@@ -212,12 +249,27 @@ A prompt that answers the current run (its phase is `awaiting-commit` or `awaiti
 
 From `last_assistant_message`, in this order:
 
-1. Ends with the done footer (`## ✅ JOB DONE`, a `> ` line, commit lines) → `job-done`, `recap` filled.
+1. Ends with the done footer (`## ✅ JOB DONE`, a `> ` line, zero or more commit lines) → `job-done`, `recap` filled. A free request answered without a commit ends with the footer and its recap line alone (proposal §3 Q4): it is `job-done` too, with no commits.
 2. The last fenced code block is the last text and its first line matches `{type}({scope}): ` → `awaiting-commit`, `pendingCommit` = the block.
-3. The last non-empty line ends with `?` → `awaiting-answer`, `question` = that line.
-4. Otherwise `turn-ended`.
+3. A `wrap_up` call of this turn carried an `ask`, or the last non-empty line ends with `?` → `awaiting-answer`, `question` = the `ask`, else that line.
+4. Otherwise `turn-ended`: the turn ended without the footer, a rule the workflow broke, shown as such.
 
-The footer and the commit block are the only shapes the workflow rules fix for this export (proposal §3 Q4 keeps the footer, lighter): "the board reads it" becomes "Selo Ops reads it", one line in `reference/rules.md`.
+The footer and the commit block are the only shapes the workflow rules fix for this export (proposal §3 Q4 keeps the footer, lighter): "the board reads it" becomes "Selo Ops reads it", one line in `reference/rules.md`. The footer is what flags a session done: every turn that finished its job ends with it, with or without a commit.
+
+### 5.4 Marks: the page and the substep
+
+A skill marks where it is with one Bash call, `node ${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs mark {substep} [sheet …]`, at each change: `bootstrap` (the spec of an empty page), `tests` (red tests written), `code`, `suites`, `review`, `try`, `merge`, `commit`. The script itself prints nothing and writes nothing: the `PostToolUse` hook reads the command with the session id the script does not have, and sets `substep`, adds the sheets. A fastlane's first mark names its page (`mark tests home`), so the tile shows the page before the commit. A skill that forgets a mark loses detail on the dashboard, never a state: phase and step do not depend on marks.
+
+### 5.5 Can the session be closed
+
+`close` is computed at each `Stop`, and at `SessionEnd`, on the main loop's `current` run:
+
+- `ok` when `blockers` is empty.
+- `not-done` unless `phase` is `job-done`; `pending-commit` when `pendingCommit` is set; `question` when `phase` is `awaiting-answer`.
+- `dirty-files` when `dirtyFiles` is not empty: the files this session wrote and nobody committed. Files of other sessions on the checkout never block it.
+- `background-tasks` when an entry of `backgroundTasks` is `running`; `subagents` when a subagent run has no `SubagentStop` yet.
+
+A session file is written by its own hooks only (§1.2): a file another session commits later leaves `dirty-files` until this session's next `Stop`. Selo Ops shows `close` as is, and the blockers in words on the tile.
 
 ## 6. What Selo Ops derives, and from what
 
@@ -229,6 +281,11 @@ The footer and the commit block are the only shapes the workflow rules fix for t
 | Pill: which source | Claude Code's status while it says `running` or `awaitingAnswer` (a turn, a dialog); the plugin's `phase` once it says `idle` (only the plugin knows why the turn ended). No timestamp comparison: at a turn's end the pid file and the session file are written within milliseconds, in either order. A stale phase goes at the next prompt (`working`). |
 | Band `blueprint › étape`, stage segments | `current` of the session file + its blueprint in the project file |
 | `Interrompue` | session file `live`, pid file gone, or `phase: stopped` |
+| `Tour interrompu` (Esc) | `phase: working` while Claude Code says `idle`: no `Stop` fired (§3) |
+| Badge `Tu peux fermer` / its blockers | `close` of the session file (§5.5) |
+| Band `page · sous-étape` | `current.sheets`, `current.substep` |
+| Session's technical line: model, effort, permission mode | `permissionMode`, `effort` of the session file; the model from the transcript (`model` of the file when it has none yet) |
+| Project: `N non poussés` | `unpushedCount` (`aheadCount` stays the distance to the base branch) |
 | Project `Activité` | Among the root's session files: `awaiting-commit`, then `awaiting-answer`, then `working`, else the latest |
 | Stale project | `writtenAt` older than 60 s **and** no live session on the root (a project with no session open is simply not rescanned: it is not stale, it is quiet) |
 | Specs page: pages, domains, their FR/BR counts, what is in flight on each | `sheets[]` + `openBlueprints`; the markdown read under the root on click |
@@ -249,6 +306,14 @@ The footer and the commit block are the only shapes the workflow rules fix for t
   "repo": "C:/WS/ia-projects/selo-ops/.git",
   "startedAt": "2026-10-21T13:40:02.000Z",
   "status": "live",
+  "transcriptPath": "C:/Users/me/.claude/projects/C--WS-ia-projects-selo-ops/59ec7eff-18ab-44b0-829d-e33b4e8e040e.jsonl",
+  "model": "claude-opus-5-5",
+  "permissionMode": "auto",
+  "effort": "high",
+  "touchedFiles": ["web/src/features/todos/TodoList.tsx", "web/src/features/todos/TodoForm.tsx"],
+  "dirtyFiles": ["web/src/features/todos/TodoList.tsx", "web/src/features/todos/TodoForm.tsx"],
+  "backgroundTasks": [],
+  "close": { "ok": false, "blockers": ["not-done", "pending-commit", "dirty-files"] },
   "current": {
     "id": "59ec7eff-18ab-44b0-829d-e33b4e8e040e:1792598402000",
     "agentId": null,
@@ -258,6 +323,8 @@ The footer and the commit block are the only shapes the workflow rules fix for t
     "sheets": ["home", "todo"],
     "step": "stage:2",
     "lastStep": null,
+    "substep": "commit",
+    "error": null,
     "phase": "awaiting-commit",
     "pendingCommit": { "subject": "feat(due-date): web — due dates and late todos in the list", "body": "Spec: pending (.planning/blueprints/2026-10-21-due-date.md)" },
     "question": null,
@@ -277,3 +344,12 @@ The footer and the commit block are the only shapes the workflow rules fix for t
 2. **Claude Code's status vs the plugin's phase** → By Claude Code's status, never by timestamps (§6, "Pill: which source"): `running` / `awaitingAnswer` are Claude Code's, `idle` reads the plugin's phase. A timestamp rule was rejected: at a turn's end both files are written within milliseconds, and the pid file winning would hide an `awaiting-commit` behind `idle`.
 3. **A session with several roots** → One session file, its `root` the last root; every root it passed through gets its project file rescanned.
 4. **Idle projects** → `node {plugin}/scripts/ops.mjs scan {root}` rescans a project without a session; Selo Ops may run it, read-only, on the roots `installed_plugins.json` lists for `selo`.
+
+2026-10-22, after a challenge of the export against "can I close this session?":
+
+5. **Closing a session** → A `close` field computed by the plugin (§5.5), with its blockers. Uncommitted work is counted per session (`touchedFiles` ∩ `git status`), not per root: with 3–5 sessions on one checkout, `changedCount` cannot say what this session left.
+6. **The done footer flags the session** → `job-done` needs the footer; the recap-only footer of a free request without a commit stays (proposal §3 Q4 changed). `turn-ended` means the footer is missing.
+7. **Desktop questions** → A `PostToolUse` on `mcp__ccd_turn__wrap_up` keeps its `ask`. It names one host's tool; with another host the last-line rule stays.
+8. **Esc** → No `Stop` fires on an interrupt (checked in the hooks reference, 2026-10-22); Selo Ops reads `working` + `idle` as an interrupted turn.
+9. **Substeps** → Marked by the skills (`ops.mjs mark`, §5.4), not guessed from the tools: only the skill knows that it moved from tests to code.
+10. **Technical fields** → `transcriptPath`, `permissionMode`, `effort` come from the hooks' common input; `model` only from SessionStart, which does not always carry it. Output style is in no hook input: left out. `unpushedCount` added: under "never push", it is what the person checks before closing.
