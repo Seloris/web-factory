@@ -1,0 +1,330 @@
+<title>Factory v2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column of plates; each plate is one diagram or one mock-up, captioned like a technical sheet. */
+:root{
+  --bg:#f3f5f6; --panel:#ffffff; --ink:#18232a; --muted:#5b6b74; --line:#d5dde1;
+  --accent:#0d7a6f; --accent-soft:#d8efeb; --biz:#a35a00; --biz-soft:#fbead2;
+  --ok:#2f7d32; --warn:#b5651d; --stop:#b3261e; --chip:#e9eef0;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1518; --panel:#172126; --ink:#e3ebee; --muted:#93a4ac; --line:#2a3a41;
+  --accent:#4cc3b2; --accent-soft:#16332f; --biz:#f0a64a; --biz-soft:#3a2a14;
+  --ok:#6cc070; --warn:#e39a52; --stop:#ef7a70; --chip:#223036; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1518; --panel:#172126; --ink:#e3ebee; --muted:#93a4ac; --line:#2a3a41;
+  --accent:#4cc3b2; --accent-soft:#16332f; --biz:#f0a64a; --biz-soft:#3a2a14;
+  --ok:#6cc070; --warn:#e39a52; --stop:#ef7a70; --chip:#223036; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+main{max-width:980px;margin:0 auto;display:grid;gap:40px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(2rem,5vw,3rem);font-weight:700}
+h2{font-size:1.5rem;font-weight:700}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0;max-width:68ch}
+code,.mono{font-family:var(--f-mono);font-size:.86em}
+.eyebrow{font:600 .75rem/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.plate{display:grid;gap:16px}
+.plate > header{display:grid;gap:6px}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;overflow-x:auto}
+.muted{color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.stat{border-left:3px solid var(--accent);padding:4px 0 4px 12px}
+.stat b{display:block;font:700 1.4rem/1.2 var(--f-display);font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:.9rem}
+/* flow */
+.router{display:grid;gap:10px;justify-items:center;text-align:center}
+.node{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px;font-size:.92rem;min-width:0}
+.node.key{border-color:var(--accent);background:var(--accent-soft)}
+.node.biz{border-color:var(--biz);background:var(--biz-soft)}
+.arrow{color:var(--muted);font-family:var(--f-mono);font-size:.85rem}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:8px}
+.lane{border:1px dashed var(--line);border-radius:10px;padding:14px;display:grid;gap:8px;align-content:start}
+.lane h3{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.lane ol{margin:0;padding:0;list-style:none;display:grid;gap:6px;counter-reset:s}
+.lane li{counter-increment:s;display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start;font-size:.93rem}
+.lane li::before{content:counter(s);font:600 .78rem/22px var(--f-mono);text-align:center;border-radius:50%;background:var(--chip);color:var(--muted);width:22px;height:22px}
+.lane li.ask::before{background:var(--biz-soft);color:var(--biz)}
+.tag{font:600 .72rem/1 var(--f-mono);padding:4px 7px;border-radius:999px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.tag.ok{color:var(--ok)} .tag.biz{background:var(--biz-soft);color:var(--biz)} .tag.ac{background:var(--accent-soft);color:var(--accent)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+/* git */
+.git{min-width:640px}
+.git svg{display:block;width:100%;height:auto}
+.git text{font-family:var(--f-mono);font-size:12px;fill:var(--ink)}
+.git .m{fill:var(--muted)}
+/* spec lifecycle */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.step{border-top:3px solid var(--accent);background:var(--panel);border-radius:0 0 8px 8px;padding:12px;display:grid;gap:6px;border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.step.biz{border-top-color:var(--biz)}
+.step small{color:var(--muted)}
+pre.spec{margin:0;font:13px/1.55 var(--f-mono);white-space:pre;overflow-x:auto}
+.del{color:var(--muted);text-decoration:line-through}
+.add{color:var(--accent)}
+/* chat mock */
+.chat{display:grid;gap:12px;max-width:760px}
+.msg{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;font-size:.95rem}
+.msg.user{justify-self:end;background:var(--accent-soft);border-color:transparent;max-width:85%}
+.msg ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.decision{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--biz);background:var(--biz-soft);border-radius:8px;padding:8px 10px}
+.btns{display:flex;gap:6px}
+.btn{font:600 .8rem/1 var(--f-body);border-radius:6px;padding:6px 10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:default}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.footer{border-top:1px solid var(--line);padding-top:10px;font-family:var(--f-mono);font-size:.82rem;display:grid;gap:4px}
+.footer b{font-family:var(--f-display)}
+/* question mock */
+.q{display:grid;gap:8px}
+.opt{border:1px solid var(--line);border-radius:8px;padding:8px 12px;display:grid;gap:2px}
+.opt.rec{border-color:var(--accent);background:var(--accent-soft)}
+.opt small{color:var(--muted)}
+/* board mock */
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 .75rem/1.2 var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.num{font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--chip);overflow:hidden;min-width:80px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.dec{display:grid;gap:10px;counter-reset:d;padding:0;margin:0;list-style:none}
+.dec li{counter-increment:d;display:grid;grid-template-columns:32px 1fr;gap:10px}
+.dec li::before{content:counter(d);font:700 1rem/32px var(--f-display);text-align:center;border-radius:8px;background:var(--biz-soft);color:var(--biz);height:32px}
+@media (prefers-reduced-motion:no-preference){.node.key{transition:transform .2s}.node.key:hover{transform:translateY(-1px)}}
+</style>
+
+<main>
+<header class="plate">
+  <span class="eyebrow">webapp-factory · proposal of 2026-10-21</span>
+  <h1>Factory v2</h1>
+  <p class="muted">A smooth workflow that drives an application with up-to-date specs: two speeds (fastlane dev, specified feature), a spec the code keeps up to date and that you see move every evening, parallel sessions that commit on <code>develop</code> without getting in each other's way. The plates below illustrate the proposal detailed in <code>proposal.md</code>.</p>
+  <div class="stats">
+    <div class="stat"><b>≈ 10,400 → 6,200</b><span>words read before the first line of a web stage</span></div>
+    <div class="stat"><b>2,371 → 1,098</b><span>words of shared rules (rewritten)</span></div>
+    <div class="stat"><b>0</b><span>questions on a spec delta that restates your request</span></div>
+    <div class="stat"><b>1 command</b><span>from the request to <code>develop</code>, in autopilot</span></div>
+  </div>
+</header>
+
+<section class="plate">
+  <header><span class="eyebrow">Plate 1</span><h2>Two lanes, one mechanism</h2>
+  <p class="muted">The autopilot picks the lane on a free request; <code>— with plan</code> forces the feature lane. <code>implement {request}</code> is always the fastlane. Both lanes end the same way: review, demo, commit on <code>develop</code>.</p></header>
+  <div class="sheet">
+    <div class="router">
+      <div class="node key"><code>/factory:autopilot {request | slug | plan}</code></div>
+      <div class="arrow">▼ the planner judges the size</div>
+      <div class="node">a single component · no new business rule or entity?</div>
+    </div>
+    <div class="lanes">
+      <div class="lane">
+        <h3>Fastlane <span class="tag ac">yes · ~10 min</span></h3>
+        <ol>
+          <li>Name the spec area touched</li>
+          <li>Code + tests, build / test / lint</li>
+          <li>Spec delta in the same commit</li>
+          <li>Review on the diff (reviewer)</li>
+          <li>Test on the demo if UI</li>
+          <li>Commit on <code>develop</code>, by named files</li>
+        </ol>
+      </div>
+      <div class="lane">
+        <h3>Feature lane <span class="tag biz">no · 30–60 min</span></h3>
+        <ol>
+          <li class="ask">Spec, multiple-choice grill (2 rounds) if interactive</li>
+          <li>Plan: Business decisions ≤ 5, then Technical defaults</li>
+          <li>Stages, one commit each</li>
+          <li>Review of the whole plan, once, at the end</li>
+          <li>Full suites, test on the demo</li>
+          <li>Report: Business decisions first</li>
+        </ol>
+      </div>
+    </div>
+    <div class="legend" style="margin-top:14px"><span><i class="dot" style="background:var(--biz-soft);outline:1px solid var(--biz)"></i>the only moment you are asked a question</span><span><i class="dot" style="background:var(--chip)"></i>no question</span></div>
+  </div>
+</section>
+
+<section class="plate">
+  <header><span class="eyebrow">Plate 2</span><h2>Five sessions, zero collisions</h2>
+  <p class="muted">Two phases. <b>Step A</b>, right away: everyone commits on <code>develop</code>, each their own files, no more branches or squash. <b>Step B</b>, after a trial: each session that writes has its worktree and lands by fast-forward when everything is green; your servers reload the landed code.</p></header>
+  <div class="grid2">
+    <div class="sheet"><h3>Step A · shared develop</h3>
+      <ul style="margin:8px 0 0;padding-left:20px;display:grid;gap:4px">
+        <li><code>git commit -- {my files}</code>, never <code>add -A</code> or <code>--amend</code></li>
+        <li>a file modified by another session: stop, say so</li>
+        <li>dirty tree: no longer a blocker</li>
+        <li>red suite outside my diff: replayed on <code>HEAD</code>, “not ours”</li>
+      </ul></div>
+    <div class="sheet"><h3>Step B · one worktree per job</h3>
+      <p class="muted" style="margin-top:8px">The rest of this plate. Also settles the suite that runs on another session's half-done work. Cost to measure first: <code>node_modules</code> and ignored files per worktree.</p></div>
+  </div>
+  <div class="sheet git">
+    <svg viewBox="0 0 900 300" role="img" aria-label="Three worktrees landing on develop in turn">
+      <line x1="40" y1="60" x2="860" y2="60" stroke="var(--accent)" stroke-width="3"/>
+      <text x="40" y="40">develop · main checkout · npm run dev (your servers)</text>
+      <g>
+        <circle cx="80" cy="60" r="7" fill="var(--accent)"/>
+        <circle cx="330" cy="60" r="7" fill="var(--accent)"/>
+        <circle cx="560" cy="60" r="7" fill="var(--accent)"/>
+        <circle cx="800" cy="60" r="7" fill="var(--accent)"/>
+      </g>
+      <!-- wt1 -->
+      <path d="M80 60 C 100 120, 120 120, 140 120 L 300 120 C 315 120, 320 80, 330 60" fill="none" stroke="var(--biz)" stroke-width="2"/>
+      <circle cx="180" cy="120" r="5" fill="var(--biz)"/><circle cx="250" cy="120" r="5" fill="var(--biz)"/>
+      <text x="140" y="145" class="m">wt/header-version · fastlane</text>
+      <text x="268" y="98" class="m">land</text>
+      <!-- wt2 -->
+      <path d="M80 60 C 100 190, 130 190, 150 190 L 530 190 C 548 190, 552 90, 560 60" fill="none" stroke="var(--muted)" stroke-width="2"/>
+      <circle cx="210" cy="190" r="5" fill="var(--muted)"/><circle cx="300" cy="190" r="5" fill="var(--muted)"/><circle cx="420" cy="190" r="5" fill="var(--muted)"/>
+      <text x="150" y="215" class="m">wt/live-sessions-filters · spec, plan, api, web</text>
+      <text x="470" y="170" class="m">rebase then land</text>
+      <!-- wt3 -->
+      <path d="M330 60 C 350 260, 380 260, 400 260 L 770 260 C 788 260, 792 100, 800 60" fill="none" stroke="var(--ok)" stroke-width="2"/>
+      <circle cx="480" cy="260" r="5" fill="var(--ok)"/><circle cx="620" cy="260" r="5" fill="var(--ok)"/>
+      <text x="400" y="285" class="m">wt/notifications-sound · autopilot</text>
+      <text x="700" y="240" class="m">land</text>
+    </svg>
+  </div>
+  <div class="grid2">
+    <div class="sheet"><h3>What <code>land</code> does</h3>
+      <ol style="margin:8px 0 0;padding-left:20px;display:grid;gap:4px">
+        <li>lock: two landings never cross</li>
+        <li>checks: clean worktree, review ticked, green suites</li>
+        <li><code>git rebase develop</code>; conflict = stop</li>
+        <li>duplicate spec ids renumbered</li>
+        <li>re-test if the pulled-in commits touch my components</li>
+        <li><code>git -C &lt;main&gt; merge --ff-only</code></li>
+        <li>worktree removed; “npm install needed” flagged</li>
+      </ol></div>
+    <div class="sheet"><h3>What goes away</h3>
+      <p class="muted" style="margin-top:8px">The squash and its 10 lines of git, <code>— close the branch</code>, commits amended to remove another session's files, the autopilot blocked on “tree not clean”, the branch-name question.</p></div>
+  </div>
+</section>
+
+<section class="plate">
+  <header><span class="eyebrow">Plate 3</span><h2>The spec the code keeps up to date</h2>
+  <p class="muted">One spec per product area, describing the current behaviour. It moves in the same commit as the code; you are asked only about a rule you did not request.</p></header>
+  <div class="steps">
+    <div class="step"><h3>Request</h3><p>“the Waiting on you filter includes awaiting-commit”</p><small>the delta restates your request: applied without a question</small></div>
+    <div class="step"><h3>Commit</h3><p>the code <em>and</em> the spec, with the line <code>Spec: live-sessions ~FR-13</code></p><small><code>spec-check</code> checks the ids first</small></div>
+    <div class="step biz"><h3>Gap found</h3><p>“+ BR-23: an empty filter shows all sessions”</p><small>interactive: one grouped question at the end of the work · autopilot: Business decision</small></div>
+    <div class="step"><h3>Review</h3><p>a behaviour change without a <code>Spec:</code> line is a finding</p><small>the reviewer, not a question</small></div>
+    <div class="step biz"><h3>In the evening</h3><p>the board lists the day's changed specs and the decisions to confirm</p><small>ok / revisit, one by one</small></div>
+  </div>
+  <div class="grid2">
+  <div class="sheet"><h3 style="margin-bottom:8px">The spec, in the present tense</h3><pre class="spec">## Functional Requirements
+### Session list
+- **FR-01** — The list shows every open session.
+- **FR-13** — The “Waiting on you” filter <span class="del">shows the sessions waiting for an answer</span><span class="add"> also includes those waiting for a commit</span>.
+### Notifications
+- **FR-31** — One notification per session, never two.
+<span class="add">- **FR-48** — (planned) One sound per notification.</span>
+
+<span class="add">Retired: FR-07, FR-12, BR-04</span>
+<span class="del">## Decisions taken autonomously</span>  <span class="muted">← lives in the plan</span></pre></div>
+  <div class="sheet"><h3 style="margin-bottom:8px">The commit that proves it</h3><pre class="spec">feat(live-sessions): web — waiting filter
+
+<span class="add">Spec: live-sessions ~FR-13 +BR-23</span>
+Decisions: empty filter shows all sessions (BR-23)
+
+<span class="muted">refactor(live-sessions): web — split SessionRow</span>
+
+<span class="add">Spec: none (refactor)</span></pre></div>
+  </div>
+</section>
+
+<section class="plate">
+  <header><span class="eyebrow">Plate 4</span><h2>The autopilot report</h2>
+  <p class="muted">What you read when you come back: the lane taken, five business decisions at most, what did not run. Technical choices stay in the plan.</p></header>
+  <div class="chat">
+    <div class="msg user"><code>/factory:autopilot</code> add a “Waiting on you” filter to the live list, which includes awaiting-commit (FR-13 revised)</div>
+    <div class="msg">
+      <p><b>Landed on develop.</b> Feature lane (two components, one revised rule). Spec <code>live-sessions</code> updated, plan <code>20261021-181200-add-waiting-filter</code>, 2 stages, clean review, demo tested (3 scenarios).</p>
+      <div class="decision"><span><b>Business decision</b> · An empty filter shows all sessions (BR-23)</span><span class="btns"><span class="btn pri">ok</span><span class="btn">revisit</span></span></div>
+      <div class="decision"><span><b>Business decision</b> · Label “Waiting on you (3)” with the counter</span><span class="btns"><span class="btn pri">ok</span><span class="btn">revisit</span></span></div>
+      <ul class="muted">
+        <li>Technical defaults: 9, in the plan</li>
+        <li>Not run: Integration tests (never unless you ask)</li>
+      </ul>
+      <div class="footer"><b>✅ JOB DONE</b><span>&gt; “Waiting on you” filter delivered on develop, tested on the demo</span><span>`a41c9e2` docs(live-sessions): plan add-waiting-filter · develop · not pushed</span><span>`7b2d013` feat(live-sessions): api — waiting bucket includes awaiting-commit · develop · not pushed</span><span>`c90f4aa` feat(live-sessions): web — waiting filter · develop · not pushed</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="plate">
+  <header><span class="eyebrow">Plate 5</span><h2>The multiple-choice grill</h2>
+  <p class="muted">The app's question tool, four questions per screen, the recommended answer first. Two rounds, then the remaining questions become <code>Q-NN</code> in the spec.</p></header>
+  <div class="sheet q">
+    <span class="tag">Round 1 of 2 · question 2 of 4</span>
+    <h3>A filter that finds no session shows…</h3>
+    <div class="opt rec"><b>All sessions, with a “no results” banner (recommended)</b><small>you never lose sight of the list</small></div>
+    <div class="opt"><b>An empty list with a message</b><small>stricter, one more action to get back</small></div>
+    <div class="opt"><b>The filter turns itself off</b><small>surprising if the list changes while you are looking</small></div>
+  </div>
+</section>
+
+<section class="plate">
+  <header><span class="eyebrow">Plate 6</span><h2>The board, in the evening: the day's specs</h2>
+  <p class="muted">The board reads the <code>Spec:</code> lines of the day's commits. You see each area that moved, what changed, and the decisions taken without you. An area without a plan has no next action. Not in 1.0.0: noted in IDEAS.md.</p></header>
+  <div class="sheet">
+    <table>
+      <thead><tr><th>Area</th><th>Changes</th><th>By</th><th>Decision taken alone</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>live-sessions</td><td class="mono">~FR-13 +BR-23</td><td>autopilot · filter</td><td>An empty filter shows all sessions</td><td><span class="btns"><span class="btn pri">ok</span><span class="btn">revisit</span></span></td></tr>
+        <tr><td>notifications</td><td class="mono">+FR-48 (planned)</td><td>write-spec · sound</td><td>—</td><td><span class="tag ac">in progress</span></td></tr>
+        <tr><td>header</td><td class="mono">+FR-01</td><td>implement · versions</td><td>Area created: <code>header</code></td><td><span class="btns"><span class="btn pri">ok</span><span class="btn">revisit</span></span></td></tr>
+        <tr><td>live-sessions</td><td class="mono">none (refactor)</td><td>go dev direct</td><td>—</td><td><span class="tag ok">nothing to see</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="plate">
+  <header><span class="eyebrow">Plate 7</span><h2>The skills, before and after</h2></header>
+  <div class="sheet">
+    <table>
+      <thead><tr><th>Skill</th><th>Fate</th><th>Contract</th><th>Words</th></tr></thead>
+      <tbody>
+        <tr><td><code>autopilot</code></td><td>extended</td><td>Request, slug or plan → landed work; picks the lane</td><td class="num">1,159 → 1,100</td></tr>
+        <tr><td><code>workflow-rules.md</code></td><td>rewritten</td><td>The shared rules: lanes, spec, commits</td><td class="num">2,371 → 1,098</td></tr>
+        <tr><td><code>implement</code></td><td>rewritten</td><td>Fastlane or a plan's stages</td><td class="num">3,040 → 1,407</td></tr>
+        <tr><td><code>write-spec</code></td><td>+ compact</td><td>Creates, updates, compacts an area's spec</td><td class="num">1,833 → 1,200</td></tr>
+        <tr><td><code>write-plan</code></td><td>kept</td><td>Plan, Business decisions first</td><td class="num">1,228 → 1,000</td></tr>
+        <tr><td><code>review</code></td><td>extended</td><td>Diff, plan, or implemented plan (formerly final review)</td><td class="num">400 → 600</td></tr>
+        <tr><td><code>land</code></td><td>new, 0.12</td><td>Lock, rebase, ids, fast-forward develop</td><td class="num">— → 500</td></tr>
+        <tr><td><code>test-in-browser</code></td><td>rewritten</td><td>Starts the demo under a lock, tests, stops it</td><td class="num">750 → 600</td></tr>
+        <tr><td><code>grill-me</code></td><td>adapted</td><td>Multiple choice, 2 rounds</td><td class="num">707 → 600</td></tr>
+        <tr><td><code>factory-init</code></td><td>+ update</td><td>Setup, partial modes, updating a project</td><td class="num">2,004 → 2,200</td></tr>
+        <tr><td><code>retro</code></td><td>removed</td><td>—</td><td class="num">1,199 → 0</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="plate">
+  <header><span class="eyebrow">Plate 8</span><h2>Four versions</h2>
+  <p class="muted">Each shipped with its matching board, tried on <code>samples/todo-app</code> before the companion. The first two are enough for the goal.</p></header>
+  <div class="steps">
+    <div class="step"><h3>0.9.0 · Cleanup</h3><p><code>factory-init update</code>, removals (retro, squash, branches, with review, wt.exe), safe commits on develop in the project's <code>CLAUDE.md</code></p></div>
+    <div class="step"><h3>0.10.0 · Living specs</h3><p>the area rule, <code>Spec:</code> line, <code>spec-check</code>, two lanes, Business decisions, multiple-choice grill</p></div>
+    <div class="step"><h3>0.11.0 · Demo</h3><p><code>commands.demo</code>, demo lock, browser test by default, react-express pack</p></div>
+    <div class="step biz"><h3>0.12.0 · Worktrees</h3><p>after a one-hour trial: one worktree per job, <code>land</code></p></div>
+  </div>
+</section>
+
+<section class="plate">
+  <header><span class="eyebrow">When you're back</span><h2>Five decisions</h2></header>
+  <ol class="dec">
+    <li><div><b>No more branches or squash</b>: everything is committed on develop, by named files. <span class="muted">Recommended: yes.</span></div></li>
+    <li><div><b>The area rule and the <code>Spec:</code> line</b>: the spec follows without asking you, and in the evening you see what changed. <span class="muted">Recommended: yes.</span></div></li>
+    <li><div><b><code>retro</code> removed</b>, not just hidden. <span class="muted">Recommended: yes.</span></div></li>
+    <li><div><b>The autopilot picks the lane</b> after reading the code, <code>— fastlane</code> / <code>— with plan</code> to force it. <span class="muted">Recommended: yes.</span></div></li>
+    <li><div><b>Worktrees</b>: run the trial right after 0.10.0. <span class="muted">Recommended: yes, step A limits collisions without removing them.</span></div></li>
+  </ol>
+</section>
+</main>

@@ -5,3 +5,7 @@ The person's ideas for the factory and its board, not yet worked on. Grouped by 
 ## factory
 
 - 2026-10-20 — **A skill to update an existing project:** a skill that brings an existing project's files up to date with the factory, for example the `IDEAS.md` that arrived later on.
+
+## board
+
+- 2026-10-21 — **Specs of the day panel:** a board panel that reads the `Spec:` lines of the day's commits and lists, area by area, the spec changes and the business decisions taken without the person, each with an ok / revise button, so the person checks every evening what changed in the specs (plate 6 of `docs/revamp-1.0.0/mockups.html`).
