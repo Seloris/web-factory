@@ -19,6 +19,9 @@ agents/
 scripts/
   manifest.mjs          the single manifest parser (library + CLI)
   timestamp.mjs         dev-plan folder timestamp
+  spec-check.mjs        an area spec's ids checked, the next free ones
+  commit-hook.mjs       the PreToolUse hook on git commit: warns, never blocks
+hooks/hooks.json        the commit hook
 reference/              workflow-rules.md (read first by every skill), caveman.md (agent-to-agent voice)
 templates/              what init writes into a project
 stacks/                 stack packs (component templates + skills), read in place

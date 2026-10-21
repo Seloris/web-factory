@@ -1,8 +1,6 @@
-# Demo counter (Compteur de démo) — PRD
+# Demo counter (Compteur de démo) — Spec
 
 > **Slug**: `demo`
-> **Status**: Approved
-> **Last updated**: 2026-10-16
 
 ## TL;DR
 

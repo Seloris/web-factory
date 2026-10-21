@@ -1,54 +1,92 @@
 ---
 name: autopilot
-description: "Run a feature from any point to developed code with no question to the person: spec (grill-me included), plan, every stage in the manifest's order (the last one reviews the whole plan), each as a fresh-context subagent on its role's model, each step committed on the base branch. Starts from a free request, a feature slug with a spec, or a plan folder (resumed at its Progress). Stops only on a real blocker. Use when the person wants to launch one command and come back to finished work; stops after the spec or the plan with — until spec / — until plan."
+description: "Take a free request, an area slug or a plan folder to finished work on the base branch, no question asked. Reads the code, then picks the fastlane (one implement run) or the feature lane (spec, plan, stages, review, browser test on request), each step a fresh subagent. — fastlane / — with plan force the lane; — until spec / — until plan stop early."
 ---
 
 # Autopilot
 
-One command, no click until the feature is developed. The session is the orchestrator: it runs the workflow's steps one after another, each as a subagent with a fresh context, and reads only their reports. It never reads or writes the project's code itself, never asks the person, and stops only on a real blocker.
+The session is the orchestrator: it runs the steps one after another, each as a fresh subagent, and reads only their reports. It never reads or writes the project's code, never asks the person, and stops only on a real blocker.
 
 Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first, then the manifest: `models` (one per role), `stages`, `baseBranch`, each component's `url`.
 
 ## Input
 
-`/selo-flow:autopilot {input}`, where what exists under `.planning/features/{slug}/` says where to start:
+`/selo-flow:autopilot {input}`:
 
-- **A free request** (text): spec → plan → stages.
-- **A slug** (or a feature folder) whose `00_spec.md` exists and has no plan folder yet: plan → stages. A slug with a committed plan whose Progress is not done is that plan folder (the most recent one).
-- **A plan folder** `.planning/features/{slug}/dev-plans/{…}/`: stages, resumed at the plan's Progress: a ticked stage is never redone. An untracked `plan.md` is a draft: in autonomous mode it is committed as it stands, then implemented.
+- **A free request**: the lane is chosen first.
+- **A slug** (an area) with its `00_spec.md`: the feature lane from the plan; with an unfinished committed plan, that plan folder (the most recent).
+- **A plan folder** `.planning/features/{slug}/dev-plans/{…}/`: the stages, resumed at Progress. An untracked `plan.md` is a draft: committed as it stands, then implemented.
 
 Options, at the end of the prompt:
 
-- ` — until spec`: stop once the spec is committed. ` — until plan`: stop once the plan is committed.
-- ` — with browser test`: the last stage runs `test-in-browser` when its component has a `url`; without it, `Browser test` is marked `[-]` (not run: autopilot without browser test).
+- ` — fastlane` / ` — with plan`: force the lane of a free request.
+- ` — until spec`: stop once the spec is committed. ` — until plan`: stop once the plan is committed. Both imply the feature lane.
+- ` — with browser test`: passed on to every `implement` step; the last stage then runs `test-in-browser` when a touched component has a `url`. Without it, `Browser test` is marked `[-]` (not run: autopilot without browser test).
 
 ## Prerequisites
 
-- **Permissions.** The session runs with the `auto` or `acceptEdits` permission mode and a Bash allowlist covering the components' commands (`build`, `test`, `lint`, `prepare`, `handoff`, `serve` with ` — with browser test`) and `git`. Otherwise every subagent stops at its first prompt: say so to the person before the first step and stop.
+- **Permissions.** The session runs in the `auto` or `acceptEdits` permission mode with a Bash allowlist covering `git`, `node ${CLAUDE_PLUGIN_ROOT}/scripts/*` and the components' commands (`build`, `test`, `lint`, `prepare`, `handoff`, and `serve` with ` — with browser test`). Otherwise every subagent stops at its first prompt: say so and stop before the first step.
 - **A manifest** with every role's model and a `CLAUDE.md` per component (no `missingFile`).
 
-Work is committed on the base branch, as **Where commits go** says; a dirty tree (other sessions' work) is not a blocker.
+A dirty working tree is not a blocker (**Where commits go**).
+
+## Lane choice
+
+On a free request with no lane forced, spawn one `Explore` subagent (`models.explorer`, description `explorer · lane {short request}`), read-only: the area, the components and files touched, any new business rule or entity. Then:
+
+- **Fastlane** when it touches one component (or the api and its regenerated client) **and** adds no business rule or entity.
+- **Feature** otherwise.
+
+Its reason, in one line, opens the report.
 
 ## Pipeline
 
-Every step is one call of the Agent tool, `subagent_type: general-purpose`, `run_in_background: false`, `model:` the role's model from the manifest, the role first in its description (`implementer · stage 2 web`). The prompt is in the caveman voice and tells the subagent to read the skill's `SKILL.md` under `${CLAUDE_PLUGIN_ROOT}/skills/` and follow it as if the person had typed the prompt given, with ` — autonomous`, and to end with its report: the commit made (hash, subject), the paths written, its `Decisions taken autonomously`, the items marked `[-]`, and what is left open or blocked. The orchestrator keeps the reports only; it never opens the files a report names.
+Every step is one call of the Agent tool: `subagent_type: general-purpose`, `run_in_background: false`, `model:` the role's model, a description starting with the role and the step (`planner · spec live-sessions`, `implementer · stage 2 web`). The prompt, in the caveman voice: read `${CLAUDE_PLUGIN_ROOT}/skills/{skill}/SKILL.md` and follow it as if the person had typed the prompt given, ending with ` — autonomous`; end with this report:
 
-1. **Spec** (`models.planner`): `/selo-flow:write-spec {request} — autonomous` (the subagent runs `grill-me` itself, in autonomous mode). Ends with `docs({slug}): spec — {summary}` committed. Stop here on ` — until spec`.
-2. **Plan** (`models.planner`): `/selo-flow:write-plan {slug} — autonomous`. Ends with `docs({slug}): plan {type}-{name}` committed; its report gives the plan folder and the stages. Stop here on ` — until plan`.
-3. **Stages** (`models.implementer`), one subagent per stage, in the manifest's order, starting at the first stage of Progress with unchecked steps: `/selo-flow:implement {plan folder} — stage {N} ({component}) — autonomous`, plus ` — with browser test` when the pipeline carries it. Each ends with its stage commit, the subject of the plan's Progress; the last stage also runs the review of the whole plan and the full suites. The next subagent starts only once the report names that commit: a stage with a `handoff` is committed with its file before the next stage runs its `prepare`.
-4. **Report** to the person, in `language.chat`, normal prose: the commits (their hashes and subjects, from the reports); the spec and plan paths; every decision taken alone, gathered from the reports' `Decisions taken autonomously` (question, answer, reason); the items marked `[-]`; the review findings left open, with `/selo-flow:implement fix findings {numbers} of the review of {plan folder}` as the next prompt when there are some. Then the done footer, one line per commit of the pipeline. Never push.
+- commits made (hash, subject);
+- the `Spec:` line of each;
+- Business decisions (question, answer, reason);
+- the number of Technical defaults;
+- the items marked `[-]`;
+- blockers and points left open.
 
-The subagents spawn `reviewer` and `runner` themselves (they are spawned with the full tool set). A subagent whose report says it had no Agent tool ran its commands itself and skipped the review: the orchestrator then spawns `reviewer` (`models.reviewer`) on the plan's commits, and on findings one more subagent, `/selo-flow:implement fix findings of the review of {plan folder} — autonomous` (`models.implementer`), committed as `fix({slug}): review — {summary}`.
+The orchestrator never opens the files a report names.
+
+### Fastlane
+
+One subagent (`models.implementer`): `/selo-flow:implement {request} — autonomous` (plus ` — with browser test`). It codes, updates the spec, reviews, runs the full suites and the browser test when asked, and commits.
+
+When it finds a business rule or an entity the lane choice missed, it stops before committing and says so: run the feature lane on the same request, and say it in the report's first line.
+
+### Feature lane
+
+1. **Spec** (`models.planner`): `/selo-flow:write-spec {request} — autonomous`. The subagent runs `grill-me`, skipped when the request already carries its decisions (ids cited, rules stated one by one). Ends with the spec committed, new FRs `(planned)`. Stop here on ` — until spec`.
+2. **Plan** (`models.planner`): `/selo-flow:write-plan {slug} — autonomous`. Ends with the plan committed; its report gives the plan folder and the stages. Stop here on ` — until plan`.
+3. **Stages** (`models.implementer`), one subagent per stage, in `stages` order, starting at the first stage of Progress with unchecked steps: `/selo-flow:implement {plan folder} — stage {N} ({component}) — autonomous` (plus ` — with browser test`). The next starts only once the report names the stage's commit (with its handoff file, if any). The last stage also runs the review, the full suites and the browser test when asked, as `implement` says.
+
+A subagent that had no Agent tool skipped the review: spawn `reviewer` (`models.reviewer`) on the work's commits, and on findings one more `implement` subagent: `/selo-flow:implement fix findings of the review of {commits} — autonomous`, committed as `fix({slug}): review — {summary}`.
+
+## Report
+
+To the person, in `language.chat`, normal prose:
+
+1. The lane and why, one line (and the switch, if any).
+2. **Business decisions**, at most five, from the reports.
+3. The `Spec:` lines of the run's commits, from the reports (other sessions share the branch: no `git log` range).
+4. The items marked `[-]`.
+5. The points left open.
+6. The done footer, one line per commit of the run.
+
+After ` — until spec` or ` — until plan`, the next prompt: `/selo-flow:autopilot {slug}`.
 
 ## Stop
 
-The pipeline stops only on a real blocker reported by a subagent: a suite still red after its one fix attempt (a failure outside the work's files is marked `[-]`, not a blocker), a broken build, a `grill-me` question with no recommendation possible, a plan that contradicts its Progress, a file held by another session's uncommitted edits past the wait. No retry beyond the subagent's own fix attempt, no second subagent on the same step.
+The run stops only on a real blocker reported by a subagent: a suite still red after its fix attempt (foreign failures are `[-]`), a broken build, a question with no defensible answer, a plan that contradicts its Progress, a file held by another session past the five-minute wait. No second subagent on the same step.
 
-On a stop: report the step, the error or the open questions as the subagent gave them, in normal prose; leave the commits made as they are (nothing is reverted); say that the same command resumes where the Progress is (`/selo-flow:autopilot {plan folder}`, or the slug once the spec exists). No done footer on a stop that followed no commit; otherwise one line per commit made before it.
+On a stop: report the step and the error or open questions as given; revert nothing; say that the same command resumes at Progress (`/selo-flow:autopilot {plan folder}`, or the slug once the spec exists). The done footer lists the commits made before the stop; none if nothing was committed.
 
 ## Rules
 
-- Never a question to the person, never a `Decisions` round in this session: every decision belongs to the step's subagent, recorded in its `Decisions taken autonomously`.
-- The hard rules hold through every subagent: never push, never run `integration_tests`, commits with the subject announced beforehand.
-- One subagent at a time: a stage reads the previous stage's commit and handoff file.
-- The orchestrator's context holds reports, not code: a report that pastes a file is summarised, never acted on line by line.
+- Never a question to the person: every decision belongs to a subagent.
+- The hard rules hold through every subagent: never push, never run `integration_tests`.
+- A report that pastes a file is summarised, never acted on line by line.

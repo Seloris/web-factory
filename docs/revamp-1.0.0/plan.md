@@ -67,15 +67,15 @@ Commit: `feat(selo-flow): init update brings a project up to date`
 
 ### Stage 4 — living specs and fastlane (ex-0.10.0)
 Commit: `feat(selo-flow): areas, Spec lines and the fastlane`
-- [ ] `scripts/spec-check.mjs` from `proto/` with its tests in `tests/`; also flags FRs still `(planned)` at the end of a plan
-- [ ] The area rule, the `Spec:` line, `(planned)`, `Retired:` in `workflow-rules.md` and in a tagged block of the template `CLAUDE.md`
-- [ ] `hooks/hooks.json`: a `PreToolUse` hook on `git commit` that runs `spec-check` and warns (never denies) on a code commit without `Spec:`, or on `-a`, `add -A`, `--amend`
-- [ ] `skills/write-spec/SKILL.md` from `drafts/write-spec-v2.md`: no `Status`, no `Updated`, no decisions section, stubs, `— rewrite`
-- [ ] `skills/autopilot/SKILL.md` from `drafts/autopilot-v2.md`: read-only exploration, then fastlane or feature lane; ` — fastlane`, ` — with plan`
-- [ ] `write-plan`: *Business decisions* and *Technical defaults* replace *Decisions* and *Decisions taken autonomously*; `Integration tests` only on request
-- [ ] `grill-me`: the session's question tool (1 to 4 questions per call, recommended answer first), 2 rounds, the rest as `Q-NN`
-- [ ] `review {slug}`: a whole area's spec against the code
-- [ ] Board: an area with a spec and no plan has no next action; the `Status` label goes
+- [x] `scripts/spec-check.mjs` from `proto/` with its tests in `tests/`; also flags FRs still `(planned)` at the end of a plan
+- [x] The area rule, the `Spec:` line, `(planned)`, `Retired:` in `workflow-rules.md` and in a tagged block of the template `CLAUDE.md`
+- [x] `hooks/hooks.json`: a `PreToolUse` hook on `git commit` that runs `spec-check` and warns (never denies) on a code commit without `Spec:`, or on `-a`, `add -A`, `--amend`
+- [x] `skills/write-spec/SKILL.md` from `drafts/write-spec-v2.md`: no `Status`, no `Updated`, no decisions section, stubs, `— rewrite`
+- [x] `skills/autopilot/SKILL.md` from `drafts/autopilot-v2.md`: read-only exploration, then fastlane or feature lane; ` — fastlane`, ` — with plan`
+- [x] `write-plan`: *Business decisions* and *Technical defaults* replace *Decisions* and *Decisions taken autonomously*; `Integration tests` only on request
+- [x] `grill-me`: the session's question tool (1 to 4 questions per call, recommended answer first), 2 rounds, the rest as `Q-NN`
+- [x] `review {slug}`: a whole area's spec against the code
+- [x] Board: an area with a spec and no plan has no next action; the `Status` label goes
 
 ### Stage 5 — demo (ex-0.11.0)
 Commit: `feat(selo-flow): browser tests run on the demo`
@@ -108,7 +108,7 @@ Commit: `fix(selo-flow): review — {summary}` (only when the review leads to fi
 - [x] Stage 1 — rename
 - [x] Stage 2 — cleanup and shared develop
 - [x] Stage 3 — `init update`
-- [ ] Stage 4 — living specs and fastlane
+- [x] Stage 4 — living specs and fastlane
 - [ ] Stage 5 — demo
 - [ ] Stage 6 — docs, sample, release
 - [ ] Stage 7 — review

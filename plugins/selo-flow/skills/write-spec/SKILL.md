@@ -1,132 +1,118 @@
 ---
 name: write-spec
-description: "Draft or update a feature's business spec (.planning/features/{slug}/00_spec.md) with the person: problem, non-goals, functional requirements, business rules, plus the user stories and the glossary when they add something. The only way 00_spec.md is ever written. Use for a new business idea, to update the spec of an existing feature, when a feature is planned or coded without a spec (derived from the plan or the code), or when planning or implementing reveals a business behaviour change. With — autonomous (under autopilot): no question, grill-me run in autonomous mode, defaults taken and recorded, committed without asking."
+description: "Write the spec of an area of the application (.planning/features/{slug}/00_spec.md): how that area behaves today, in the present tense. The only writer of 00_spec.md. Use for a new area (a short grill, then the spec), an update (a delta), when write-plan or implement change a behaviour (called mode), and once per old spec with — rewrite. With — autonomous (under autopilot): no question, defaults taken and reported."
 ---
 
-# Write or update a feature spec
+# Write the spec of an area
 
-The spec says what the feature does, for whom, why, and which rules it enforces. It never says how. When the person brings up properties, relationships, endpoints, contracts, components, tables, authorization policies or migrations, say it belongs to the plan, lock the name and business meaning, and move on.
+A spec says how one **area** of the application (a screen, a route, a domain) behaves today, for whom, and which rules it enforces: present tense, readable in five minutes. Never how: when endpoints, tables, components, contracts or migrations come up, lock the business name, say it belongs to the plan, move on. No history, no decisions, no `Status`, no `Updated`: git holds them.
 
-This skill is the only writer of `00_spec.md`: planning (`write-plan`) and implementation (`implement`) call it instead of editing the spec themselves.
+Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first; its **The spec follows the code** says when a spec changes, and the `Spec:` line. `write-plan` and `implement` call this skill instead of editing a spec.
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/workflow-rules.md` first (the project, language), and the project's `.claude/rules/planning.md`.
+`/selo-flow:write-spec {request or slug}`, optionally ending with ` — rewrite` or ` — autonomous`.
 
-The prompt names the feature: `/selo-flow:write-spec {feature}`. The spec lives under `.planning/features/{slug}/`.
+## Writing rules
 
-## Rules
+- One file per area, plus `assets/` for the images the person shares. Edited in place with targeted `Edit`s, never redrafted (except `— rewrite`).
+- **Each fact once.** FRs and BRs carry the behaviour; the other sections give context and never restate them. A rule that is a non-goal is a non-goal.
+- An `FR-NN` is one sentence a reviewer can check an implementation against, with its reason (`… so that …`) when not obvious. FRs are grouped under `###` headings, one per screen or zone, in the order the person meets them.
+- A revised FR is rewritten under its id. A replaced or dropped FR or BR is deleted and its id added to the `Retired:` line; never strike through. A resolved `Q-NN` is retired the same way and becomes an FR or a BR.
+- An FR not built yet reads `- **FR-48** — (planned) …`; the stage that builds it removes the mark.
+- Ids (`FR`, `BR`, `US`, `Q`) are append-only, never renumbered, never reused. Take the next one from `node ${CLAUDE_PLUGIN_ROOT}/scripts/spec-check.mjs {slug}`, and run it again before any commit.
+- Renaming a glossary entry updates every plan using the old name.
+- Written in `language.repo`; business terms of the person's language inline in backticks.
 
-- A single file per feature: no sibling files or subfolders (except `assets/`). Existing specs are edited in place, never redrafted.
-- **Each fact once.** The plan and the reviewer work from the numbered requirements; the other sections give them context, they do not repeat them. A sentence that restates another section is removed. A business rule that is already a non-goal is a non-goal.
-- An `FR-NN` is one sentence the reviewer can check an implementation against; its reason goes in the same sentence (`… so that …`) when it is not obvious.
-- `US-NN`, `BR-NN` and `Q-NN` are append-only and never renumbered (plans reference them). `FR-NN` is revised in place under the same id.
-- A resolved `Q-NN` is removed from Open Questions and becomes an `FR-NN` or `BR-NN`.
-- Renaming a Domain Glossary entry is a breaking change: update every plan that uses the old name.
-- `Status` is `Draft` while the spec has never been committed, and `Approved` in every commit: the person's yes to the spec's first commit approves it, so the switch is made just before that commit. An approved spec stays `Approved`: the plans and the stages that change it later go through called mode. Bump `Last updated` on every edit.
-- Written in `language.repo`, with business terms of the person's language allowed inline in backticks.
-- A spec written or updated on its own (Procedure below) is its own commit, containing only `00_spec.md` (and its `assets/`): `docs({slug}): spec — {summary}`.
-- In called mode, the spec change is **not** committed alone: it goes into the calling skill's commit (the plan's commit, or the implementation stage's commit), so the spec and the change that motivates it ship together. A spec still `Draft` (new in called mode) is switched to `Approved` in that commit. Never push.
+## Which area
 
-## Called mode
+The area whose screen, route or domain the request touches. A new area only for its own screen, route or domain; otherwise the nearest area takes the FR, said in the report. Creating an area is a Business decision.
 
-When `write-plan` or `implement` calls this skill for a business behaviour change found while planning or coding, or for a feature that has no spec yet (the workflow rules' **The spec stays in sync**):
+## Modes
 
-**No spec yet.** Propose in one line to create it from the plan (or from the code and the request), and wait for the person's yes, unless the caller already got it; a no goes back to the caller, which records it. On yes, draft the whole spec into `00_spec.md` following the Template and the Rules: only the business behaviour the plan or the code carries (who, what, which rule), never how. The slug is the caller's: no slug question, no grill offer. Post the message of Procedure step 4 and iterate as it says; the spec stays `Draft` until the caller's commit switches it to `Approved`. Then skip to step 3.
+### New area
 
-**A spec exists:**
+1. **Grill**, unless the request already carries its decisions (ids cited, rules stated one by one): run `grill-me` on the request, through the session's question tool, four questions per call, the recommended answer first, the slug as the first question; two rounds at most; what stays open becomes `Q-NN`.
+2. **Draft the whole spec in one pass** into `00_spec.md` (Template), every FR `(planned)`. Never paste it in chat: post a link, one line per section, the Domain Glossary in full, the open questions.
+3. Iterate with targeted edits, then **Commit**.
 
-1. Write the delta: `+ US-NN` / `+ BR-NN` for additions, `~ FR-NN: before → after` for revisions, `Q-NN resolved → BR-NN`.
-2. **Delta that only restates what the person explicitly asked for** (the request, or a choice they already made in the conversation): no extra confirmation. Edit the spec in place following the Rules, and show the delta in the calling skill's report.
-   **Delta the person did not ask for** (a business behaviour change discovered while planning or coding): propose it in chat and wait for the person's yes before editing.
-3. Do not commit: the calling skill commits `00_spec.md` with its own work. Return to it: no next prompts.
+### Update
 
-## Autonomous mode
+Read the spec and the area's code. Write the delta: `+ FR-NN`, `~ FR-NN: before → after`, `- FR-NN`, `Q-NN → BR-NN`. Ask through the question tool only what the delta leaves open, one round. Apply it, show it, then **Commit**.
 
-The prompt ends with ` — autonomous` (sent by `autopilot`, see the workflow rules' **Autonomous mode**): the Procedure runs with no question to the person.
+### Called mode
 
-- Step 1: the slug is the proposed one (an existing one first), without confirmation. Step 2: uncommitted changes on an existing spec stop the step: report them, write nothing.
-- Step 3: run `grill-me` on the spec, in ` — autonomous` mode, without offering it, and draft from its decisions. Its open questions stop the step before any write: report them.
-- Step 4: one pass into the file, no iteration; the message is the report. Add a `## Decisions taken autonomously` section at the end of the spec: one line per question, `- {question} → {answer taken} ({reason})`, the grill's answers and the slug among them.
-- Step 5: no confirmation. Set `Status` to `Approved`; commit with the Rules' subject. Say the commit in the report; no next prompt when `autopilot` called this skill.
-- Called mode under autopilot (a plan or a stage changing the spec, or deriving it): the caller's yes is given; every delta the person did not ask for is applied and listed in the caller's `## Decisions taken autonomously`.
+From `write-plan` or `implement`, same session, the caller's slug:
 
-## Procedure
+- a delta that restates the request, or a choice the person already made: applied, no question;
+- a delta nobody asked for: applied and handed to the caller, which asks one grouped question at the end of its work (interactive) or lists it first in its Business decisions (autonomous);
+- no spec for the area: a stub, no question, filled by the next changes:
 
-1. **Slug.** List `.planning/features/` and propose a slug, reusing an existing one first: *"Suggested feature slug: **`{slug}`** (existing | new) — {rationale}. Confirm, or suggest another?"* Wait for confirmation.
-2. **New or update.** For an update, read the current spec and edit it in place. If it already holds uncommitted changes (`git diff` on the file is not empty), say so and ask the person what to do with them before drafting: they would end up in the spec's commit. Read the code to understand current behaviour, but never copy technical detail into the spec.
-3. **Offer the grill.** Before drafting, always offer it in one line, in `language.chat`: *"I can challenge you first on the business rules and edge cases (`grill-me`). Shall we?"* On yes, run the `grill-me` skill on the spec, then draft from its decisions. On no, go on.
-4. **Draft the whole spec in one pass**, straight into `00_spec.md`, uncommitted, with only the sections that earn their place (Template below). The spec's text is produced once, in the file: never paste a section in chat. Then post one message: a link to the file, the gist of each section in a line, the Domain Glossary table in full when there is one (every future plan uses these names), and the questions left open. Iterate until the person is satisfied: apply each refinement with a targeted `Edit` and say what changed in a line. Never rewrite the whole file.
-5. **Confirm and commit.** One confirmation, which shows the message in a code block: *"Commit `.planning/features/{slug}/00_spec.md`?"*, and say that the commit approves the spec. On yes, set `Status` to `Approved` and commit it as **Where commits go** says (see Rules). If the person drops it instead, delete the draft of a new spec, or take your own edits back out of an existing one (never `git checkout` the file: it may hold other uncommitted changes), and say so. Unless another skill called this one, end with the next prompt: `/selo-flow:write-plan {slug}` in a new session.
-6. **Images** the person shares are saved in `.planning/features/{slug}/assets/` and referenced from the relevant section (usually UX Flow or Problem).
+  ```markdown
+  # {Area} — Spec
+  > **Slug**: `{slug}`
+  ## TL;DR
+  {one or two sentences}
+  ## Functional Requirements
+  - **FR-01** — {one per behaviour touched}
+  ```
+
+No commit, no next prompt: the caller commits the spec with its code or its plan. FRs that commit builds carry no `(planned)`; FRs a plan adds do.
+
+### `— rewrite`
+
+Once per spec written before this version. Rewrite `00_spec.md` to the Template: present tense, FRs grouped by screen or zone, ids kept; superseded or struck-through items deleted, their ids on `Retired:`; `Status`, `Last updated`, `Decisions taken autonomously` and any history removed (a reason still needed becomes a `so that`). No behaviour added, changed or dropped: spawn `reviewer` on the old and new versions, and fix every change of meaning before the commit. Subject: `docs({slug}): spec — rewrite in present tense`.
+
+### Autonomous mode
+
+` — autonomous` (from `autopilot`): no question. `grill-me` runs autonomous, the slug is the proposed one. Its decisions go into the report, Business decisions first (a new area among them), never into the spec. One with no defensible answer stops the step, nothing written. Commit without asking.
+
+## Commit
+
+A spec written on its own is its own commit on `baseBranch`, holding only its files:
+
+```
+git add {files written} && git commit --only -m "{subject}" -- .planning/features/{slug}/00_spec.md {assets written}
+```
+
+Subject `docs({slug}): spec — {summary}`. Interactive: show the exact message in a code block, ask, commit on yes. Dropped: delete a new spec's draft, or take your own edits back out (never `git checkout` the file). A spec holding another session's uncommitted edits follows the workflow rules. Unless called, end with `/selo-flow:write-plan {slug}`.
 
 ## Template
 
-Required: the header block, TL;DR, Problem, Non-goals, Functional Requirements. The other sections only when they say something the required ones do not:
-
-| Section | Write it when |
-|---|---|
-| Goals | the observable outcomes are not obvious from the TL;DR |
-| Users & Context | there are several roles, or the circumstances of use matter (frequency, device, place); one role with an obvious use is a clause of the TL;DR |
-| Domain Glossary | the feature introduces or reuses a name the plans and the code will carry (an entity, a concept with a business meaning); never for the words of the UI |
-| User Stories | there are several roles, or a benefit no FR carries; a single role whose reasons are in the FRs needs none |
-| Business Rules | a policy or constraint an implementation could silently break, and which is not already a non-goal |
-| UX Flow | the feature has a user interface |
-| Open Questions | a decision is still open |
-| Decisions taken autonomously | the spec was written in autonomous mode (every question, the answer taken, its reason) |
+Required (except for a stub): the header, TL;DR, Problem, Non-goals, Functional Requirements. The others only when they add something: Domain Glossary (a name the plans and code will carry, never UI words), User Stories (several roles only), Business Rules (a policy an implementation could silently break), UX Flow (a UI), Open Questions, `Retired:`.
 
 ```markdown
-# {Feature name} ({feature name in the person's language, if different}) — PRD
+# {Area} ({name in the person's language}) — Spec
 
-> **Slug**: `{slug}`
-> **Tags**: {#tag …; omit the line when none applies}
-> **Status**: Draft | Approved
-> **Last updated**: {YYYY-MM-DD}
+> **Slug**: `{slug}` · **Tags**: {#tag …}
 
 ## TL;DR
-
-{2–3 sentences: the problem, who has it, what this feature does about it.}
+{2–3 sentences: what, for whom.}
 
 ## Problem
-
-{Why this feature exists. A concrete pain point in a real user situation, not a generic statement.}
-
-## Goals
-
-- {Observable outcome: what becomes true once this ships.}
+{The concrete pain in a real situation.}
 
 ## Non-goals
-
-- {Explicitly out of scope, with a one-line reason if not obvious.}
-
-## Users & Context
-
-{Who uses the feature, in which role, in which circumstances. Frequency and typical scenario if relevant.}
+- {Out of scope, reason if not obvious.}
 
 ## Domain Glossary
-
-Canonical entity names introduced or reused. Names only: no properties, relationships or persistence.
-
-| Business term | Identifier | Business meaning | Status |
-|---|---|---|---|
-| `Contrat` | `Site` | A commercial agreement between the company and a `KeyAccount` | Reused |
-| `Type d'intervention` | `InterventionType` | The kind of on-site intervention scheduled by a technician | New |
+| Business term | Identifier | Business meaning |
+|---|---|---|
 
 ## User Stories
-
 - **US-01** — As a {role}, I want {capability} so that {benefit}.
 
 ## Functional Requirements
-
-- **FR-01** — {What the system must do, one sentence, with its reason when not obvious.}
+### {Screen or zone}
+- **FR-01** — {What the system does, one sentence.}
+- **FR-02** — (planned) {…}
 
 ## Business Rules
-
-- **BR-01** — {Policy or constraint the system must enforce.}
+- **BR-01** — {Policy the system enforces.}
 
 ## UX Flow
-
-{Short bulleted walkthrough or a Mermaid `flowchart`.}
+{Short bullets or a Mermaid `flowchart`.}
 
 ## Open Questions
+- **Q-01** — {Question still open.}
 
-- **Q-01** — {Question to settle before or during planning.}
+Retired: FR-07, BR-04
 ```

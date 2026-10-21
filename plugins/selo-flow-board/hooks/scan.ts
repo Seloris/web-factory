@@ -132,7 +132,6 @@ export async function scanBoard($: EngineInterface, root: string, now: number): 
         slug,
         title: spec?.title ?? plan?.title ?? slug,
         hasSpec: spec !== null,
-        specStatus: spec?.status ?? null,
         plans,
         plan,
         state: featureState(spec !== null, plan),

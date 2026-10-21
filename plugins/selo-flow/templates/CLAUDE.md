@@ -23,6 +23,14 @@ Every session commits on the base branch, with a skill or without: no feature br
 - A test suite that fails outside this work's files: list the files other sessions changed (`git status` minus this work's files), mark `- [-] Tests: foreign uncommitted changes in {files}`, do not investigate, commit.
 <!-- selo-flow:end commits -->
 
+<!-- selo-flow:begin specs -->
+## Specs
+
+`.planning/features/{slug}/00_spec.md` says how one area of the application (a screen, a route, a domain) behaves today. Every change of behaviour, with a skill or without, names its area and updates that spec in the same commit as the code, through the `write-spec` skill in called mode (a free session runs it too): never a hand edit. A refactor, a look, a fix restoring the specified behaviour: no spec change.
+
+Every commit that touches code carries a `Spec:` line in its body, as a second `-m`: `Spec: {slug} +FR-48 ~FR-13 -FR-07`, or `Spec: none ({reason})`. The plugin's commit hook checks the ids and warns when the line is missing.
+<!-- selo-flow:end specs -->
+
 <!-- selo-flow:begin hard-rules -->
 ## Hard rules
 

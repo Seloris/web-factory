@@ -3,6 +3,7 @@
     "allow": [
       "Bash(node *scripts/timestamp.mjs)",
       "Bash(node *scripts/manifest.mjs*)",
+      "Bash(node *scripts/spec-check.mjs*)",
       "Bash(node --test *)"
     ],
     "deny": [

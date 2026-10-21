@@ -12,7 +12,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, UiPressArgument } from 'claude-code'
 
 import type { SeloFlowBoard, SeloFlowBoardFeature, SeloFlowBoardFilter, SeloFlowBoardMarker, SeloFlowBoardPlan, SeloFlowBoardRun, SeloFlowBoardRunStatus, SeloFlowBoardStage, SeloFlowBoardStep } from '../types'
-import { activeStep, afterCommit, classifyTurn, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featureLabel, isOffWorkflow, OFF_WORKFLOW, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseSeloFlowCommand, runLastStep, runPlan, runStep, runTitle, setModels, SPEC_STATUS_LABEL, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
+import { activeStep, afterCommit, classifyTurn, commitFeature, committed, describeRun, exportBoard, exportPath, featureAction, featureLabel, isOffWorkflow, OFF_WORKFLOW, featurePilot, followedFeatures, isStageDone, isStepDone, liveRuns, MODEL_CHOICES, MODEL_ROLES, newPlans, nextAction, parseSeloFlowCommand, runLastStep, runPlan, runStep, runTitle, setModels, stamp, stepDetail, stepMarker, stepRuns, stepTitle, steps, tickReview, withPlan } from './planning'
 import { scanBoard } from './scan'
 
 const PANE = 'selo-flow-board'
@@ -701,7 +701,7 @@ export const register: Register = on => {
       const nextNumber = Number(/^stage:(\d+)$/.exec(active)?.[1] ?? NaN) || null
       const stateColor = isNewPlan ? 'claude' : STATE_COLOR[feature.state]
       const stateLabel = isNewPlan ? 'nouveau plan en cours' : STATE_LABEL[feature.state]
-      const specLine = feature.specStatus ? `spec ${SPEC_STATUS_LABEL[feature.specStatus] ?? feature.specStatus}` : feature.hasSpec ? 'spec présente' : 'pas de spec'
+      const specLine = feature.hasSpec ? 'spec présente' : 'pas de spec'
 
       const row = (step: SeloFlowBoardStep, isLast: boolean) => {
         const isDone = isStepDone(feature, step)

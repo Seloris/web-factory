@@ -83,28 +83,15 @@ export function parsePlan(text: string): ParsedPlan {
   return plan
 }
 
-export type ParsedSpec = { title: string | null; status: string | null }
+export type ParsedSpec = { title: string | null }
 
-const SPEC_STATUS = /\*\*Status\*\*\s*:\s*(.+?)\s*$/
-
-/** Reads a `00_spec.md`: its title (without the PRD suffix) and its status. */
+/** Reads a `00_spec.md`: its title, without the `— Spec` or `— PRD` suffix. */
 export function parseSpec(text: string): ParsedSpec {
-  const spec: ParsedSpec = { title: null, status: null }
   for (const line of text.split(/\r?\n/)) {
-    if (spec.title === null) {
-      const h1 = HEADING_1.exec(line)
-      if (h1 && !line.startsWith('##')) {
-        spec.title = (h1[1] ?? '').replace(/\s*[—–-]\s*PRD\s*$/i, '').trim()
-        continue
-      }
-    }
-    const status = SPEC_STATUS.exec(line)
-    if (status) {
-      spec.status = (status[1] ?? '').trim()
-    }
-    if (spec.title !== null && spec.status !== null) break
+    const h1 = HEADING_1.exec(line)
+    if (h1 && !line.startsWith('##')) return { title: (h1[1] ?? '').replace(/\s*[—–-]\s*(?:PRD|Spec)\s*$/i, '').trim() }
   }
-  return spec
+  return { title: null }
 }
 
 export type SeloFlowCommand = {
@@ -136,7 +123,7 @@ export function parseSeloFlowCommand(text: string): SeloFlowCommand | null {
   const path = PLAN_PATH.exec(args)
   let feature = path?.[1] ?? null
   const folder = path?.[2] ? `.planning/features/${path[1]}/dev-plans/${path[2]}` : null
-  if (feature === null && (skill === 'write-plan' || skill === 'write-spec' || skill === 'autopilot')) {
+  if (feature === null && (skill === 'write-plan' || skill === 'write-spec' || skill === 'autopilot' || skill === 'review')) {
     feature = BARE_SLUG.exec(args)?.[1] ?? null
   }
   return { skill, args, feature, folder }
@@ -271,7 +258,8 @@ export function nextAction(feature: SeloFlowBoardFeature, options: { browser?: b
       // No spec to start from: the autopilot takes a request, typed from the header's button.
       return { label: 'Écrire la spec', prompt: `/selo-flow:write-spec ${slug}` }
     case 'spec':
-      return { label: 'Écrire le plan', prompt: `/selo-flow:write-plan ${slug}`, autopilot }
+      // An area: its spec follows the code, and a plan starts from `+ Nouveau plan` when one is wanted.
+      return null
     case 'plan':
     case 'running': {
       if (plan === null) return null
@@ -344,7 +332,8 @@ export function runStep(command: SeloFlowCommand, feature: SeloFlowBoardFeature 
     case 'write-plan':
       return 'plan'
     case 'review':
-      return /^plan\b/.test(command.args) ? 'plan' : 'review'
+      // `review plan {folder}`: the plan; `review {folder}`: the plan's review; `review {slug}`: the area's spec.
+      return /^plan\b/.test(command.args) ? 'plan' : command.folder === null && command.feature !== null ? 'spec' : 'review'
     case 'autopilot':
       // The pipeline starts at the feature's step; from a request, at the spec. Moved at each of its subagents.
       return feature ? activeStep(feature) : 'spec'
@@ -474,16 +463,11 @@ const isPilot = (run: SeloFlowBoardRun): boolean => run.command === 'autopilot'
 
 export const isStageDone = (stage: { done: number; total: number }): boolean => stage.total > 0 && stage.done === stage.total
 
-export const SPEC_STATUS_LABEL: Record<string, string> = {
-  Draft: 'brouillon',
-  Approved: 'validée',
-}
-
-/** What stands at a step's right: the stage count, the SHA, the spec status. */
+/** What stands at a step's right: the stage count, the SHA, whether the spec exists. */
 export function stepDetail(feature: SeloFlowBoardFeature, step: SeloFlowBoardStep): string {
   const plan = feature.plan
   if (step === 'spec') {
-    return feature.specStatus ? (SPEC_STATUS_LABEL[feature.specStatus] ?? feature.specStatus) : feature.hasSpec ? 'présente' : 'absente'
+    return feature.hasSpec ? 'présente' : 'absente'
   }
   if (step === 'plan') return plan === null ? '' : plan.isDraft ? 'brouillon' : 'commité'
   if (step === 'review') return plan ? `${plan.validationDone}/${plan.validationTotal}` : ''
@@ -603,7 +587,6 @@ export function exportBoard(board: SeloFlowBoard): SeloFlowBoardExport {
       state: f.state,
       isNewPlan: f.plan === null && f.plans.length > 0,
       hasSpec: f.hasSpec,
-      specStatus: f.specStatus,
       plan: f.plan,
       plans: f.plans.map(p => p.folder),
       autopilot: featurePilot(f.slug, runs) ?? null,

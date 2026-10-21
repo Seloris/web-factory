@@ -199,15 +199,16 @@ test('a plan is finalized once its stages and its Review are ticked, whatever th
   expect(featureState(true, finished('- [x] Revue : faite\n'))).toBe('done')
   const board = (validation: string): SeloFlowBoard => {
     const plan = finished(validation)
-    const feature: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [plan], plan, state: featureState(true, plan) }
+    const feature: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, plans: [plan], plan, state: featureState(true, plan) }
     return { root: ROOT, branch: 'feat/demo', baseBranch: 'main', changedCount: 0, features: [feature], runs: [], scannedAt: 0, error: null }
   }
   expect(committed(board('- [ ] Review: pending\n'), board('- [x] Review: done\n- [ ] Browser test: not run\n'))).toEqual(['demo · plan finalisé'])
   expect(committed(board('- [x] Review: done\n'), board('- [x] Review: done\n'))).toEqual([])
 })
 
-test('parseSpec reads the title without the PRD suffix and the status', () => {
-  expect(parseSpec(SPEC)).toEqual({ title: 'Demo counter (Compteur de démo)', status: 'Draft' })
+test('parseSpec reads the title without the Spec or PRD suffix', () => {
+  expect(parseSpec(SPEC)).toEqual({ title: 'Demo counter (Compteur de démo)' })
+  expect(parseSpec('# Live sessions — Spec\n')).toEqual({ title: 'Live sessions' })
 })
 
 test('parseSeloFlowCommand finds the feature and the plan folder', () => {
@@ -239,13 +240,13 @@ test('nextAction follows the feature state', () => {
     slug: 'demo',
     title: 'Demo',
     hasSpec: true,
-    specStatus: null,
     plans: p ? [p] : [],
     plan: p,
     state,
   })
   const autopilot = { label: '⚡ Autopilot', prompt: `/selo-flow:autopilot ${PLAN_FOLDER}` }
-  expect(nextAction(feature('spec', null as never))).toEqual({ label: 'Écrire le plan', prompt: '/selo-flow:write-plan demo', autopilot: { label: '⚡ Autopilot', prompt: '/selo-flow:autopilot demo' } })
+  // An area with its spec and no plan: nothing to do next, `+ Nouveau plan` starts one when wanted.
+  expect(nextAction(feature('spec', null as never))).toBeNull()
   expect(nextAction(feature('running'))).toEqual({ label: 'Stage 2 — web', prompt: `/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web)`, autopilot })
   const untouched = { ...plan, stages: plan.stages.map(s => ({ ...s, done: 0 })) }
   expect(nextAction(feature('plan', untouched))).toEqual({
@@ -277,8 +278,7 @@ test('committed names a stage whose commit reached the branch', () => {
         slug: 'demo',
         title: 'Demo',
         hasSpec: true,
-        specStatus: null,
-        state: 'running',
+            state: 'running',
         plans: [{ ...plan, stages: plan.stages.map((s, i) => (i === 0 ? { ...s, sha } : s)) }],
         plan: null,
       },
@@ -312,7 +312,7 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(await ui.find({ key: 'row:tags', text: /tags/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^ en cours $/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^ spec seule $/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /spec validée/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /spec présente/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^1\/2$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Spec$/ })).toBeUndefined()
     // The filter chips add up: each press adds its features, a second press takes them away, `features` clears them all.
@@ -332,7 +332,7 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(await ui.find({ key: 'step:demo:stage:1' })).toBeUndefined()
 
     await ui.press({ key: 'row:demo' })
-    expect((await ui.find({ key: 'step:demo:spec' }))?.text).toContain('brouillon')
+    expect((await ui.find({ key: 'step:demo:spec' }))?.text).toContain('présente')
     expect((await ui.find({ key: 'step:demo:plan' }))?.text).toContain('commité')
     expect((await ui.find({ key: 'step:demo:stage:1' }))?.text).toContain('b71e04')
     expect((await ui.find({ key: 'step:demo:stage:2' }))?.text).toContain('1/3')
@@ -367,7 +367,7 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
     expect(await ui.find({ key: 'show-done' })).toBeUndefined()
     expect((await ui.find({ key: 'step:demo:stage:1' }))?.text).toContain('non committé')
     expect(await ui.find({ key: 'step:demo:stage:2' })).toBeUndefined()
-    expect((await ui.find({ key: 'step:demo:spec' }))?.text).toContain('brouillon')
+    expect((await ui.find({ key: 'step:demo:spec' }))?.text).toContain('présente')
     await ui.select({ key: 'plan:demo', value: PLAN_FOLDER })
 
     await ui.press({ key: 'row:demo' })
@@ -431,7 +431,7 @@ test('a session that ends while its run waits leaves it interrupted in the histo
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'row:tags' })
   expect(await ui.find({ key: 'step:tags:plan', text: /Plan.*interrompue/ })).toBeDefined()
-  expect((await ui.find({ key: 'prepare:tags' }))?.text).toBe('Écrire le plan')
+  expect(await ui.find({ key: 'prepare:tags' })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -732,8 +732,8 @@ test('a free prompt in a session with a selo-flow run records nothing', async ($
 test('the timeline steps follow the feature: active step, done steps, the step a prompt lands on', () => {
   const parsed = parsePlan(PLAN)
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
-  const demo: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: 'Draft', plans: [plan], plan, state: 'running' }
-  const empty: SeloFlowBoardFeature = { slug: 'new', title: 'new', hasSpec: false, specStatus: null, plans: [], plan: null, state: 'empty' }
+  const demo: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, plans: [plan], plan, state: 'running' }
+  const empty: SeloFlowBoardFeature = { slug: 'new', title: 'new', hasSpec: false, plans: [], plan: null, state: 'empty' }
   expect(activeStep(demo)).toBe('stage:2')
   expect(activeStep(empty)).toBe('spec')
   expect(activeStep({ ...demo, plan: { ...plan, isDraft: true } })).toBe('plan')
@@ -743,6 +743,7 @@ test('the timeline steps follow the feature: active step, done steps, the step a
   expect(runStep(command(`/selo-flow:implement ${PLAN_FOLDER}`), demo)).toBe('stage:2')
   expect(runStep(command(`/selo-flow:review ${PLAN_FOLDER}`), demo)).toBe('review')
   expect(runStep(command(`/selo-flow:review plan ${PLAN_FOLDER}`), demo)).toBe('plan')
+  expect(runStep(command('/selo-flow:review demo'), demo)).toBe('spec')
   expect(runStep(command(`/selo-flow:implement ${PLAN_FOLDER} — stage 1 (api)`), demo)).toBe('stage:1')
   const chained = command(`/selo-flow:implement ${PLAN_FOLDER} — stages 1-2 (api, web), chained`)
   expect(runStep(chained, demo)).toBe('stage:1')
@@ -766,7 +767,7 @@ test('withPlan follows a feature on one of its plans, and its runs with it', () 
   }
   const latest = parse(PLAN, PLAN_FOLDER)
   const old = parse(OLD_PLAN, OLD_PLAN_FOLDER)
-  const demo: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [latest, old], plan: latest, state: 'running' }
+  const demo: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, plans: [latest, old], plan: latest, state: 'running' }
   expect(withPlan(demo, undefined)).toBe(demo)
   expect(withPlan(demo, '.planning/features/demo/dev-plans/gone')).toBe(demo)
   const onOld = withPlan(demo, OLD_PLAN_FOLDER)
@@ -919,7 +920,7 @@ test('runPlan names the plan a run works on', () => {
   const parsed = parsePlan(PLAN)
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
   const old = { ...plan, folder: OLD_PLAN_FOLDER }
-  const feature: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [plan, old], plan, state: 'running' }
+  const feature: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, plans: [plan, old], plan, state: 'running' }
   const run = (command: string, step: string, folder: string | null) => ({ sessionId: 's', root: ROOT, feature: 'demo', folder, command, step, status: 'running' as const, since: 0, updatedAt: 0 })
   expect(runPlan(run('implement', 'stage:2', OLD_PLAN_FOLDER), feature)).toBe(old)
   expect(runPlan(run('implement', 'stage:2', null), feature)).toBe(plan)
@@ -932,7 +933,7 @@ test('runPlan names the plan a run works on', () => {
 test('describeRun names the skill, the feature and the stage at hand', () => {
   const parsed = parsePlan(PLAN)
   const plan = { ...parsed, title: parsed.title ?? 'Demo', folder: PLAN_FOLDER, isDraft: false }
-  const feature: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, specStatus: null, plans: [plan], plan, state: 'running' }
+  const feature: SeloFlowBoardFeature = { slug: 'demo', title: 'Demo', hasSpec: true, plans: [plan], plan, state: 'running' }
   const run = (command: string, step = 'stage:2') => ({
     sessionId: 's',
     root: ROOT,
@@ -1024,8 +1025,8 @@ test('the board is exported for companion apps: the pane’s timeline, prompts a
   expect(demo?.plan?.folder).toBe(PLAN_FOLDER)
   expect(demo?.plans).toEqual([PLAN_FOLDER, OLD_PLAN_FOLDER])
   expect(demo?.next?.prompt).toBe(`/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web)`)
-  expect(demo?.steps.map(s => `${s.step} ${s.marker} ${s.detail}`)).toEqual(['spec done brouillon', 'plan done commité', 'stage:1 done b71e04', 'stage:2 next 1/3', 'review pending 0/2'])
-  expect(first.features.find(f => f.slug === 'tags')?.next?.prompt).toBe('/selo-flow:write-plan tags')
+  expect(demo?.steps.map(s => `${s.step} ${s.marker} ${s.detail}`)).toEqual(['spec done présente', 'plan done commité', 'stage:1 done b71e04', 'stage:2 next 1/3', 'review pending 0/2'])
+  expect(first.features.find(f => f.slug === 'tags')?.next).toBeNull()
 
   // A live autopilot on the feature: no prompt offered, its step running, the pipeline in the live sessions.
   store.set('run:other:999000', { sessionId: 'other', root: ROOT, repo: REPO, feature: 'demo', folder: PLAN_FOLDER, command: 'autopilot', step: 'stage:2', status: 'running', since: 999_000, updatedAt: 999_000 })

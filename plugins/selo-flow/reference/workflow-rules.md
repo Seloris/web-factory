@@ -14,12 +14,26 @@ Useful to two projects or more: the plugin. Specific to one project: its `CLAUDE
 
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the JSON: `name`, `baseBranch`, `language`, `models`, `components` (name, path, kind, stack, skin, layers, commands, handoff, needs, url, logins) and `stages`. A component with `missingFile` has no `CLAUDE.md`: send the person to `/selo-flow:init component {name}`. Never parse `selo-flow.yaml` yourself. A component's `CLAUDE.md` loads when you work under its path; read it yourself when you plan for it from elsewhere.
 
-## The spec stays in sync
+## Two lanes
 
-Every plan and every stage on a feature (any slug but `tooling` and `shared`) leaves the feature's `00_spec.md` matching the behaviour it plans or ships. Only `write-spec` writes it, in called mode, and the spec ships in the plan's or the stage's commit.
+- **Fastlane:** a request without a plan. `implement {request}`, or `autopilot {request}` when the request touches one component (or the api and its regenerated client) and creates no business rule or entity. One commit per component touched.
+- **Feature lane:** spec, plan, stages, one review at the end. `write-spec`, `write-plan`, then `implement` or `autopilot`. `autopilot` reads the code before choosing; ` — fastlane` or ` — with plan` forces the lane. A fastlane that finds a new rule or entity stops before its commit and says so: the work goes to the feature lane.
 
-- **No spec yet:** propose to create it, derived from the plan or from the code and the request, and draft it only on the person's yes. A no is recorded once: in the plan's Decisions, or without a plan as a `Spec: declined by the person` line in the stage commit's body.
-- **A spec:** a change of business behaviour (a user story, a functional requirement, a business rule) updates it. A change with no business effect (a refactor, a fix restoring the specified behaviour, a look) leaves it as it is.
+Both lanes end the same way: the review, the full suites of the touched components (through `runner`), the browser test when asked, the commit(s).
+
+## The spec follows the code
+
+`.planning/features/{slug}/` is an **area** of the application (a screen, a route, a domain); its `00_spec.md` says how that area behaves today, in the present tense. Only `write-spec` writes it. A new area is created only for its own screen, route or domain, and its creation is a Business decision.
+
+Every change of behaviour names its area and updates its spec in the same commit as the code:
+
+- a delta that restates the person's request: applied, no question;
+- an area with no spec: a three-line spec is created (TL;DR, one FR per behaviour touched), no question;
+- no area fits: one FR in the nearest area, said in the report;
+- a behaviour the person did not ask for: interactive, one grouped question at the end of the work, before the commit; autonomous, applied and listed first under Business decisions;
+- a refactor, a look, a fix restoring the specified behaviour, `tooling`, `shared`: no spec change.
+
+A new FR not built yet is marked `(planned)`; the stage that builds it removes the mark. A replaced FR is deleted and its id added to the `Retired:` line. Every commit that touches code carries a `Spec:` line in its body, `Spec: {slug} +FR-48 ~FR-13 -FR-07` or `Spec: none ({reason})`. Before the commit, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/spec-check.mjs {slug} --cite "{ids of the Spec: line}"` (duplicate, retired or missing ids; on a plan's last stage add `--plan {plan folder} --done`: FRs still `(planned)`) and take the next free id it gives. The plugin's commit hook warns, never blocks, on a code commit without a `Spec:` line.
 
 ## Where commits go
 
@@ -42,7 +56,9 @@ Put the role first in the spawn's description (`runner · web tests`). A spec, a
 
 ## Autonomous mode
 
-Only `autopilot` turns it on, by ending a step's prompt with ` — autonomous`; a person never types it. No question: each takes its recommended answer, and each is recorded in the spec's or the plan's `## Decisions taken autonomously` (`- {question} → {answer taken} ({reason})`). A question with no defensible answer stops the step, with nothing committed. The hard rules hold.
+Only `autopilot` turns it on, by ending a step's prompt with ` — autonomous`; a person never types it. No question: each takes its recommended answer. A question with no defensible answer stops the step, with nothing committed. The hard rules hold.
+
+In every mode, decisions are recorded in two lists, in the plan (in the fastlane, in the commit body and the report): **Business decisions** (at most five: a rule, a label, a scope, a new area, what the person would want to check) and **Technical defaults** (the rest, one line each), `- {question} → {answer} ({reason})`. A spec holds no decisions.
 
 ## Language
 

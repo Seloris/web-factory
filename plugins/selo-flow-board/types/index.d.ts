@@ -54,8 +54,6 @@ export type SeloFlowBoardFeature = {
   /** The spec's title, else the plan's, else the slug. */
   title: string
   hasSpec: boolean
-  /** The spec header's status (`Draft`, `Approved`…), when there is a spec. */
-  specStatus: string | null
   /** Every plan of the feature, newest first (highest timestamp): one spec, several plans. */
   plans: SeloFlowBoardPlan[]
   /** The plan the feature is followed on: the latest from the scan, the one picked in the pane once `withPlan` swapped it. */
@@ -176,7 +174,6 @@ export type SeloFlowBoardExportFeature = {
   /** A live `write-plan` writes a new plan whose folder is not there yet: `plan` is null, the timeline is that plan's. */
   isNewPlan: boolean
   hasSpec: boolean
-  specStatus: string | null
   /** The plan followed: the latest, or none while a new one is on its way. */
   plan: SeloFlowBoardPlan | null
   /** Every plan folder of the feature, newest first. */
