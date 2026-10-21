@@ -29,7 +29,7 @@ Written only through the `write-spec` skill, which holds the spec template and e
 
 `{YYYYMMDD}-{HHmmss}-{type}-{name}/`
 
-- Timestamp: run `node ${CLAUDE_PLUGIN_ROOT}/scripts/timestamp.mjs` (the factory plugin's script) and use its output as-is. Never write it by hand.
+- Timestamp: run `node ${CLAUDE_PLUGIN_ROOT}/scripts/timestamp.mjs` (the selo-flow plugin's script) and use its output as-is. Never write it by hand.
 - `{type}`: `init`, `add`, `fix`, `refactor`, `remove` or `migrate`. `{name}`: kebab-case description.
 - A new iteration is a new folder; never edit a past plan. The plan being implemented is not past: `implement` ticks its Progress and records its Deviations. Ticking a plan's Validation after its implementation is allowed: it is how the review and the tests are recorded.
 - A plan folder that has never been committed (its `plan.md` is untracked) is a draft `write-plan` is still iterating on with the person: it is not approved, and `implement` never starts from it. A committed plan with uncommitted Progress ticks is not a draft.
@@ -65,7 +65,7 @@ Feature: `{slug}` · Components: `api`, `web` · Spec: US-03, FR-02, BR-05
 | Decisions | Each question the person answered while planning, and each decision spanning several steps: `- {question or decision} → {answer} ({impact})`. |
 | Decisions taken autonomously | Written only in autonomous mode (`autopilot`): each question answered without the person, `- {question} → {answer taken} ({reason})`. Absent otherwise. |
 | One section per component touched | Named after the component, in stage order, with one `###` subsection per layer of that component's `layers` that the plan touches, in the component's order. Each subsection says what to create or change, precisely enough to implement without guessing: entities, use cases, contracts (routes, request and response fields, authorization), persistence, state and actions, pages and components. Reference the previous component's handoff instead of duplicating its contract. |
-| Conventions | Changes to `CLAUDE.md` files, `.claude/` (rules, settings) or the factory plugin: file, change, rationale. Required whenever the plan introduces or changes a convention. |
+| Conventions | Changes to `CLAUDE.md` files, `.claude/` (rules, settings) or the selo-flow plugin: file, change, rationale. Required whenever the plan introduces or changes a convention. |
 | Tests | **Mandatory.** Per component: the unit tests to write and the integration tests to add or update, following that component's testing conventions, or "none" with the reason. The implementation writes exactly these tests. |
 | Deviations | Written by `implement`, not at planning time: each departure from the plan the person accepted during implementation: `- {what the plan said} → {what was done} ({reason})`. Absent when there is none. |
 | Progress | The implementation checklist (below). |
@@ -114,14 +114,14 @@ The checks made once every stage is done, one checkbox each, in a section of the
 - [ ] Integration tests: `{names}` green
 ```
 
-- **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings on another component, or a plan implemented before this rule), `/factory:review {plan folder}` or `implement`'s final review ticks it (`/factory:implement {plan folder} — final review` once every stage is ticked).
+- **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings on another component, or a plan implemented before this rule), `/selo-flow:review {plan folder}` or `implement`'s final review ticks it (`/selo-flow:implement {plan folder} — final review` once every stage is ticked).
 - **Tests:** whenever a touched component declares `commands.test`, listing those components. Each stage runs its own component's full suite already; this item records one run of every listed suite, in full, on the plan's final code. Ticked when all of them passed; a code change after the tick re-runs every listed suite, or unticks it.
 - **Browser test:** only when a touched component declares a `url`. Ticked when every scenario passed.
 - **Integration tests:** only when the Tests section names integration tests of a component that declares `commands.integration_tests`, listed in the item. Ticked when the person asked for the run and every test passed.
 
 The checklist is the only record of these checks: an item absent or unticked means the check was not done. Review is never skipped; the other items are optional: each stays `[ ]` (not run), is ticked (run and green) or is marked `[-]` with the reason when the person declined it, e.g. `- [-] Browser test: not run (declined by the person)`, so the plan says it was not run and why. The tick or the mark goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.
 
-The plan is **finalized** once every stage of Progress and `Review` are ticked; the optional items do not hold it back. The step that finalizes it (the last stage, the final review, `/factory:review {plan folder}`) then proposes to squash the branch's commits (the plan's, each stage's, the review's and the validations') into one, on the person's yes; a squash put off runs later with `/factory:implement {plan folder} — close the branch`. The checklist needs no item for it.
+The plan is **finalized** once every stage of Progress and `Review` are ticked; the optional items do not hold it back. The step that finalizes it (the last stage, the final review, `/selo-flow:review {plan folder}`) then proposes to squash the branch's commits (the plan's, each stage's, the review's and the validations') into one, on the person's yes; a squash put off runs later with `/selo-flow:implement {plan folder} — close the branch`. The checklist needs no item for it.
 
 ## Plan header
 
@@ -135,7 +135,7 @@ Infer the header instead of asking for it, and state it at the top of the plan p
 
 | Slug | For | `plan.md` sections |
 |---|---|---|
-| `tooling` | `CLAUDE.md` files, `.claude/`, the factory plugin, CI/CD, build config, non-plan docs | Free-form sections instead of the component sections |
+| `tooling` | `CLAUDE.md` files, `.claude/`, the selo-flow plugin, CI/CD, build config, non-plan docs | Free-form sections instead of the component sections |
 | `shared` | Cross-feature refactors, multi-feature migrations, global auth or middleware | Standard component sections |
 
 Neither has a `00_spec.md`.
@@ -146,7 +146,7 @@ Save an image the person shares at the moment it is shared: in the plan's `asset
 
 ## Retros: `.planning/retros/`
 
-Written only through the `retro` skill, which holds their template: one file per session, with or without a plan, its lessons `open` until `/factory:retro apply` applies, rejects or forwards them. Once committed, a retro changes only in its lessons' Status.
+Written only through the `retro` skill, which holds their template: one file per session, with or without a plan, its lessons `open` until `/selo-flow:retro apply` applies, rejects or forwards them. Once committed, a retro changes only in its lessons' Status.
 
 ## Ideas: `.planning/ideas.md`
 

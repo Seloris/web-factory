@@ -12,7 +12,7 @@
     ]
   },
   "extraKnownMarketplaces": {
-    "webapp-factory": {
+    "selo-flow": {
       "source": {
         "source": "directory",
         "path": "C:/WS/webapp-factory"
@@ -20,8 +20,8 @@
     }
   },
   "enabledPlugins": {
-    "factory@webapp-factory": true,
-    "factory-board@webapp-factory": true
+    "selo-flow@selo-flow": true,
+    "selo-flow-board@selo-flow": true
   },
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"

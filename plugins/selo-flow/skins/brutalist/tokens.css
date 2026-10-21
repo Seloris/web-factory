@@ -1,0 +1,83 @@
+/* selo-flow skin "brutalist", copied from the selo-flow plugin (skins/brutalist/tokens.css). Do not edit:
+   switch skins with /selo-flow:init skin {component} {skin}; override variables in overrides.css. */
+:root {
+  --font-sans: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  --font-display: 'Archivo Black', Impact, 'Arial Black', sans-serif;
+  --font-size: 14px;
+  --title-size: 44px;
+  --title-weight: 400;
+  --title-tracking: -0.01em;
+  --title-transform: uppercase;
+  --title-style: normal;
+  --label-size: 0.85em;
+  --label-weight: 600;
+  --label-transform: uppercase;
+  --label-tracking: 0.06em;
+  --radius: 0;
+  --radius-control: 0;
+  --radius-pill: 999px;
+  --check-radius: 0;
+  --switch-radius: 0;
+  --badge-radius: 0;
+  --border-width: 2px;
+  --control-h: 44px;
+  --panel-bg: var(--surface);
+  --panel-border: 2px solid var(--border);
+  --panel-pad: 32px;
+  --blur: none;
+  --bg-image: none;
+  --shadow-card: 8px 8px 0 var(--border);
+  --shadow-control: 3px 3px 0 var(--border);
+  --shadow-pop: 10px 10px 0 var(--border);
+  --list-gap: 14px;
+  --list-rule: none;
+  --item-pad: 12px 14px;
+  --item-bg: var(--surface);
+  --item-border: var(--border-width) solid var(--border);
+  --item-rule: var(--item-border);
+  --item-radius: var(--radius-control);
+  --item-shadow: 4px 4px 0 var(--border);
+  --badge-border: 2px solid var(--border);
+  --badge-transform: uppercase;
+  --badge-tracking: 0;
+  --btn-border: var(--border);
+  --btn-weight: 700;
+  --btn-transform: uppercase;
+  --btn-tracking: 0.04em;
+  --control-bg: var(--surface);
+  --control-border: var(--border);
+  --control-border-on: var(--border);
+  --accent-text: #111111;
+  --accent-soft: #ff90e8;
+  --accent-soft-text: #111111;
+  --danger-text: #111111;
+  --focus: color-mix(in srgb, var(--accent) 35%, transparent);
+  --pop-bg: var(--surface);
+  --scrim: rgba(0,0,0,.35);
+  --bg: #f2f0e8;
+  --surface: #ffffff;
+  --surface-2: #e9e6da;
+  --border: #111111;
+  --text: #111111;
+  --text-muted: #444444;
+  --accent: #ffd60a;
+  --danger: #ff4a2e;
+  --danger-soft: #ffd9d1;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --surface: #1d1d1d;
+    --surface-2: #2a2a2a;
+    --border: #f2f0e8;
+    --text: #f2f0e8;
+    --text-muted: #bdbab0;
+    --accent: #ffd60a;
+    --accent-soft: #ff90e8;
+    --danger: #ff6b4f;
+    --danger-soft: #3a1a14;
+    color-scheme: dark;
+  }
+}

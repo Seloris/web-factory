@@ -1,19 +1,19 @@
 {
-  "name": "webapp-factory",
+  "name": "selo-flow",
   "description": "A Claude Code plugin to spec, plan, implement and review web applications (front, API, database) with a disciplined, reviewed workflow.",
   "owner": {
     "name": "Daniel Djordjevic"
   },
   "plugins": [
     {
-      "name": "factory",
-      "source": "./plugins/factory",
-      "description": "The workflow: /factory:factory-init sets up the project, then write-spec, write-plan, implement, grill-me, review and retro run the spec → plan → code → review → close loop, driven by the project's factory.yaml manifest."
+      "name": "selo-flow",
+      "source": "./plugins/selo-flow",
+      "description": "The workflow: /selo-flow:init sets up the project, then write-spec, write-plan, implement, grill-me, review and retro run the spec → plan → code → review → close loop, driven by the project's selo-flow.yaml manifest."
     },
     {
-      "name": "factory-board",
-      "source": "./plugins/factory-board",
-      "description": "A mod (function hooks) for the factory: a pane that lists the project's features, their dev plans and the stages running in other sessions, and prepares the next /factory: prompt with one button."
+      "name": "selo-flow-board",
+      "source": "./plugins/selo-flow-board",
+      "description": "A mod (function hooks) for selo-flow: a pane that lists the project's features, their dev plans and the stages running in other sessions, and prepares the next /selo-flow: prompt with one button."
     }
   ]
 }

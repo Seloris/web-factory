@@ -36,14 +36,14 @@ Commit: `docs(repo): selo-flow 1.0.0 proposal, drafts and plan`
 
 ### Stage 1 — rename
 Commit: `refactor(repo): rename the factory to selo-flow`
-- [ ] `git mv plugins/factory plugins/selo-flow`, `git mv plugins/factory-board plugins/selo-flow-board`
-- [ ] `.claude-plugin/marketplace.json`, both `plugin.json` (names, descriptions, keywords)
-- [ ] `/factory:` → `/selo-flow:` in skills, agents, rules, templates, docs, the board's prompt builders and parsers, the board's `RUN_SKILLS` and `SKILL_LABEL`
-- [ ] `factory.yaml` → `selo-flow.yaml`: `MANIFEST_FILE` in `scripts/manifest.mjs`, its tests, `examples/two-components/`, `samples/todo-app/`, `templates/`, the board's `scan.ts` and `planning.ts` (the `models:` writer)
-- [ ] `skills/factory-init` → `skills/init`; every mention
-- [ ] the board export folder and its README; `samples/todo-app/.claude/settings.json` (marketplace and plugin ids)
-- [ ] the root `CLAUDE.md` of this repository (names, paths, commands; the stale `architect` / `senior-dev` line removed), `.claude/settings.json`, `.claude/rules/memory.md` if it names the plugin
-- [ ] tests and validation green
+- [x] `git mv plugins/factory plugins/selo-flow`, `git mv plugins/factory-board plugins/selo-flow-board`
+- [x] `.claude-plugin/marketplace.json`, both `plugin.json` (names, descriptions, keywords)
+- [x] `/factory:` → `/selo-flow:` in skills, agents, rules, templates, docs, the board's prompt builders and parsers, the board's `RUN_SKILLS` and `SKILL_LABEL`
+- [x] `factory.yaml` → `selo-flow.yaml`: `MANIFEST_FILE` in `scripts/manifest.mjs`, its tests, `examples/two-components/`, `samples/todo-app/`, `templates/`, the board's `scan.ts` and `planning.ts` (the `models:` writer)
+- [x] `skills/factory-init` → `skills/init`; every mention
+- [x] the board export folder and its README; `samples/todo-app/.claude/settings.json` (marketplace and plugin ids)
+- [x] the root `CLAUDE.md` of this repository (names, paths, commands; the stale `architect` / `senior-dev` line removed), `.claude/settings.json`, `.claude/rules/memory.md` if it names the plugin
+- [x] tests and validation green
 
 ### Stage 2 — cleanup and shared develop (ex-0.9.0)
 Commit: `refactor(selo-flow): one review, no branches, no squash, no retro`
@@ -105,7 +105,7 @@ Commit: `fix(selo-flow): review — {summary}` (only when the review leads to fi
 ## Progress
 
 - [x] Stage 0 — docs
-- [ ] Stage 1 — rename
+- [x] Stage 1 — rename
 - [ ] Stage 2 — cleanup and shared develop
 - [ ] Stage 3 — `init update`
 - [ ] Stage 4 — living specs and fastlane

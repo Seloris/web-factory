@@ -2,7 +2,7 @@
 
 1. Cut a branch from `main`: `{type}/{slug}-{name}` (e.g. `feat/orders-cutoff-time`).
 2. Work on the branch: one commit per implementation stage, reviewed by the `reviewer` agent when asked (` — with review`); the review of the plan's last stage, or its final review, covers the whole branch and finalizes the plan.
-3. Plan finalized: its commits are squashed into one, proposed at the step that finalizes it (later: `/factory:implement … — close the branch`).
+3. Plan finalized: its commits are squashed into one, proposed at the step that finalizes it (later: `/selo-flow:implement … — close the branch`).
 4. Push (a human, never an agent), open a PR to `main`, merge after another person's approval.
 
 # Commit conventions
@@ -18,7 +18,7 @@ A simplified Conventional Commits.
 - `style` – formatting, whitespace
 - `test` – tests only
 - `docs` – documentation (README, `docs/`, `.planning/`)
-- `tools` – tooling around the project (`.claude/`, the factory plugin, scripts)
+- `tools` – tooling around the project (`.claude/`, the selo-flow plugin, scripts)
 - `ops` – CI/CD, infrastructure
 - `chore` – anything else (`.gitignore`…)
 
@@ -42,5 +42,5 @@ feat(orders): web — orders page
 feat(orders): cutoff time on orders           ← the squash
 fix(auth): token refresh on 401
 docs(orders): plan add-cutoff-time
-tools(tooling): factory init
+tools(tooling): selo-flow init
 ```

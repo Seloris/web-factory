@@ -1,5 +1,5 @@
-/* Factory skin "brutalist", copied from the factory plugin (skins/brutalist/tokens.css). Do not edit:
-   switch skins with /factory:factory-init skin {component} {skin}; override variables in overrides.css. */
+/* selo-flow skin "brutalist", copied from the selo-flow plugin (skins/brutalist/tokens.css). Do not edit:
+   switch skins with /selo-flow:init skin {component} {skin}; override variables in overrides.css. */
 :root {
   --font-sans: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
   --font-display: 'Archivo Black', Impact, 'Arial Black', sans-serif;

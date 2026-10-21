@@ -29,7 +29,7 @@ src/
     ui/                     presentational components (props in, callbacks out), forms (`{Name}Form.tsx`)
   shared/
     ui/                     shared components: one per element of the skin's recipes (`Panel`, `PageTitle`, `Field`, `TextInput`, `SearchInput`, `Select`, `Button`, `Switch`, `Checkbox`, `List`, `Badge`, `EmptyState`, `LoadingState`, `ErrorMessage`, `ConfirmDialog`, `icons.tsx`)
-      theme/                skin.css (the skin's tokens, copied by factory-init: never edited), base.css (the page), overrides.css (this application's values)
+      theme/                skin.css (the skin's tokens, copied by init: never edited), base.css (the page), overrides.css (this application's values)
     lib/                    utils, i18n
 ```
 
@@ -55,7 +55,7 @@ src/
 
 ## Design
 
-The skin named in the `component` block above: its tokens in `src/shared/ui/theme/skin.css`, imported first by `main.tsx`, then `base.css` and `overrides.css`. The UI follows the factory plugin's design rules (`reference/ui-design.md`), its element recipes (`skins/recipes.css`) and the skin's `SKIN.md`, read in place; this section wins over them. Features compose the `shared/ui` components and style only their own layout.
+The skin named in the `component` block above: its tokens in `src/shared/ui/theme/skin.css`, imported first by `main.tsx`, then `base.css` and `overrides.css`. The UI follows the selo-flow plugin's design rules (`reference/ui-design.md`), its element recipes (`skins/recipes.css`) and the skin's `SKIN.md`, read in place; this section wins over them. Features compose the `shared/ui` components and style only their own layout.
 
 - Variables this application changes: in `src/shared/ui/theme/overrides.css`, never in `skin.css`.
 - Rules this application adds or replaces: here, one line each.

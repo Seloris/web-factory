@@ -1,0 +1,83 @@
+/* selo-flow skin "pro", copied from the selo-flow plugin (skins/pro/tokens.css). Do not edit:
+   switch skins with /selo-flow:init skin {component} {skin}; override variables in overrides.css. */
+:root {
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-size: 14px;
+  --title-size: 20px;
+  --title-weight: 600;
+  --title-tracking: 0;
+  --title-transform: none;
+  --title-style: normal;
+  --label-size: 0.8em;
+  --label-weight: 500;
+  --label-transform: none;
+  --label-tracking: 0;
+  --radius: 8px;
+  --radius-control: 5px;
+  --radius-pill: 999px;
+  --check-radius: 3px;
+  --switch-radius: 999px;
+  --badge-radius: 4px;
+  --border-width: 1px;
+  --control-h: 32px;
+  --panel-bg: var(--surface);
+  --panel-border: var(--border-width) solid var(--border);
+  --panel-pad: 20px;
+  --blur: none;
+  --bg-image: none;
+  --shadow-card: 0 1px 2px rgba(16,24,40,.06);
+  --shadow-control: none;
+  --shadow-pop: 0 24px 60px -12px rgba(0,0,0,.35);
+  --list-gap: 0;
+  --list-rule: 1px solid var(--border);
+  --item-pad: 8px 4px;
+  --item-bg: transparent;
+  --item-border: 0;
+  --item-rule: 1px solid var(--border);
+  --item-radius: 0;
+  --item-shadow: none;
+  --badge-border: 0;
+  --badge-transform: none;
+  --badge-tracking: 0;
+  --btn-border: transparent;
+  --btn-weight: 600;
+  --btn-transform: none;
+  --btn-tracking: 0;
+  --control-bg: var(--surface);
+  --control-border: var(--border);
+  --control-border-on: var(--accent);
+  --accent-text: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 13%, var(--surface));
+  --accent-soft-text: color-mix(in srgb, var(--accent) 75%, var(--text));
+  --danger-text: #ffffff;
+  --focus: color-mix(in srgb, var(--accent) 35%, transparent);
+  --pop-bg: var(--surface);
+  --scrim: rgba(15,17,22,.45);
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --surface-2: #f1f3f5;
+  --border: #dcdfe4;
+  --text: #1b2430;
+  --text-muted: #5a6676;
+  --accent: #1d63d8;
+  --danger: #c9302c;
+  --danger-soft: #fbeaea;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1217;
+    --surface: #151a21;
+    --surface-2: #1d242e;
+    --border: #2a323d;
+    --text: #e3e8ef;
+    --text-muted: #94a0b0;
+    --accent: #4c8dff;
+    --danger: #f0625e;
+    --danger-soft: #351c1c;
+    --shadow-card: none;
+    color-scheme: dark;
+  }
+}

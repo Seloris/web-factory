@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node *scripts/timestamp.mjs)",
+      "Bash(node *scripts/manifest.mjs*)"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git * push:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(git * push:*)"
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "selo-flow": {
+      "source": {
+        "source": "directory",
+        "path": "{{selo_flow_marketplace}}"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "selo-flow@selo-flow": true
+  },
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "{{runner_model}}"
+  }
+}
