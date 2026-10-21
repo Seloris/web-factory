@@ -1,6 +1,6 @@
-# selo 2.0 — proposal (v2, 2026-10-21)
+# selo 2.0 — proposal (v3, 2026-10-21)
 
-Working document, meant to continue the reflection. Basis: a full read of selo-flow 1.0.0 (8 skills, 2 agents, `workflow-rules.md`, docs, templates), the `samples/todo-app` history (spec `home`, four plans), the 1.0.0 proposal in `docs/revamp-1.0.0/`, and two grill-me rounds with the person on 2026-10-21 (§3). Nothing in the plugin is changed yet.
+Working document, meant to continue the reflection. Basis: a full read of selo-flow 1.0.0 (8 skills, 2 agents, `workflow-rules.md`, docs, templates), the `samples/todo-app` history (spec `home`, four plans), the 1.0.0 proposal in `docs/revamp-1.0.0/`, and four grill-me rounds with the person on 2026-10-21 (§3). Nothing in the plugin is changed yet.
 
 ## On one page
 
@@ -74,6 +74,17 @@ Round 3 (the open questions Q1–Q9 of v1):
 - Q7, marketplace name? → **Renamed `selo`**: `selo@selo`, one name everywhere.
 - Q8, "Specs of the day"? → **Left in `IDEAS.md`**, out of 2.0.
 - Q9, commit scope? → **A blueprint's commits use the blueprint's name** (`feat(due-date): api — …`); the per-page recap comes from the `Spec:` lines. **A fastlane commit uses the page it touches** (`fix(home): …`), the domain when no page (`fix(todo): …`), `app` for the shell.
+
+Round 4 (two new ideas):
+
+- An advisor (`/selo:advisor {intention}` → the exact prompt to run)? → **Dropped.** Autopilot already picks the lane, and a fastlane already redirects to a blueprint; a skill that only names the prompt repeats that rule.
+- Setup on a repository that already has code: when are page specs written? → **Routes early, FRs late.** Setup scans the routes and writes one empty spec per page (slug + `Route:`); a page gets its FRs the first time a fastlane or a blueprint touches it, or on demand (below).
+- How deep is a spec written from existing code? → **Pages and domains**: FRs per page, domain sheets for the shared rules. A behaviour that looks wrong becomes a `Q-NN`, never an FR: the spec must not turn current bugs into requirements.
+- How are the routes found? → **By the stack pack, with a fallback**: each pack says where its routes live (react-express: `src/router.tsx`); with no pack, an explorer reads the front and the person validates the list. The same scan serves the migration (§7, step 2).
+- Approval? → **One yes, one commit** for the whole set of pages and domains (`docs(app): bootstrap specs`).
+- A full or per-page scan on demand? → **A setup sub-mode**: `/selo:setup specs [page …]` fills every empty page, or the ones named.
+- The first touch of an empty page? → **A separate commit first**: the fastlane or the blueprint writes the spec of what exists (`docs(home): bootstrap spec`), then its own delta. History keeps "what was" apart from "what changes".
+- Setup detects an existing repository by itself? → **Yes**: a front component that already holds code adds the route scan to the interview; no option to type.
 
 ## 4. The model
 
@@ -160,11 +171,23 @@ The due-date plan of the sample rewritten this way is ≈ 35 lines instead of 17
 
 A Fastlane that meets a new entity or BR stops before its commit and proposes `/selo:blueprint {same request}`. `/selo:fastlane` with no lane word in a free sentence stays the default reading of "change this".
 
-### 4.4 Commands
+### 4.4 Setup on an existing repository
+
+Setup already detects component roots and leaves their code alone; 2.0 also gives the project its pages.
+
+1. **Detection.** A front component whose folder already holds code adds one question to the interview: scan its routes now (recommended).
+2. **Route scan.** The stack pack's `README.md` gains a `## Routes` section: where the routes are declared and how to read a route's path and page module. With no pack, an explorer subagent reads the front and proposes the list. The person validates the list (business slugs, as Q1 says); the migration (§7, step 2) uses the same scan.
+3. **Empty page specs.** One `pages/{slug}.md` per validated route: title, `Route:` line, the template's sections empty and a `Status: to bootstrap` line. One yes, one commit (`docs(app): bootstrap specs`).
+4. **FRs on first touch.** A fastlane or a blueprint that meets a page still `to bootstrap` first writes the spec of what the page does today (FRs by zone, shared rules moved to domain sheets), commits it alone (`docs(home): bootstrap spec`), then goes on with its own delta. Under autopilot the same, with no question.
+5. **On demand.** `/selo:setup specs` fills every page still `to bootstrap`; `/selo:setup specs home todo-detail` only those. Explorer subagents read one page each; the person approves the whole set once; one commit.
+
+**Rules of a spec written from code.** It describes observed behaviour only, never an intention. Anything that looks like a bug, a dead path or an inconsistency between pages becomes a `Q-NN` in that spec, for the person to decide, never an FR. Rules found on several pages go to a domain sheet as BRs, as §4.1 says.
+
+### 4.5 Commands
 
 | 2.0 | Replaces | Note |
 |---|---|---|
-| `/selo:setup` | `/selo-flow:init` | sub-modes kept: `update`, `component`, `skin`, `stack`, `models` |
+| `/selo:setup` | `/selo-flow:init` | sub-modes kept: `update`, `component`, `skin`, `stack`, `models`; new: `specs [page …]` (§4.4) |
 | `/selo:fastlane {request}` | `/selo-flow:implement {request}` | |
 | `/selo:blueprint {request}` | `write-spec` + `write-plan` | grill built in, skipped when the request carries its decisions |
 | `/selo:build {blueprint}` | `/selo-flow:implement {plan folder} — stages …, chained` | chained by default; `— stage N` for one |
@@ -175,7 +198,7 @@ A Fastlane that meets a new entity or BR stops before its commit and proposes `/
 
 Eight skills stay eight, but the person types three in practice: `fastlane`, `blueprint`, `autopilot`. A spec-only edit (a wording, a found gap) is a free request: the project's `CLAUDE.md` carries the spec rules.
 
-### 4.5 Agents and models
+### 4.6 Agents and models
 
 - `runner` stays as it is.
 - `reviewer` changes its two plan checks, written for a step-level plan. Code review: the code against each FR of the blueprint's delta and its Business decisions, then conventions, correctness, tests as today. Blueprint review: gaps in the delta (an edge case, a missing FR, a rule that belongs to the domain sheet) and in the decisions; never file-level detail, which a blueprint no longer holds.
@@ -213,7 +236,7 @@ Breaking for every project: version 2.0.0, with the rollback note of 1.0.0 (pin 
 
 ## 8. Open questions
 
-Q1–Q9 of v1 are settled (§3, round 3). None is open; the next step is the prototype of §10.
+Q1–Q9 of v1 are settled (§3, round 3), and the two ideas of round 4 too. None is open; the next step is the prototype of §10.
 
 ## 9. Risks
 
@@ -221,6 +244,7 @@ Q1–Q9 of v1 are settled (§3, round 3). None is open; the next step is the pro
 - **Short brief, more drift.** The implementer decides details the plan fixed. Mitigation: Business decisions stay in the blueprint; the reviewer checks the delta's FRs one by one; Technical defaults record the non-obvious choices.
 - **Semantic conflict at merge.** A `~` or `-` in a delta whose "before" text changed during the build stops the merge and needs the person; frequent with 3–5 sessions on one page, rare otherwise.
 - **Delta merged at the end.** Between the blueprint and its merge, the page spec does not show the work in flight. Mitigation: `review home` lists the open blueprints of a page.
+- **Specs written from code.** An explorer can misread a page or miss a hidden state (an error, a permission). Mitigation: observed behaviour only, doubts as `Q-NN`, one review by the person before the commit; the browser test of the first fastlane on the page checks the main FRs.
 - **Migration of real projects.** Splitting areas into pages and domains changes ids' files: the `Spec:` lines of old commits keep the old slugs. Acceptable: git history is read rarely, and the area-to-file map is recorded once in the migration commit.
 
 ## 10. Order of work (proposal)
@@ -229,3 +253,4 @@ Q1–Q9 of v1 are settled (§3, round 3). None is open; the next step is the pro
 2. `blueprint` + `build` skills, `spec-check --merge`, the reference file rewritten.
 3. Rename to `selo`, `setup update` migration, board removal.
 4. `autopilot` on the new lanes, docs collapsed to two files.
+5. Setup on an existing repository (§4.4): the packs' `## Routes` section, `setup specs`, the first-touch bootstrap in `fastlane` and `blueprint`.
