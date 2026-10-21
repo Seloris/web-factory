@@ -8,3 +8,10 @@
   align-items: center;
   gap: 12px;
 }
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}

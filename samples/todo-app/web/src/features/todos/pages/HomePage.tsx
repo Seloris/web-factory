@@ -1,6 +1,7 @@
 import { useMutationState } from "@tanstack/react-query";
 import { useState } from "react";
 import { t } from "../../../shared/lib/i18n.ts";
+import { Badge } from "../../../shared/ui/Badge.tsx";
 import { Button } from "../../../shared/ui/Button.tsx";
 import { ConfirmDialog } from "../../../shared/ui/ConfirmDialog.tsx";
 import { EmptyState } from "../../../shared/ui/EmptyState.tsx";
@@ -8,7 +9,7 @@ import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Panel } from "../../../shared/ui/Panel.tsx";
-import { selectTags, selectVisibleTodos } from "../data/selectTodos.ts";
+import { selectRemainingCount, selectTags, selectVisibleTodos } from "../data/selectTodos.ts";
 import { useCreateTodoMutation } from "../data/useCreateTodoMutation.ts";
 import { useDeleteTodoMutation } from "../data/useDeleteTodoMutation.ts";
 import {
@@ -69,7 +70,10 @@ function HomePage() {
   return (
     <main className={styles.page}>
       <Panel>
-        <PageTitle>{t("home.title")}</PageTitle>
+        <div className={styles.heading}>
+          <PageTitle>{t("home.title")}</PageTitle>
+          {todosQuery.isSuccess && <Badge>{t("home.remaining", { count: String(selectRemainingCount(todos)) })}</Badge>}
+        </div>
         <TodoForm
           tags={tags}
           isPending={createTodo.isPending}

@@ -40,6 +40,7 @@ Tasks noted on paper or scattered across apps get lost: you cannot tell what is 
 - **FR-10** — An empty list shows a message inviting the person to add a first todo; a search or tag filter matching nothing shows a message saying no todo matches.
 - **FR-11** — When adding a todo, the tag is typed freely and the field suggests the existing tags, so that the person reuses a tag instead of creating a near-duplicate.
 - **FR-12** — The person pins a todo, or unpins it, from the list, so that the todos that matter stay at the top of a long list; every visitor sees the same pinned todos.
+- **FR-13** — Next to the page title, once the list has loaded, the home page shows how many todos are not completed (« 3 à faire », « 0 à faire » when none), counting every todo whatever the search text or tag filter, and updating at once when a todo is added, completed, reopened or deleted, so that the person sees what is left at a glance.
 
 ## Business Rules
 

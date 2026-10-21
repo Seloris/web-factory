@@ -11,6 +11,11 @@ export function selectTags(todos: Todo[]): string[] {
   return [...byFolded.values()].sort((a, b) => a.localeCompare(b, "fr"));
 }
 
+// Every todo not completed, whatever the search text or tag filter.
+export function selectRemainingCount(todos: Todo[]): number {
+  return todos.filter((todo) => !todo.isCompleted).length;
+}
+
 export function selectVisibleTodos(
   todos: Todo[],
   view: { search: string; tag: string | null; isSortedByState: boolean },

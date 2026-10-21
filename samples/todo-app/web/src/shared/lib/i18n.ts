@@ -1,6 +1,7 @@
 // The French dictionary: every user-facing string of the application.
 const fr = {
   "home.title": "Mes tâches",
+  "home.remaining": "{count} à faire",
   "home.form.name": "Nom",
   "home.form.tag": "Tag (optionnel)",
   "home.form.submit": "Ajouter",
