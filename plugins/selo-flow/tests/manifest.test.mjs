@@ -84,6 +84,10 @@ test("readManifest: the example project", () => {
   assert.equal(api.handoff, "api/openapi.json");
   assert.equal(api.commands.build, "node scripts/echo.mjs build api");
   assert.equal(api.commands.serve, "node scripts/echo.mjs serve api");
+  assert.equal(api.commands.demo, "node scripts/echo.mjs demo api");
+  assert.equal(api.demoUrl, "http://localhost:3101", "demo_url from the component block");
+  assert.equal(web.demoUrl, "http://localhost:5181", "demo_url from the manifest");
+  assert.deepEqual(m.warnings, []);
   assert.equal(api.url, null, "no url: no browser test on the api stage");
   assert.equal(api.serveUrl, "http://localhost:3000");
   assert.equal(web.kind, "front");
@@ -134,6 +138,22 @@ test("findRoot: the project's selo-flow.yaml from any folder under it, never pas
     writeFileSync(join(nested, "CLAUDE.md"), "```factory\nname: legacy\n```\n");
     assert.equal(readManifest(nested).name, "inner", "a ```factory block in CLAUDE.md is no longer a manifest");
     assert.equal(readManifest(nested).seloFlow, null, "no selo-flow key: a project from before 1.0.0");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("readManifest: an unknown key is a warning, never an error", () => {
+  const dir = mkdtempSync(join(tmpdir(), "selo-flow-keys-"));
+  try {
+    writeFileSync(join(dir, "selo-flow.yaml"), "name: x\ncolour: red\ncomponents:\n  - {name: a, path: a, demo: oops}\n");
+    mkdirSync(join(dir, "a"));
+    writeFileSync(join(dir, "a", "CLAUDE.md"), "```component\nkind: api\ncommands:\n  build: b\n  deploy: d\n```\n");
+    assert.deepEqual(readManifest(dir).warnings, [
+      'selo-flow.yaml: unknown key "colour" (ignored)',
+      'selo-flow.yaml, component "a": unknown key "demo" (ignored)',
+      `${join("a", "CLAUDE.md")}, commands: unknown key "deploy" (ignored)`,
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

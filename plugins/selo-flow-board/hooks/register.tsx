@@ -28,7 +28,7 @@ const board = atom({ plugin: 'selo-flow-board', key: 'board' } as const, null)
 const expanded = atom({ plugin: 'selo-flow-board', key: 'expanded' } as const, null)
 const isPaneOpen = atom({ plugin: 'selo-flow-board', key: 'isPaneOpen' } as const, false)
 const pickedPlans = atom({ plugin: 'selo-flow-board', key: 'pickedPlans' } as const, {})
-const browserTest = atom({ plugin: 'selo-flow-board', key: 'browserTest' } as const, false)
+const noBrowserTest = atom({ plugin: 'selo-flow-board', key: 'noBrowserTest' } as const, false)
 const stateFilters = atom({ plugin: 'selo-flow-board', key: 'stateFilters' } as const, [])
 const isConfigOpen = atom({ plugin: 'selo-flow-board', key: 'isConfigOpen' } as const, false)
 const openHistory = atom({ plugin: 'selo-flow-board', key: 'openHistory' } as const, null)
@@ -614,11 +614,11 @@ export const register: Register = on => {
     const b = await read($, board)
     const open = await read($, expanded)
     const picked = await read($, pickedPlans)
-    const browserOn = await read($, browserTest)
+    const noBrowserOn = await read($, noBrowserTest)
     const filtering = await read($, stateFilters)
     const isConfig = await read($, isConfigOpen)
     const history = await read($, openHistory)
-    const toggleBrowser = async () => void update($, browserTest, ticked => !ticked)
+    const toggleBrowser = async () => void update($, noBrowserTest, ticked => !ticked)
     /** The header's button: the autopilot of a feature that does not exist yet, its request typed after the command. */
     const newFeature = async (press: UiPressArgument) => {
       const text = '/selo-flow:autopilot '
@@ -693,7 +693,7 @@ export const register: Register = on => {
       const runs = b.runs.filter(r => r.feature === feature.slug)
       const isNewPlan = plan === null && feature.plans.length > 0
       const pilot = featurePilot(feature.slug, b.runs)
-      const action = featureAction(feature, b.runs, { browser: browserOn })
+      const action = featureAction(feature, b.runs, { noBrowser: noBrowserOn })
       const isOpen = open === feature.slug
       const stagesDone = plan ? plan.stages.filter(isStageDone).length : 0
       const stagesTotal = plan ? plan.stages.length : 0
@@ -799,7 +799,7 @@ export const register: Register = on => {
                 {action.autopilot && (
                   <Box gap={1} flexWrap="wrap" alignItems="center">
                     <Button key={`autopilot:${feature.slug}`} label={action.autopilot.label} onPress={prepare(action.autopilot.prompt)} />
-                    <Button key={`browser-test:${feature.slug}`} plain label={`${browserOn ? '☑' : '☐'} Test navigateur`} onPress={toggleBrowser} />
+                    <Button key={`browser-test:${feature.slug}`} plain label={`${noBrowserOn ? '☑' : '☐'} Sans test navigateur`} onPress={toggleBrowser} />
                     <Text size="caption" dimColor wrap="truncate-end">
                       le reste de la feature sans un clic, chaque étape committée
                     </Text>

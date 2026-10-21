@@ -79,10 +79,10 @@ Commit: `feat(selo-flow): areas, Spec lines and the fastlane`
 
 ### Stage 5 — demo (ex-0.11.0)
 Commit: `feat(selo-flow): browser tests run on the demo`
-- [ ] `commands.demo` and `demo_url` in `manifest.mjs`, with tests; a warning on an unknown key
-- [ ] `test-in-browser`: `{git-common-dir}/selo-flow/demo.lock`, demo in the background, stopped after; on by default when a touched component has `url` and `demo`; ` — without browser test`
-- [ ] Board: `BROWSER_MARKER` becomes ` — without browser test`
-- [ ] Pack `react-express`: `npm run demo` (api on in-memory PGlite with `seed/demo.ts`, web on the demo port with `--force`), vitest allowed on pure `.ts` modules of the front; its README's broken placeholder row fixed
+- [x] `commands.demo` and `demo_url` in `manifest.mjs`, with tests; a warning on an unknown key
+- [x] `test-in-browser`: `{git-common-dir}/selo-flow/demo.lock`, demo in the background, stopped after; on by default when a touched component has `url` and `demo`; ` — without browser test`
+- [x] Board: `BROWSER_MARKER` becomes ` — without browser test`
+- [x] Pack `react-express`: `npm run demo` (api on in-memory PGlite with `seed/demo.ts`, web on the demo port with `--force`), vitest allowed on pure `.ts` modules of the front; its README's broken placeholder row fixed
 
 ### Stage 6 — docs, sample, release
 Commit: `feat(selo-flow): release 1.0.0`
@@ -109,6 +109,6 @@ Commit: `fix(selo-flow): review — {summary}` (only when the review leads to fi
 - [x] Stage 2 — cleanup and shared develop
 - [x] Stage 3 — `init update`
 - [x] Stage 4 — living specs and fastlane
-- [ ] Stage 5 — demo
+- [x] Stage 5 — demo
 - [ ] Stage 6 — docs, sample, release
 - [ ] Stage 7 — review

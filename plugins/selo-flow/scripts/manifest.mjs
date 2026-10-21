@@ -16,7 +16,14 @@ export const PRESETS = {
   standard: { planner: "opus", implementer: "sonnet", reviewer: "opus", runner: "haiku", explorer: "haiku" },
 };
 export const ROLES = Object.keys(PRESETS.standard);
-export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests", "serve"];
+export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests", "serve", "demo"];
+// The keys the parser reads; any other is reported in `warnings`, never an error.
+export const MANIFEST_KEYS = ["selo-flow", "name", "base_branch", "language", "models", "components"];
+export const COMPONENT_KEYS = ["name", "path", "handoff", "needs", "url", "serve_url", "demo_url"];
+export const BLOCK_KEYS = ["kind", "stack", "skin", "layers", "commands", "logins", "url", "serve_url", "demo_url"];
+
+const unknownKeys = (map, known, where) =>
+  map && typeof map === "object" ? Object.keys(map).filter((k) => !known.includes(k)).map((k) => `${where}: unknown key "${k}" (ignored)`) : [];
 // The plugin's skins: one folder per skin holding its tokens.css (see skins/README.md).
 export const SKINS_DIR = fileURLToPath(new URL("../skins/", import.meta.url));
 
@@ -211,13 +218,15 @@ export const resolveModels = (spec) => {
   return out;
 };
 
-const readComponent = (root, c) => {
+const readComponent = (root, c, warnings) => {
   const file = join(root, c.path, "CLAUDE.md");
-  const base = { name: c.name, path: c.path, handoff: c.handoff ?? null, needs: c.needs ?? [], url: c.url ?? null, serveUrl: c.serve_url ?? c.url ?? null, file: join(c.path, "CLAUDE.md") };
+  warnings.push(...unknownKeys(c, COMPONENT_KEYS, `selo-flow.yaml, component "${c.name}"`));
+  const base = { name: c.name, path: c.path, handoff: c.handoff ?? null, needs: c.needs ?? [], url: c.url ?? null, serveUrl: c.serve_url ?? c.url ?? null, demoUrl: c.demo_url ?? null, file: join(c.path, "CLAUDE.md") };
   if (!existsSync(file)) return { ...base, missingFile: true, kind: null, stack: null, skin: null, layers: [], commands: {}, logins: null };
   const block = fencedBlock(readFileSync(file, "utf8"), "component");
   if (block === null) return { ...base, missingFile: false, missingBlock: true, kind: null, stack: null, skin: null, layers: [], commands: {}, logins: null };
   const spec = parseYaml(block) ?? {};
+  warnings.push(...unknownKeys(spec, BLOCK_KEYS, base.file), ...unknownKeys(spec.commands, COMMAND_KEYS, `${base.file}, commands`));
   const commands = {};
   for (const key of COMMAND_KEYS) if (spec.commands?.[key] != null) commands[key] = String(spec.commands[key]);
   const skin = spec.skin == null ? null : String(spec.skin);
@@ -233,6 +242,7 @@ const readComponent = (root, c) => {
     logins: spec.logins ?? null,
     url: c.url ?? spec.url ?? null,
     serveUrl: c.serve_url ?? spec.serve_url ?? c.url ?? spec.url ?? null,
+    demoUrl: c.demo_url ?? spec.demo_url ?? null,
   };
 };
 
@@ -242,9 +252,10 @@ export const readManifest = (dir = process.cwd()) => {
   const spec = parseYaml(readFileSync(join(root, MANIFEST_FILE), "utf8")) ?? {};
   if (!spec.name) throw new Error("Manifest: `name` is required");
   if (!Array.isArray(spec.components) || spec.components.length === 0) throw new Error("Manifest: `components` must list at least one component");
+  const warnings = unknownKeys(spec, MANIFEST_KEYS, "selo-flow.yaml");
   const components = spec.components.map((c, i) => {
     if (!c || !c.name || !c.path) throw new Error(`Manifest: component #${i + 1} needs \`name\` and \`path\``);
-    return readComponent(root, c);
+    return readComponent(root, c, warnings);
   });
   const names = new Set(components.map((c) => c.name));
   for (const c of components) for (const n of c.needs) if (!names.has(n)) throw new Error(`Manifest: component "${c.name}" needs unknown component "${n}"`);
@@ -257,6 +268,7 @@ export const readManifest = (dir = process.cwd()) => {
     language: { chat: spec.language?.chat ?? "en", repo: spec.language?.repo ?? "en" },
     models: resolveModels(spec.models),
     components,
+    warnings,
   };
 };
 

@@ -237,22 +237,22 @@ export function tickReview(text: string): string | null {
   return null
 }
 
-/** The marker an autopilot prompt carries when the person asked for the browser test (the pane's checkbox). */
-export const BROWSER_MARKER = ' — with browser test'
+/** The marker an autopilot prompt carries when the person skips the demo browser test (the pane's checkbox). */
+export const BROWSER_MARKER = ' — without browser test'
 
 /** The autopilot prompt of a feature: the rest of it from its plan (its stages), or from its spec. */
-function autopilotAction(feature: SeloFlowBoardFeature, browser: boolean | undefined): NextAction['autopilot'] {
+function autopilotAction(feature: SeloFlowBoardFeature, noBrowser: boolean | undefined): NextAction['autopilot'] {
   const target = feature.plan?.folder ?? feature.slug
-  return { label: '⚡ Autopilot', prompt: `/selo-flow:autopilot ${target}${browser ? BROWSER_MARKER : ''}` }
+  return { label: '⚡ Autopilot', prompt: `/selo-flow:autopilot ${target}${noBrowser ? BROWSER_MARKER : ''}` }
 }
 
 /**
  * The one thing to do next on a feature, and the prompt that does it.
- * `browser`: the autopilot prompt asks for the browser test (`BROWSER_MARKER`); off by default.
+ * `noBrowser`: the autopilot prompt skips the demo browser test (`BROWSER_MARKER`); off by default.
  */
-export function nextAction(feature: SeloFlowBoardFeature, options: { browser?: boolean } = {}): NextAction | null {
+export function nextAction(feature: SeloFlowBoardFeature, options: { noBrowser?: boolean } = {}): NextAction | null {
   const { slug, plan } = feature
-  const autopilot = autopilotAction(feature, options.browser)
+  const autopilot = autopilotAction(feature, options.noBrowser)
   switch (feature.state) {
     case 'empty':
       // No spec to start from: the autopilot takes a request, typed from the header's button.
@@ -493,7 +493,7 @@ export function liveRuns(runs: SeloFlowBoardRun[]): SeloFlowBoardRun[] {
 }
 
 /** The pane's primary button on a followed feature: none while its new plan is on its way (its session writes it) or an autopilot works on it. */
-export function featureAction(feature: SeloFlowBoardFeature, runs: SeloFlowBoardRun[], options: { browser?: boolean } = {}): NextAction | null {
+export function featureAction(feature: SeloFlowBoardFeature, runs: SeloFlowBoardRun[], options: { noBrowser?: boolean } = {}): NextAction | null {
   const isNewPlan = feature.plan === null && feature.plans.length > 0
   return isNewPlan || featurePilot(feature.slug, runs) ? null : nextAction(feature, options)
 }

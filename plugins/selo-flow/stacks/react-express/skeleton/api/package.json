@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/server.ts",
+    "demo": "tsx src/demo.ts",
     "start": "node dist/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"

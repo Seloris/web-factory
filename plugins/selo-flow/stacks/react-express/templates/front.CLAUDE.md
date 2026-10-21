@@ -10,10 +10,12 @@ commands:
   lint: npx eslint {files}
   prepare: npx openapi-typescript {{api_handoff}} --output src/api/schema.d.ts
   serve: npm run dev
+  demo: npm run demo
+demo_url: http://localhost:{{demo_port}}
 logins: {{logins}}
 ```
 
-All commands run from this component's path. The front has no unit tests: never create a `*.test.tsx`. Lint only the files a stage changed, never the whole app.
+All commands run from this component's path. The front has no unit tests of its components: never create a `*.test.tsx`. A pure `.ts` module (no React, no DOM: a formatter, a reducer, a date rule) may get a Vitest `*.test.ts` beside it, once the front declares `test: npx vitest run`. Lint only the files a stage changed, never the whole app.
 
 ## Structure
 
@@ -71,5 +73,6 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 ## Local run
 
 - Prerequisites: Node {{node_version}}, `npm ci`.
-- Run: `npm run dev` → {{url}}; the API must be running on {{api_url}} (`test-in-browser` starts both when they do not answer).
+- Run: `npm run dev` → {{url}}; the API must be running on {{api_url}}.
+- Demo: `npm run demo` → http://localhost:{{demo_port}}, proxied to the API's demo on port {{api_demo_port}}, with `--force` (no stale Vite cache). `test-in-browser` starts both demos and stops them after the test.
 - `prepare` regenerates `src/api/schema.d.ts` from the API's committed handoff file; run it at the start of every front stage.

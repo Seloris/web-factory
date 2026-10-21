@@ -10,7 +10,9 @@ commands:
   lint: npx eslint {files}
   handoff: npx tsx scripts/export-openapi.ts {{handoff_file}}
   serve: npm run db:migrate && npm run dev
+  demo: npm run demo
 serve_url: {{api_url}}
+demo_url: http://localhost:{{api_demo_port}}
 ```
 
 All commands run from this component's path. The `test` command runs every test, route tests included: they use an in-memory PGlite database and touch no external system. Narrow it while iterating with `npx vitest run {file or folder}` or `-t "{test name}"`.
@@ -27,6 +29,8 @@ src/
   db/
     schema.ts               re-exports every feature's tables (the Drizzle schema entry point)
     client.ts               opens the database: PGlite locally and in tests, node-postgres in deployment
+  demo.ts                   the demo: in-memory PGlite, migrated and seeded at each start, on its own port
+  seed/demo.ts              seedDemo(db, clock): the rows the browser tests need, through the repositories
   features/{feature}/
     {feature}.schema.ts     zod contracts of the routes (params, query, body, responses), registered for OpenAPI
     {feature}.table.ts      Drizzle tables and relations of the feature
@@ -110,4 +114,5 @@ The `write-api-tests` skill reads this table.
 - Run: `npm run dev` → {{api_url}}. The `serve` command applies the pending migrations first: `test-in-browser` runs it only when the API does not answer, so PGlite's folder is free.
 - PGlite allows one process per data folder: stop the API before `npm run db:migrate` or `drizzle-kit studio`, and say so in the report.
 - Reset the local database: stop the API, delete `.data/pglite`, `npm run db:migrate`.
+- Demo: `npm run demo` → http://localhost:{{api_demo_port}}, an in-memory database migrated and seeded by `src/seed/demo.ts` at each start; it never touches `.data/pglite`. `test-in-browser` starts and stops it. A feature that adds a screen adds its demo rows to `seedDemo`.
 - {{local_dependencies}}

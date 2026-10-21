@@ -110,12 +110,12 @@ The checks made once every stage is done, one checkbox each, in a section of the
 
 - [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
 - [ ] Tests: the full `test` command of `{components}` green on the plan's final code
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill)
+- [ ] Browser test: the change tested on `web`'s demo (`test-in-browser` skill)
 ```
 
 - **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings left open), `/selo-flow:review {plan folder}` ticks it once they are settled.
 - **Tests:** whenever a touched component declares `commands.test`, listing those components. Each stage runs its own component's full suite already; this item records one run of every listed suite, in full, on the plan's final code. Ticked when all of them passed; a code change after the tick re-runs every listed suite, or unticks it.
-- **Browser test:** only when a touched component declares a `url`. Ticked when every scenario passed.
+- **Browser test:** only when a touched component declares a `url`; run by default when it also has `commands.demo`. Ticked when every scenario passed.
 - **Integration tests:** only when the person asked for integration tests and the Tests section names them, `- [ ] Integration tests: {names} green`. Ticked when the person asked for the run and every test passed.
 
 The checklist is the only record of these checks: an item absent or unticked means the check was not done. Review is never skipped; the other items are optional: each stays `[ ]` (not run), is ticked (run and green) or is marked `[-]` with the reason when the person declined it, e.g. `- [-] Browser test: not run (declined by the person)`, so the plan says it was not run and why. The tick or the mark goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.

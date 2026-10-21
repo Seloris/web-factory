@@ -229,8 +229,8 @@ declare module 'claude-code' {
       expanded: string | null
       /** The plan folder picked in each feature's card, by slug; a feature absent here shows its latest plan. */
       pickedPlans: Record<string, string>
-      /** The pane's browser-test checkbox: when on, the autopilot prompts carry `— with browser test`. */
-      browserTest: boolean
+      /** The pane's browser-test checkbox: when on, the autopilot prompts carry `— without browser test`. */
+      noBrowserTest: boolean
       /** True while the pane is open, so the band's button says which way it toggles. */
       isPaneOpen: boolean
       /** The filter chips pressed in the pane; empty shows every feature. */

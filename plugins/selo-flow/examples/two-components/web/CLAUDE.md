@@ -10,6 +10,7 @@ commands:
   lint: node scripts/echo.mjs lint web {files}
   prepare: node scripts/echo.mjs prepare web
   serve: node scripts/echo.mjs serve web
+  demo: node scripts/echo.mjs demo web
 logins: .claude/local/test-logins.md
 ```
 

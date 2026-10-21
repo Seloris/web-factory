@@ -12,14 +12,14 @@ Useful to two projects or more: the plugin. Specific to one project: its `CLAUDE
 
 ## The manifest
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the JSON: `name`, `baseBranch`, `language`, `models`, `components` (name, path, kind, stack, skin, layers, commands, handoff, needs, url, logins) and `stages`. A component with `missingFile` has no `CLAUDE.md`: send the person to `/selo-flow:init component {name}`. Never parse `selo-flow.yaml` yourself. A component's `CLAUDE.md` loads when you work under its path; read it yourself when you plan for it from elsewhere.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the JSON: `name`, `baseBranch`, `language`, `models`, `components` (name, path, kind, stack, skin, layers, commands, handoff, needs, url, demoUrl, logins), `stages` and `warnings` (unknown keys, ignored: tell the person). A component with `missingFile` has no `CLAUDE.md`: send the person to `/selo-flow:init component {name}`. Never parse `selo-flow.yaml` yourself. A component's `CLAUDE.md` loads when you work under its path; read it yourself when you plan for it from elsewhere.
 
 ## Two lanes
 
 - **Fastlane:** a request without a plan. `implement {request}`, or `autopilot {request}` when the request touches one component (or the api and its regenerated client) and creates no business rule or entity. One commit per component touched.
 - **Feature lane:** spec, plan, stages, one review at the end. `write-spec`, `write-plan`, then `implement` or `autopilot`. `autopilot` reads the code before choosing; ` — fastlane` or ` — with plan` forces the lane. A fastlane that finds a new rule or entity stops before its commit and says so: the work goes to the feature lane.
 
-Both lanes end the same way: the review, the full suites of the touched components (through `runner`), the browser test when asked, the commit(s).
+Both lanes end the same way: the review, the full suites of the touched components (through `runner`), the browser test on the demo when a touched component has `url` and `commands.demo` (` — without browser test` skips it), the commit(s).
 
 ## The spec follows the code
 

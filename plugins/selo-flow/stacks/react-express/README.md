@@ -18,8 +18,8 @@ Two component templates and three skills, TypeScript end to end, Node 22 or late
 
 The minimum for which every command the templates declare passes with zero features. `init` copies `skeleton/{kind}/` into the component's path when that path holds nothing but its `CLAUDE.md`, fills the placeholders (`{{name}}`, `{{node_version}}`, `{{api_url}}`), then runs **`npm install`** from the component's path (a front then gets its skin's tokens and fonts, see Skin below), and checks that the component's `build` and `test` commands are green before committing. Dependency versions are pinned; `npm install` writes the lock file the project commits, and `npm ci` is the setup from then on.
 
-- **api**: `src/app.ts`, `server.ts`, `config.ts`; `db/schema.ts` and `db/client.ts` on PGlite; `shared/errors.ts` (the `AppError`s and the problem-details middleware), `validate.ts`, `clock.ts`, `openapi.ts` (the registry); `scripts/export-openapi.ts`; `test/setup.ts`, `test/factories.ts` and `test/shared/errors.test.ts` (a body that is not valid JSON gets a `400`); `drizzle.config.ts`, an empty migrations journal, `.data/.gitkeep` (PGlite needs the parent folder); Vitest, eslint flat config, strict tsconfig. One route, `GET /health`, in `features/health/` with its Supertest test: it proves the chain (app, clock, test context, OpenAPI registration) and is the first reference test.
-- **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (the theme imports first, then QueryClientProvider, RouterProvider), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; `src/shared/ui/theme/base.css`, an empty `overrides.css` and an empty `fonts.ts` (the skin's `skin.css` and its font imports come from the skin, below); the shared components of `src/shared/ui/` (below); eslint flat config with the React hooks rules, strict tsconfig.
+- **api**: `src/app.ts`, `server.ts`, `config.ts`; `db/schema.ts` and `db/client.ts` on PGlite; `shared/errors.ts` (the `AppError`s and the problem-details middleware), `validate.ts`, `clock.ts`, `openapi.ts` (the registry); `scripts/export-openapi.ts`; `test/setup.ts`, `test/factories.ts` and `test/shared/errors.test.ts` (a body that is not valid JSON gets a `400`); `drizzle.config.ts`, an empty migrations journal, `.data/.gitkeep` (PGlite needs the parent folder); Vitest, eslint flat config, strict tsconfig. One route, `GET /health`, in `features/health/` with its Supertest test: it proves the chain (app, clock, test context, OpenAPI registration) and is the first reference test. `src/demo.ts` and an empty `src/seed/demo.ts` give `npm run demo`: the app on an in-memory PGlite, migrated and seeded at each start, on `{{api_demo_port}}`.
+- **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (the theme imports first, then QueryClientProvider, RouterProvider), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; `src/shared/ui/theme/base.css`, an empty `overrides.css` and an empty `fonts.ts` (the skin's `skin.css` and its font imports come from the skin, below); the shared components of `src/shared/ui/` (below); eslint flat config with the React hooks rules, strict tsconfig; `npm run demo` serves it in the `demo` mode on `{{demo_port}}`, its `/api` proxy on the API's demo, with `--force`.
 
 ## Skin
 
@@ -81,7 +81,9 @@ Why not SQLite: its Node drivers either need a native addon (prebuilt binaries l
 
 The API's route tests run in-process against in-memory PGlite: they touch no external system and take seconds, so they are part of the api component's `test` command and run in full at the end of every stage. The pack therefore declares no `integration_tests` command. A project that adds tests against real external systems (a hosted database, a third-party API) puts them behind `integration_tests`, which never runs unasked.
 
-The front has no unit tests, as in the workflow's default: the `test-in-browser` skill checks a change in the real app. A project that wants them adds Vitest and a `test` command to its front component; every front stage then gains a test step.
+The front has no unit tests of its components, as in the workflow's default: the `test-in-browser` skill checks a change on the demo. Its pure `.ts` modules (no React, no DOM) may have Vitest tests: the project adds Vitest and `test: npx vitest run` to its front component, and every front stage then gains a test step.
+
+The demo (`commands.demo`, `demo_url` in both component blocks) is what `test-in-browser` runs on by default: seeded data, its own ports, started in the background and stopped after the test, so the developer's servers and local database are never touched.
 
 ## Placeholders
 
@@ -96,6 +98,9 @@ The templates' `{{placeholders}}` are asked by `init` (round 2, after the common
 | `{{reference_tests}}` | api | `test/health/health.routes.test.ts` | the test files `write-api-tests` imitates: the skeleton's health route test until the project has richer ones |
 | `{{authenticated_calls}}` | api | `` `seed.user({ roles })` then `.set(authHeader(user))` `` when the application has a sign-in; empty otherwise (optional) | how a route test authenticates |
 | `{{i18n_file}}` | front | `src/shared/lib/i18n/{lang}.json` | where the translation keys live |
-| `{{styling}}` | front | `CSS Modules` | the styling approach || `{{local_dependencies}}` | api | empty (optional) | what else must run locally (a third-party API, a queue…) |
+| `{{styling}}` | front | `CSS Modules` | the styling approach |
+| `{{api_demo_port}}` | api, front | `3101` | the port of the API's demo (`npm run demo`), apart from the dev server's |
+| `{{demo_port}}` | front | `5181` | the port of the front's demo, the component's `demo_url` |
+| `{{local_dependencies}}` | api | empty (optional) | what else must run locally (a third-party API, a queue…) |
 
 Conventions worth keeping when the templates are adapted: time through an injected `Clock`, never `new Date()` or `Date.now()` in services; booleans with the `is`/`has`/`can` prefix; one zod schema per input and output, the TypeScript types inferred from it (`z.infer`), never declared twice; errors as typed `AppError`s mapped to problem details by one middleware, never a bare `throw new Error`; no hand-edited migration; every write route's test asserts the database state.

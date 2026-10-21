@@ -226,7 +226,7 @@ test('parseSeloFlowCommand finds the feature and the plan folder', () => {
   expect(parseSeloFlowCommand('fix the tests')).toBeNull()
   // A bare slug stands alone or before an option; a free request names no feature yet.
   expect(parseSeloFlowCommand('/selo-flow:autopilot demo — until plan')?.feature).toBe('demo')
-  expect(parseSeloFlowCommand(`/selo-flow:autopilot ${PLAN_FOLDER} — with browser test`)?.folder).toBe(PLAN_FOLDER)
+  expect(parseSeloFlowCommand(`/selo-flow:autopilot ${PLAN_FOLDER} — without browser test`)?.folder).toBe(PLAN_FOLDER)
   expect(parseSeloFlowCommand('/selo-flow:write-spec add tags to the todos — autonomous')?.feature).toBeNull()
   expect(parseSeloFlowCommand('/selo-flow:autopilot add tags to the todos')?.feature).toBeNull()
   expect(commitFeature('git commit -m "docs(tags): spec — tags on todos"')).toBe('tags')
@@ -258,7 +258,7 @@ test('nextAction follows the feature state', () => {
   expect(nextAction(feature('running', { ...plan, isDraft: true }))?.prompt).toBe('/selo-flow:write-plan demo')
   expect(nextAction(feature('review'))?.prompt).toBe(`/selo-flow:review ${PLAN_FOLDER}`)
   // The browser test is the autopilot's option only; a feature without a spec has no autopilot.
-  expect(nextAction(feature('review'), { browser: true })?.autopilot?.prompt).toBe(`/selo-flow:autopilot ${PLAN_FOLDER} — with browser test`)
+  expect(nextAction(feature('review'), { noBrowser: true })?.autopilot?.prompt).toBe(`/selo-flow:autopilot ${PLAN_FOLDER} — without browser test`)
   expect(nextAction({ ...feature('empty', null as never), hasSpec: false })?.autopilot).toBeUndefined()
   expect(nextAction(feature('done'))).toBeNull()
 })
@@ -346,12 +346,12 @@ test('the pane counts the features, lists them, unfolds the stages and prepares 
 
     await ui.press({ key: 'prepare:demo' })
     expect(filled.at(-1)).toBe(`/selo-flow:implement ${PLAN_FOLDER} — stage 2 (web)`)
-    // The autopilot of the rest of the feature, with the browser test when ticked; a new feature from the header.
+    // The autopilot of the rest of the feature, without the browser test when ticked; a new feature from the header.
     await ui.press({ key: 'autopilot:demo' })
     expect(filled.at(-1)).toBe(`/selo-flow:autopilot ${PLAN_FOLDER}`)
     await ui.press({ key: 'browser-test:demo' })
     await ui.press({ key: 'autopilot:demo' })
-    expect(filled.at(-1)).toBe(`/selo-flow:autopilot ${PLAN_FOLDER} — with browser test`)
+    expect(filled.at(-1)).toBe(`/selo-flow:autopilot ${PLAN_FOLDER} — without browser test`)
     await ui.press({ key: 'browser-test:demo' })
     await ui.press({ key: 'new-autopilot' })
     expect(filled.at(-1)).toBe('/selo-flow:autopilot ')
@@ -1020,7 +1020,7 @@ test('the board is exported for companion apps: the pane’s timeline, prompts a
   expect(first.schemaVersion).toBe(3)
   expect(first.activity.phase).toBe('idle')
   expect(first.root).toBe(ROOT)
-  expect(first.markers).toEqual({ browser: ' — with browser test' })
+  expect(first.markers).toEqual({ browser: ' — without browser test' })
   const demo = first.features.find(f => f.slug === 'demo')
   expect(demo?.plan?.folder).toBe(PLAN_FOLDER)
   expect(demo?.plans).toEqual([PLAN_FOLDER, OLD_PLAN_FOLDER])

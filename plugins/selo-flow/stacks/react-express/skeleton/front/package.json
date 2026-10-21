@@ -7,7 +7,8 @@
   },
   "scripts": {
     "build": "tsc -b && vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "demo": "vite --mode demo --port {{demo_port}} --strictPort --force"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.3",
