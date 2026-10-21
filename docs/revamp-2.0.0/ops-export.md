@@ -19,6 +19,8 @@ What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Clau
   sessions/{sessionId}.json   one per session that ran a hook in a selo project, §5
 ```
 
+Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, written by `run.mjs` (proposal §4.8). Selo Ops joins a session to its run by `root`; `repo` (the git common dir) says where to look.
+
 `rootKey` is the root with every non-alphanumeric character turned into `-`, as `~/.claude/projects` names its folders (`C--WS-ia-projects-claude-companion`). The folder is overridable by Selo Ops' configuration, as `~/.claude/factory-board` is today. The plugin never deletes a file; a session file older than 30 days with `status: ended` is Selo Ops' to ignore.
 
 ## 3. When: the hooks
@@ -290,6 +292,7 @@ A session file is written by its own hooks only (§1.2): a file another session 
 | Stale project | `writtenAt` older than 60 s **and** no live session on the root (a project with no session open is simply not rescanned: it is not stale, it is quiet) |
 | Specs page: pages, domains, their FR/BR counts, what is in flight on each | `sheets[]` + `openBlueprints`; the markdown read under the root on click |
 | Blueprints page: state, stages, decisions, delta, next prompt | `blueprints[]`; the markdown on click |
+| Session and project: worktree, branch, app's ports and links | `root` and `branch`; the slot file of `{repo}/selo/slots/` whose `root` is the same, `stoppedAt` null and `pid` alive |
 | Header: plugin version | `selo` of the newest project file, or `installed_plugins.json` as today |
 
 ## 7. Example
@@ -353,3 +356,4 @@ A session file is written by its own hooks only (§1.2): a file another session 
 8. **Esc** → No `Stop` fires on an interrupt (checked in the hooks reference, 2026-10-22); Selo Ops reads `working` + `idle` as an interrupted turn.
 9. **Substeps** → Marked by the skills (`ops.mjs mark`, §5.4), not guessed from the tools: only the skill knows that it moved from tests to code.
 10. **Technical fields** → `transcriptPath`, `permissionMode`, `effort` come from the hooks' common input; `model` only from SessionStart, which does not always carry it. Output style is in no hook input: left out. `unpushedCount` added: under "never push", it is what the person checks before closing.
+11. **The app's runs** → Not in the export: the slot files (proposal §4.8) already hold the ports and pids, written when a run starts and stops. Selo Ops reads them by `repo` and `root`; both sides use the same form of `root`.

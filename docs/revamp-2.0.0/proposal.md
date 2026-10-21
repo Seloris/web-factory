@@ -1,4 +1,4 @@
-# selo 2.0 — proposal (v3, 2026-10-21)
+# selo 2.0 — proposal (v4, 2026-10-22)
 
 Working document, meant to continue the reflection. Basis: a full read of selo-flow 1.0.0 (8 skills, 2 agents, `workflow-rules.md`, docs, templates), the `samples/todo-app` history (spec `home`, four plans), the 1.0.0 proposal in `docs/revamp-1.0.0/`, and four grill-me rounds with the person on 2026-10-21 (§3). Nothing in the plugin is changed yet.
 
@@ -17,7 +17,7 @@ Working document, meant to continue the reflection. Basis: a full read of selo-f
 
 **What goes away:** the board plugin, `write-spec` and `write-plan` as two steps, the `(planned)` marks, `— stages N-M (…), chained`, the pseudo-code plan, the `.planning/features/{slug}/dev-plans/{ts}-{type}-{name}/plan.md` path.
 
-**What stays:** spec-follows-code, FR/BR ids, the `Spec:` commit line, `spec-check`, the commit hook, commits on the base branch by named files, one review at the end, the demo browser test, Business decisions / Technical defaults, never push.
+**What stays:** spec-follows-code, FR/BR ids, the `Spec:` commit line, `spec-check`, the commit hook, commits on the base branch by named files (or on a worktree's branch, merged into the base branch on the person's yes: §4.7), one review at the end, the demo browser test, Business decisions / Technical defaults, never push.
 
 ## 1. Diagnosis of 1.0.0
 
@@ -43,7 +43,7 @@ Measured on `samples/todo-app`, feature "optional due date" (commits `4ed64c2`, 
 
 1. **A page is the unit the person thinks in.** The spec follows the app's map, not the history of requests.
 2. **Specify the what, not the how.** The spec says what the page does; the blueprint says the decisions and the steps; the code says the how. Nothing is written twice.
-3. **One intention, one yes.** A blueprint is approved once, spec delta and brief together.
+3. **One intention, one yes.** A blueprint is approved once, spec delta and brief together. In a worktree (§4.7) the merge into the base branch adds one yes for the result: the "what" and the "done", never a yes per commit.
 4. **The default is the common case.** Two components, chained stages, the browser test on: no option to type for that.
 5. **Each rule in one place.** One reference file for the rules, one cheatsheet for the commands; the rest points to them.
 
@@ -195,8 +195,50 @@ Setup already detects component roots and leaves their code alone; 2.0 also give
 | `/selo:review [scope]` | same | scopes: nothing, a range, a blueprint, a page (`review home`: spec vs code) |
 | `/selo:grill {…}` | `/selo-flow:grill-me` | |
 | `/selo:try {component}` | `/selo-flow:test-in-browser` | compares with the blueprint's mockup when there is one |
+| `/selo:run [component \| all] [— demo \| — stop]` | new | starts the app on this worktree's slot, gives its URLs (§4.8) |
 
-Eight skills stay eight, but the person types three in practice: `fastlane`, `blueprint`, `autopilot`. A spec-only edit (a wording, a found gap) is a free request: the project's `CLAUDE.md` carries the spec rules.
+Eight skills become nine with `run` (§4.8), but the person types three in practice: `fastlane`, `blueprint`, `autopilot`. A spec-only edit (a wording, a found gap) is a free request: the project's `CLAUDE.md` carries the spec rules.
+
+### 4.7 Worktree variant (2026-10-22)
+
+The person runs each session in its own git worktree, on its own branch. The validation is then the merge of that branch into `baseBranch`, not a commit.
+
+- When does it apply? → **When the session's branch is not `baseBranch`** (a worktree's branch). Detected from git, no `selo.yaml` key. On `baseBranch` itself, the one-checkout rules of 1.0.0 stay as they are.
+- How many yeses? → **The blueprint's yes, then the merge's yes.** Fastlane: one, the merge. Autopilot: none while it runs; it stops ready to merge and the person gives the merge's yes. No commit inside the worktree asks a yes.
+- Where do commits go? → **On the worktree's branch**, one per stage or per component as today, without a question.
+- What leaves the "Where commits go" rules? → **What existed for sessions sharing one checkout**: `--only`, the five-minute wait on a file another session holds, the "foreign uncommitted changes" mark, and finding a work's commits by their scope. The work's commits are `{baseBranch}..HEAD`; the review takes that range whole. Files are still named on `git add` (no `-A`): it keeps build output and secrets out.
+- What stays? → **Never push, never `--amend`, no squash, the `Spec:` line on every code commit, the commit hook.** Stage commits keep `Spec: pending (…)`.
+- When does the spec delta merge? → **At the merge step, not at the last stage**, in this order:
+  1. bring the branch up to date with `baseBranch` (the desktop app's `sync_with_base_branch`, else `git merge {baseBranch}`); a git conflict stops and asks;
+  2. apply the blueprint's delta with `spec-check --merge` against the page specs as `baseBranch` has them now: final ids, semantic conflicts seen against the latest text; commit (`Spec: home +FR-18 …`), then re-run the full suites of the touched components;
+  3. show the merge: the branch, its commits, the Business decisions, the spec delta with its final ids, and the exact merge message in a code block; one yes;
+  4. on the yes, merge from the checkout that holds `baseBranch` (the base branch cannot be checked out in a worktree): `git -C {main checkout} merge --no-ff {branch} -m "{subject}" -m "{body}"`. A dirty file of the main checkout that the merge touches stops it and names the file.
+  A fastlane has no delta to apply: steps 1, 3, 4.
+- And the done footer? → **It says where the work is.** Before the merge: `` `{short hash}` {subject} · branch `{branch}` · not merged ``. After: `` merged into `{baseBranch}` · not pushed ``.
+- Who removes the worktree? → **The person, or the desktop app.** No skill removes a worktree.
+
+### 4.8 Running the app: one slot per run (2026-10-22)
+
+Every project starts its components the same way, one by one or all at once, and several copies run side by side: one per worktree, each on its own ports, so two worktrees run their browser tests at the same time.
+
+- Who starts the app? → **One script of the plugin, `scripts/run.mjs`**, behind `/selo:run [component | all] [— demo | — stop]`. `all` starts every component in `stages` order, each awaited on its URL before the next. `try` uses the same script. It runs the component's `commands.serve`, or `commands.demo` with `— demo`, in the background, and prints the URLs.
+- What does the manifest give? → **Base ports, not URLs.** A component that serves has `port` (dev) and `demo_port` (demo); they replace `url`, `serve_url` and `demo_url`. A `front` with a `port` is browser-tested (today: a component with `url`). The resolved manifest still returns `url`, `serveUrl` and `demoUrl`, computed for the current slot: skills read them as today.
+- How are ports shifted? → **By the run's slot**: port = base + 10 × slot. Slot 0 is the base ports, so a single run keeps the ports of today.
+- When does a run get its slot? → **When it starts, not when the worktree is created:**
+  1. this root already has a live run → reuse it, print its URLs, start nothing;
+  2. else the slot this root had last, when it is free;
+  3. else the lowest free slot.
+  A slot is free when no live run holds it **and** every port it would use is free: a server started by hand moves the run to the next slot. A single worktree therefore always gets the same ports, the same tab.
+- Where is it recorded? → **One file per slot, `{git-common-dir}/selo/slots/{n}.json`**, shared by every worktree of the repository:
+  ```json
+  { "slot": 1, "root": "C:/WS/ia-projects/todo-app/.claude/worktrees/due-date", "pid": 18244, "startedAt": "…", "stoppedAt": null,
+    "components": [ { "name": "api", "mode": "dev", "url": "http://localhost:3010", "pid": 18250 },
+                    { "name": "web", "mode": "dev", "url": "http://localhost:5183", "pid": 18262 } ] }
+  ```
+  `root` has the exact form of the ops export's `root` (absolute, forward slashes, drive letter upper case): Selo Ops joins a session to its run on it. A slot is claimed under a short lock (`{git-common-dir}/selo/slots.lock`, an atomic `mkdir`). `— stop` stops the processes and sets `stoppedAt`; the file stays, and `root` is what step 2 reads. A `pid` that is dead frees the slot.
+- What does a component receive? → **Its port and its peers' URLs, in the environment**: `PORT`, `SELO_SLOT`, and `{NAME}_URL` for each component it `needs` (`API_URL`). The stack pack reads them: `react-express` starts Vite with `--port $PORT --strictPort` and points its `/api` proxy at `API_URL`; the api already reads `PORT`. Local data stays per worktree (PGlite under the component's folder); a pack whose database is shared (a Docker container) says so.
+- What about the demo lock? → **Per slot**: `{git-common-dir}/selo/slots/{n}.demo.lock`. Two sessions on one worktree still wait for each other; two worktrees no longer do.
+- What does Selo Ops show? → **The run of each session's worktree**: ports and links, read from the slot files (`ops-export.md` §2). Nothing is copied into the export.
 
 ### 4.6 Agents and models
 
@@ -208,7 +250,7 @@ Eight skills stay eight, but the person types three in practice: `fastlane`, `bl
 ## 5. One plugin: removing the board
 
 - Delete `plugins/selo-flow-board/` and its entry in `.claude-plugin/marketplace.json`; the root `CLAUDE.md` loses its board lines and commands.
-- `workflow-rules.md`: drop "a second `-m`, never `-F`: the board reads the subject" (keep `-m` twice, it is still the simplest); drop "the board reads it, keep its shape" from the done footer. The footer's `> ` recap line says what the whole job achieved, from its prompt to the footer, not only the last turn: a build stopped on a commit question and resumed on the yes spans several turns, and Selo Ops shows that line as the run's recap (`ops-export.md` §5.3).
+- `workflow-rules.md`: drop "a second `-m`, never `-F`: the board reads the subject" (keep `-m` twice, it is still the simplest); drop "the board reads it, keep its shape" from the done footer. The footer's `> ` recap line says what the whole job achieved, from its prompt to the footer, not only the last turn: a build stopped on a question (a semantic conflict, the merge of a worktree, §4.7) and resumed on the answer spans several turns, and Selo Ops shows that line as the run's recap (`ops-export.md` §5.3).
 - `templates/CLAUDE.md`: the done footer stays, lighter: "The board and its companion apps read it: keep its shape" becomes "Selo Ops reads it". The recap-only footer of a free request answered without a commit stays.
 - `docs/manifest.md`, `skins/README.md`, `skills/init/SKILL.md`: their board mentions.
 - `IDEAS.md`: its "Specs of the day" idea stays there, out of 2.0; its `## board` scope heading is the person's to rename.
@@ -231,18 +273,25 @@ One reference, one cheatsheet:
 5. `dev-plans/` folders moved to `.planning/blueprints/{date}-{name}.md` as they are, marked legacy; an unfinished plan is finished by `/selo:build` reading the legacy format, or rewritten as a blueprint.
 6. `(planned)` FRs of unfinished plans moved back into their blueprint's delta.
 7. The project's `CLAUDE.md` tagged blocks rewritten (`/selo:` prompts, the footer without the board).
+8. `url`, `serve_url`, `demo_url` of each component turned into `port` and `demo_port` (§4.8); the stack pack's dev and demo scripts read `PORT` and the `{NAME}_URL` of their peers.
 
 Breaking for every project: version 2.0.0, with the rollback note of 1.0.0 (pin the previous version).
 
 ## 8. Open questions
 
-Q1–Q9 of v1 are settled (§3, round 3), and the two ideas of round 4 too. None is open; the next step is the prototype of §10.
+Q1–Q9 of v1 are settled (§3, round 3), and the two ideas of round 4 too. The worktree variant (§4.7) and the app's runs (§4.8) open four:
+
+- Q10, does the one-checkout mode stay? §4.7 keeps it for a session on `baseBranch`; dropping it would remove `--only` and the waits from the rules for good, but force a worktree on every session.
+- Q11, merge with `--no-ff` or fast-forward? `--no-ff` keeps one merge commit per work, which a log reads as "this blueprint landed"; fast-forward keeps a straight history.
+- Q12, two yeses for a blueprint (§2.3)? The alternative: commit the blueprint on its branch without asking, and the merge's yes covers spec and code at once. Faster, but the person sees the delta only once the code exists.
+- Q13, how does the person start the app outside a session? `/selo:run` runs it as a background task of the session, which stops with it. A launcher at the project root (written by `setup`, calling the plugin's `run.mjs`) would serve a terminal; its path to the plugin changes with each version.
 
 ## 9. Risks
 
 - **Opus as implementer costs more per stage.** Offset: no 174-line plan to write and re-read; to measure on the sample (one blueprint, cost and time vs `add-due-date`).
 - **Short brief, more drift.** The implementer decides details the plan fixed. Mitigation: Business decisions stay in the blueprint; the reviewer checks the delta's FRs one by one; Technical defaults record the non-obvious choices.
 - **Semantic conflict at merge.** A `~` or `-` in a delta whose "before" text changed during the build stops the merge and needs the person; frequent with 3–5 sessions on one page, rare otherwise.
+- **One page spec in two long-lived branches.** Two worktrees whose blueprints touch `pages/home.md` meet at the merge: the second one gets a git conflict on the spec, or a semantic conflict in `spec-check --merge`. Mitigation: the merge step brings the branch up to date first (§4.7); short branches.
 - **Delta merged at the end.** Between the blueprint and its merge, the page spec does not show the work in flight. Mitigation: `review home` lists the open blueprints of a page.
 - **Specs written from code.** An explorer can misread a page or miss a hidden state (an error, a permission). Mitigation: observed behaviour only, doubts as `Q-NN`, one review by the person before the commit; the browser test of the first fastlane on the page checks the main FRs.
 - **Migration of real projects.** Splitting areas into pages and domains changes ids' files: the `Spec:` lines of old commits keep the old slugs. Acceptable: git history is read rarely, and the area-to-file map is recorded once in the migration commit.
@@ -254,3 +303,4 @@ Q1–Q9 of v1 are settled (§3, round 3), and the two ideas of round 4 too. None
 3. Rename to `selo`, `setup update` migration, board removal.
 4. `autopilot` on the new lanes, docs collapsed to two files.
 5. Setup on an existing repository (§4.4): the packs' `## Routes` section, `setup specs`, the first-touch bootstrap in `fastlane` and `blueprint`.
+6. `run.mjs` and its tests (slot choice, stale pid, ports taken), `/selo:run`, the manifest's ports, the `react-express` pack reading `PORT` and `API_URL`, `try` on the slot (§4.8).
