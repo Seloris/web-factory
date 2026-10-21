@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { ProblemDetails } from "../../../api/client.ts";
 import { t } from "../../../shared/lib/i18n.ts";
 import { Button } from "../../../shared/ui/Button.tsx";
+import { DateInput } from "../../../shared/ui/DateInput.tsx";
 import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { Field } from "../../../shared/ui/Field.tsx";
 import { TextInput } from "../../../shared/ui/TextInput.tsx";
@@ -16,10 +17,11 @@ export function TodoForm({
   tags: string[];
   isPending: boolean;
   problem: ProblemDetails | null;
-  onSubmit(values: { name: string; tag: string | null }): Promise<void>;
+  onSubmit(values: { name: string; tag: string | null; dueDate: string | null }): Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [tag, setTag] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [isNameBlank, setIsNameBlank] = useState(false);
 
   const nameError = isNameBlank
@@ -28,8 +30,12 @@ export function TodoForm({
       ? t("home.form.nameInvalid")
       : null;
   const tagError = problem?.errors?.["body.tag"] ? t("home.form.tagInvalid") : null;
+  const dueDateError = problem?.errors?.["body.dueDate"] ? t("home.form.dueDateInvalid") : null;
   const otherError =
-    problem && !problem.errors?.["body.name"] && !problem.errors?.["body.tag"]
+    problem &&
+    !problem.errors?.["body.name"] &&
+    !problem.errors?.["body.tag"] &&
+    !problem.errors?.["body.dueDate"]
       ? t("common.error.generic")
       : null;
 
@@ -41,9 +47,10 @@ export function TodoForm({
     }
     setIsNameBlank(false);
     try {
-      await onSubmit({ name, tag: tag === "" ? null : tag });
+      await onSubmit({ name, tag: tag === "" ? null : tag, dueDate: dueDate === "" ? null : dueDate });
       setName("");
       setTag("");
+      setDueDate("");
     } catch {
       // The `problem` prop carries the failure; the fields stay for a retry.
     }
@@ -83,6 +90,13 @@ export function TodoForm({
                 ))}
               </datalist>
             </>
+          )}
+        </Field>
+      </div>
+      <div className={styles.dueDate}>
+        <Field label={t("home.form.dueDate")} error={dueDateError}>
+          {(control) => (
+            <DateInput {...control} name="dueDate" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
           )}
         </Field>
       </div>

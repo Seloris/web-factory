@@ -149,6 +149,10 @@ None: `web/CLAUDE.md` forbids front tests. The browser test of the Validation co
 7. Reload the page: every due date is still there (stored by the API).
 8. Narrow the window to 360px: the row wraps, the open editor stays inside the panel, no horizontal scroll.
 
+## Deviations
+
+- `DateInput` sets `color-scheme: light dark` → `color-scheme: inherit` (the skin sets the scheme on `:root`, light and dark, so the picker follows it).
+
 ## Progress
 
 ### Stage 1 — api
@@ -161,14 +165,14 @@ Commit: `feat(home): api — optional due date on a todo`
 
 ### Stage 2 — web
 Commit: `feat(home): web — due dates and late todos in the list`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: `localDay` and `formatDay`, `isOverdue`, `dueDate` in `useCreateTodoMutation`, `useSetTodoDueDateMutation`
-- [ ] pages: `HomePage` passes `today` and wires the due-date mutation
-- [ ] ui: `DateInput`, `Badge` tone, `CalendarIcon`, the date field of `TodoForm`, `TodoDueDateForm`, the date, late badge and « Échéance » button of `TodoItem`, `TodoList` props, i18n keys
-- [ ] Conventions: `web/CLAUDE.md` title
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: `localDay` and `formatDay`, `isOverdue`, `dueDate` in `useCreateTodoMutation`, `useSetTodoDueDateMutation`
+- [x] pages: `HomePage` passes `today` and wires the due-date mutation
+- [x] ui: `DateInput`, `Badge` tone, `CalendarIcon`, the date field of `TodoForm`, `TodoDueDateForm`, the date, late badge and « Échéance » button of `TodoItem`, `TodoList` props, i18n keys
+- [x] Conventions: `web/CLAUDE.md` title
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [x] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests › web

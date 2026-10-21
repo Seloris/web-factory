@@ -45,10 +45,10 @@ Tasks noted on paper or scattered across apps get lost: you cannot tell what is 
 - **FR-11** — When adding a todo, the tag is typed freely and the field suggests the existing tags, so that the person reuses a tag instead of creating a near-duplicate.
 - **FR-12** — The person pins a todo, or unpins it, from the list, so that the todos that matter stay at the top of a long list; every visitor sees the same pinned todos.
 - **FR-13** — Next to the page title, once the list has loaded, the home page shows how many todos are not completed (« 3 à faire », « 0 à faire » when none), counting every todo whatever the search text or tag filter, and updating at once when a todo is added, completed, reopened or deleted, so that the person sees what is left at a glance.
-- **FR-14** — (planned) When adding a todo, the person may give it a due date, a calendar day without a time of day; a todo added without one has no due date.
-- **FR-15** — (planned) The person sets, changes or clears a todo's due date from the list, so that a deadline learned later is recorded without deleting and adding the todo again.
-- **FR-16** — (planned) Each todo with a due date shows it in the list, as day, month and year (« 24/10/2026 »); a todo without one shows no date.
-- **FR-17** — (planned) A todo not completed whose due date has passed is shown as late (« en retard ») in the list; it stops being shown late as soon as it is marked completed or its due date is moved to today or later or cleared, so that the person sees at a glance what is overdue.
+- **FR-14** — When adding a todo, the person may give it a due date, a calendar day without a time of day; a todo added without one has no due date.
+- **FR-15** — The person sets, changes or clears a todo's due date from the list, so that a deadline learned later is recorded without deleting and adding the todo again.
+- **FR-16** — Each todo with a due date shows it in the list, as day, month and year (« 24/10/2026 »); a todo without one shows no date.
+- **FR-17** — A todo not completed whose due date has passed is shown as late (« en retard ») in the list; it stops being shown late as soon as it is marked completed or its due date is moved to today or later or cleared, so that the person sees at a glance what is overdue.
 
 ## Business Rules
 

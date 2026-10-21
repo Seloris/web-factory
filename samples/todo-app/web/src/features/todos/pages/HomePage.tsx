@@ -1,5 +1,6 @@
 import { useMutationState } from "@tanstack/react-query";
 import { useState } from "react";
+import { localDay } from "../../../shared/lib/dates.ts";
 import { t } from "../../../shared/lib/i18n.ts";
 import { Badge } from "../../../shared/ui/Badge.tsx";
 import { Button } from "../../../shared/ui/Button.tsx";
@@ -22,6 +23,7 @@ import {
   useSetTodoPinnedMutation,
   type SetTodoPinnedVariables,
 } from "../data/useSetTodoPinnedMutation.ts";
+import { useSetTodoDueDateMutation } from "../data/useSetTodoDueDateMutation.ts";
 import { useTodosQuery, type Todo } from "../data/useTodosQuery.ts";
 import { TodoFilters } from "../ui/TodoFilters.tsx";
 import { TodoForm } from "../ui/TodoForm.tsx";
@@ -38,6 +40,7 @@ function HomePage() {
   const createTodo = useCreateTodoMutation();
   const setTodoCompleted = useSetTodoCompletedMutation();
   const setTodoPinned = useSetTodoPinnedMutation();
+  const setTodoDueDate = useSetTodoDueDateMutation();
   const deleteTodo = useDeleteTodoMutation();
   // One useMutation only exposes its latest variables: every pending toggle comes from the cache.
   const pendingIds = useMutationState({
@@ -59,6 +62,8 @@ function HomePage() {
   // The last todo of the selected tag was deleted: back to every todo, for good.
   if (tag !== null && activeTag === null && todosQuery.isSuccess) setTag(null);
   const visible = selectVisibleTodos(todos, { search, tag: activeTag, isSortedByState });
+  // Read at each render: the device's calendar day (BR-06).
+  const today = localDay(new Date());
 
   function closeDeleteDialog() {
     // Cancel cannot stop a running delete: the dialog stays until it ends (FR-09).
@@ -114,6 +119,10 @@ function HomePage() {
                 onToggleCompleted={(todo, isCompleted) => setTodoCompleted.mutate({ id: todo.id, isCompleted })}
                 pendingPinIds={pendingPinIds}
                 onTogglePinned={(todo, isPinned) => setTodoPinned.mutate({ id: todo.id, isPinned })}
+                today={today}
+                onSetDueDate={(todo, dueDate) =>
+                  setTodoDueDate.mutateAsync({ id: todo.id, dueDate }).then(() => undefined)
+                }
                 onDelete={(todo) => {
                   deleteTodo.reset();
                   setTodoToDelete(todo);

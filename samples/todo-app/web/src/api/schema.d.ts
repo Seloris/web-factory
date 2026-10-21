@@ -87,6 +87,8 @@ export interface paths {
                     "application/json": {
                         name: string;
                         tag?: string | null;
+                        /** Format: date */
+                        dueDate?: string | null;
                     };
                 };
             };
@@ -279,6 +281,69 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/todos/{id}/due-date": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set, change or clear a todo's due date */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: date */
+                        dueDate: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description The updated todo */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Todo"];
+                    };
+                };
+                /** @description The id or the body is invalid */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description The todo does not exist */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -289,6 +354,8 @@ export interface components {
             tag: string | null;
             isCompleted: boolean;
             isPinned: boolean;
+            /** Format: date */
+            dueDate: string | null;
             /** Format: date-time */
             createdAt: string;
         };

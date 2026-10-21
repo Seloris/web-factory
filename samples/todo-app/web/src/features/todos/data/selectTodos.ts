@@ -34,3 +34,8 @@ export function selectVisibleTodos(
       (view.isSortedByState ? Number(a.isCompleted) - Number(b.isCompleted) : 0),
   );
 }
+
+// ISO days compare as strings; a todo due today is not late (BR-06, FR-17).
+export function isOverdue(todo: Todo, today: string): boolean {
+  return !todo.isCompleted && todo.dueDate !== null && todo.dueDate < today;
+}

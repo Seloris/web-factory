@@ -15,6 +15,11 @@
   min-width: 0;
 }
 
+.dueDate {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
 .formError {
   flex-basis: 100%;
 }

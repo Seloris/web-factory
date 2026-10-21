@@ -1,0 +1,16 @@
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  flex-basis: 100%;
+}
+
+.field {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.error {
+  flex-basis: 100%;
+}
