@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkSpec, parseBlueprint, planMerge, specPath } from "../scripts/spec-check.mjs";
+import { checkCitations, checkSpec, parseBlueprint, planMerge, specPath } from "../scripts/spec-check.mjs";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -35,6 +35,17 @@ test("checkSpec: a duplicate id from two sessions, a retired id reused, a cited 
   assert.equal(r.ok, false);
   assert.deepEqual(r.retiredReused, ["FR-07"]);
   assert.deepEqual(r.missing, ["FR-99"], "a retired id may be cited: the commit retires it");
+});
+
+test("checkCitations: ids cited in a domain sheet must be defined there", () => {
+  const todo = "## Business rules\n- **BR-01** — A name is required.\n- **BR-02** — Tags are lower case.\n\nRetired: BR-03\n";
+  const page = "- **FR-01** — Adding a todo needs a name (`todo` BR-01, BR-02).\n- **FR-02** — Done todos sink (`todo` BR-03).\n- **FR-03** — Shared (`billing` BR-01).\nDomain: `todo`\n- **FR-04** — Plain.\n";
+  const load = (slug) => (slug === "todo" ? todo : null);
+  assert.deepEqual(checkCitations(page, load), [
+    { slug: "todo", id: "BR-03", reason: "BR-03 is not in todo" },
+    { slug: "billing", id: "BR-01", reason: "no spec billing" },
+  ]);
+  assert.deepEqual(checkCitations("- **FR-01** — Plain (`todo` BR-01 to BR-02).\n", load), []);
 });
 
 test("specPath", () => {

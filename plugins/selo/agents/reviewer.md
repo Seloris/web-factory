@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Read-only code reviewer. Checks a piece of work's changes against its blueprint (the spec delta line by line, the decisions, those taken during the build), the page and domain specs, the conventions of each component's CLAUDE.md (and .claude/rules/ when the project has some) and for bugs, and reports ranked findings. Can also review a blueprint before it is built, or a page or domain sheet against the code (page {slug}). Never edits files. Use at the end of a build or a fastlane, on recent commits, or to review a blueprint. Spawn it with the manifest's `reviewer` model."
+description: "Read-only code reviewer. Checks a piece of work's changes against its blueprint (the spec delta line by line, the decisions, those taken during the build), the page and domain specs, the conventions of each component's CLAUDE.md (and .claude/rules/ when the project has some) and for bugs, and reports ranked findings. Can also review a blueprint before it is built, a page or domain sheet against the code (page {slug}), or a migrated spec against its old file (migration {old spec} → {new files}). Never edits files. Use at the end of a build or a fastlane, on recent commits, or to review a blueprint. Spawn it with the manifest's `reviewer` model."
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -48,6 +48,18 @@ When asked to review a page or a domain sheet (`page {slug}`, with its open blue
 4. **In flight:** an open blueprint's committed stages put code ahead of the spec until its `Spec merged`. A difference that its delta explains is listed as `in flight ({blueprint})`, never as a finding.
 
 Tag findings `spec` (the code differs from the spec), `gap` (code with no spec) or `question`, and end with **in line**, **drift**, or **far apart**.
+
+## Migration review
+
+When asked by `setup update` to compare an old spec with its new files (`migration {old spec} → {new files}`), check that nothing was lost or changed on the way, never the code:
+
+1. **Every id once:** each `FR`, `BR`, `US` and `Q` of the old spec appears in exactly one new file, under the same id; none appears twice, none is invented.
+2. **Same text:** each one keeps its wording; the only words added are the citations of the BRs moved to a domain sheet (`` `todo` BR-01 ``). A rewording, a merged or split requirement, a dropped condition is a finding.
+3. **Right file:** a rule of an entity, or of several pages, sits in the domain sheet and the page cites it instead of restating it; a page-only behaviour stays on the page.
+4. **Nothing restated:** the intro, the Non-goals and the glossary do not repeat an FR or a BR; a glossary row sits in the sheet or in the root `CLAUDE.md`, not both.
+5. **Dropped sections:** the facts of the old TL;DR, Problem and UX Flow are in the FRs, or were context only; one that held a behaviour no FR states is a finding.
+
+Tag findings `migration`, cite `file:line` in the new files, and end with **ready**, **ready after fixes**, or **not ready**.
 
 ## Report
 

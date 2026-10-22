@@ -57,7 +57,7 @@ One script starts a project's components: `node ${CLAUDE_PLUGIN_ROOT}/scripts/ru
 - **A domain sheet** (`templates/planning/domain.md`) is what holds whatever the page: the entity's glossary, its BRs, its lifecycle. A page spec cites a domain sheet's ids (`` `todo` BR-01 ``), never restates them. A rule with no page (an API-only rule, a job, an email) is an FR of a domain sheet. `app` is the one reserved sheet, for the shell.
 - **Which file gets the rule:** the person sees it on one page → that page; it holds on several pages, or on none → the domain sheet. A slug is unique across `pages/` and `domain/`.
 - **A page stub** is a page spec with its title, its `Route:` line and the line `Status: to bootstrap`, nothing else: the page's code exists, its spec is not written yet. `/selo:setup` writes the stubs from an existing front's routes (its **Route scan**); the line goes once the page's FRs are written (**A spec written from code**).
-- **Ids are per file:** `home FR-14`, `todo BR-06`. `FR`, `BR`, `US`, `Q` are append-only, never renumbered, never reused; a deleted one goes on the file's `Retired:` line. `node ${CLAUDE_PLUGIN_ROOT}/scripts/spec-check.mjs {slug}` checks a file's ids and gives the next free ones.
+- **Ids are per file:** `home FR-14`, `todo BR-06`. `FR`, `BR`, `US`, `Q` are append-only, never renumbered, never reused; a deleted one goes on the file's `Retired:` line. `node ${CLAUDE_PLUGIN_ROOT}/scripts/spec-check.mjs {slug}` checks a file's ids, and the ids it cites in another file (`` `todo` BR-01 ``), and gives the next free ones.
 
 ### Writing a spec
 

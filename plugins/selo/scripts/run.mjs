@@ -212,8 +212,15 @@ export const main = async (argv, { cwd = process.cwd(), out = (l) => console.log
       exited = code ?? "signal";
       children.delete(u.name);
       if (!ending) {
-        out(`${u.name} stopped (exit ${exited}).`);
-        update((rec) => (rec.components = rec.components.filter((c) => c.pid !== child.pid))).then(() => children.size === 0 && end(0));
+        // A `--stop` takes the component out of the record before it kills it: no entry left means the stop was asked.
+        let asked = true;
+        update((rec) => {
+          asked = !rec.components.some((c) => c.pid === child.pid);
+          rec.components = rec.components.filter((c) => c.pid !== child.pid);
+        }).then(() => {
+          out(asked ? `${u.name} stopped.` : `${u.name} stopped (exit ${exited}).`);
+          if (children.size === 0) end(0);
+        });
       }
     });
     await update((rec) => {

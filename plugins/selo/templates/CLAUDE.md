@@ -43,7 +43,7 @@ Every commit that touches code carries a `Spec:` line in its body, as a second `
 
 ## Domain glossary
 
-The code uses identifiers in {{language_repo_name}}, each mapped to a business term. Use the identifier in code, contracts and blueprints; use the business term in user-facing strings. Domain sheets introduce new entries.
+The code uses identifiers in {{language_repo_name}}, each mapped to a business term. Use the identifier in code, contracts and blueprints; use the business term in user-facing strings. An entity's terms live in its domain sheet's glossary, once; this table holds the terms no domain sheet holds.
 
 | Identifier | Business term | Meaning |
 |---|---|---|

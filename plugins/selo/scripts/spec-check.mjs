@@ -4,6 +4,7 @@
 //        node spec-check.mjs --merge {blueprint .md}
 //   {slug}   a page (`home`, `web/home`), a domain sheet (`todo`), or a 1.0 area (`.planning/features/{slug}/00_spec.md`);
 //   --cite   ids that must exist (a commit's Spec: group);
+//   the ids the spec cites in another file (`` `todo` BR-01 ``) must exist there (badCitations);
 //   --merge  each delta line with its final id and its status (ok, conflict, missing, invalid); writes nothing.
 // Prints JSON; exits 1 when a check fails, 2 on a usage error.
 import { existsSync, readFileSync } from "node:fs";
@@ -33,6 +34,19 @@ export function checkSpec(text, cited = []) {
   }
   const ok = !duplicates.length && !retiredReused.length && !missing.length;
   return { ok, duplicates, retiredReused, missing, next };
+}
+
+// Ids a spec cites in another file: `` `todo` BR-01 ``, `` (`todo` BR-01, BR-02) ``. load(slug) gives that file's text, or null.
+// Each one must be defined there (a retired id is a dangling citation too).
+const CITE = /`([\w/-]+)`((?:[ ,]*(?:and |to |et |à )?(?:FR|BR|US|Q)-\d+)+)/g;
+export function checkCitations(text, load) {
+  const bad = [];
+  for (const [, slug, run] of text.matchAll(CITE)) {
+    const target = load(slug);
+    const defined = target == null ? [] : [...target.matchAll(/^\s*-\s+\*\*((?:FR|BR|US|Q)-\d+)\*\*/gm)].map((m) => m[1]);
+    for (const id of idsIn(run)) if (!defined.includes(id) && !bad.some((b) => b.slug === slug && b.id === id)) bad.push({ slug, id, reason: target == null ? `no spec ${slug}` : `${id} is not in ${slug}` });
+  }
+  return bad;
 }
 
 // The spec file of a slug, from the project's root: a page, else a domain sheet, else a 1.0 area; a path ending in .md as it is.
@@ -140,7 +154,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!target || target.startsWith("--")) fail('usage: spec-check.mjs {slug | spec .md} [--cite "FR-13 BR-23"] | --merge {blueprint .md}');
   const file = specPath(target);
   if (!existsSync(file)) fail(`No spec at ${file}`);
-  const r = checkSpec(readFileSync(file, "utf8"), idsIn(optionOf(argv, "--cite") ?? ""));
+  const text = readFileSync(file, "utf8");
+  const r = checkSpec(text, idsIn(optionOf(argv, "--cite") ?? ""));
+  const root = findRoot(process.cwd()) ?? process.cwd();
+  r.badCitations = checkCitations(text, (slug) => {
+    const p = specPath(slug, root);
+    return existsSync(p) && p !== file ? readFileSync(p, "utf8") : null;
+  });
+  if (r.badCitations.length) r.ok = false;
   console.log(JSON.stringify(r, null, 2));
   process.exit(r.ok ? 0 : 1);
 }
