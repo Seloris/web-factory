@@ -2,6 +2,14 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-22 — selo 2.0.3: the request read past the harness's context blocks
+
+Selo Ops showed « Demande non lisible dans l'export » for prompts sent from an artifact view: the desktop app puts an `<artifact-view-context>` block of 200+ characters before the person's text, and the 200-character cut kept only the start of that block.
+
+- **Leading blocks stripped before the cut.** `parsePrompt` unwraps a leading `<pasted_content>` and drops any other leading closed block (a view context, a reminder), then cuts at 200. An unclosed tag is kept as text. The lane is read on the stripped text too: a `/selo:{lane}` typed after a view context now opens that lane instead of a `free` run.
+- **Hand-back test fixed.** The `<agent-message` test read `^s*` instead of `^s*`: a hand-back with leading whitespace opened a run.
+- An interrupted turn (Esc, or a process killed with no `SessionEnd`) stays `working` in the export: no hook fires then. Selo Ops reads it from Claude Code's status files (§6), as this export's contract already says.
+
 ## 2026-10-22 — selo 2.0.2: the subagent's type and its hand-back in the ops export
 
 Selo Ops, on the first real sessions: a subagent run lost its type as soon as it ran a skill, and a subagent's hand-back showed as a new turn of the session, its report as the request.

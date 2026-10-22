@@ -221,11 +221,29 @@ export const writeProject = (root, dir = opsDir()) => writeJson(join(dir, "proje
 
 // ---------- the session file (§5) ----------
 
+// Wrapper tags the harness puts around a prompt: a pasted block is the person's text, any other leading
+// block (a view context, a reminder) is not. Stripped before the 200-character cut, which a long block ate whole.
+const UNWRAP = new Set(["pasted_content"]);
+export function stripWrappers(prompt) {
+  let text = String(prompt ?? "").trimStart();
+  for (;;) {
+    const open = /^<([a-zA-Z][\w-]*)(?:\s[^>]*)?>/.exec(text);
+    if (!open) return text;
+    const name = open[1];
+    const rest = text.slice(open[0].length);
+    const close = rest.indexOf(`</${name}>`);
+    // An unclosed tag is the person's own text.
+    if (close < 0) return text;
+    text = (UNWRAP.has(name) ? rest.slice(0, close) + rest.slice(close + name.length + 3) : rest.slice(close + name.length + 3)).trimStart();
+  }
+}
+
 // §5.2: the run a prompt opens. `root` resolves a blueprint path to read its Progress.
 export function parsePrompt(prompt, root) {
-  const m = /^\s*\/selo:([\w-]+)\b\s*([\s\S]*)$/.exec(prompt ?? "");
+  const clean = stripWrappers(prompt);
+  const m = /^\s*\/selo:([\w-]+)\b\s*([\s\S]*)$/.exec(clean);
   const lane = m && LANES.includes(m[1]) ? m[1] : "free";
-  const rest = (m && lane !== "free" ? m[2] : prompt ?? "").trim();
+  const rest = (m && lane !== "free" ? m[2] : clean).trim();
   const file = /(\S*\.planning\/blueprints\/[^\s/]+\.md)/.exec(slash(rest))?.[1] ?? null;
   const text = file && root && existsSync(resolve(root, file)) ? readFileSync(resolve(root, file), "utf8") : null;
   const stage = /—\s*stage\s+(\d+)/.exec(rest)?.[1];
@@ -375,7 +393,7 @@ export function applyHook(s, e, root) {
     const p = parsePrompt(e.prompt, root);
     const cur = mainRun(s);
     // A subagent's hand-back comes as a prompt: it continues the main run, it asks nothing.
-    const from = /^s*<agent-message from="([^"]+)"/.exec(e.prompt ?? "")?.[1];
+    const from = /^\s*<agent-message from="([^"]+)"/.exec(e.prompt ?? "")?.[1];
     if (from && cur && s.runs.some((r) => r.agentId === from)) {
       Object.assign(cur, { phase: "working", pendingCommit: null, question: null, error: null });
       touch(cur);

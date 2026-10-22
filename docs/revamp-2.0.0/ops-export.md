@@ -191,7 +191,7 @@ type Run = {
   /** The subagent's `agent_type`, from `SubagentStart`; kept when a skill names its lane. Null for the main loop. */
   agentType: string | null
   lane: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
-  /** The prompt's text after the command, shortened to 200 characters; a subagent's `agent_type` until a skill names its lane. */
+  /** The prompt's text after the command, shortened to 200 characters once the harness's leading blocks are gone (a `<pasted_content>` unwrapped, any other closed block such as `<artifact-view-context>` dropped); a subagent's `agent_type` until a skill names its lane. */
   request: string
   /** A subagent's task: its Agent call's `description` (else its `prompt`), 200 characters; null for the main loop. Two calls of one type started together may swap. */
   task: string | null

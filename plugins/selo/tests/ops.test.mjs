@@ -49,6 +49,16 @@ test("parsePrompt opens the run of §5.2", () => {
   assert.equal(parsePrompt("x".repeat(300)).request.length, 200);
 });
 
+test("parsePrompt strips the harness's leading blocks before the 200-character cut", () => {
+  const view = `<artifact-view-context artifact="a">\n${JSON.stringify({ context: { visibleArtboards: ["x".repeat(300)] } })}\n</artifact-view-context>\n`;
+  assert.equal(parsePrompt(`${view}Make the edge draggable`).request, "Make the edge draggable");
+  assert.equal(parsePrompt(`${view}<system-reminder>r</system-reminder>\nfix it`).request, "fix it");
+  assert.equal(parsePrompt(`<pasted_content id="1">the pasted text</pasted_content>`).request, "the pasted text");
+  assert.equal(parsePrompt(`${view}/selo:fastlane add a filter`).lane, "fastlane");
+  assert.equal(parsePrompt(view).request, "");
+  assert.equal(parsePrompt("<unclosed tag stays").request, "<unclosed tag stays");
+});
+
 test("classifyEnd reads the end of a turn (§5.3)", () => {
   const done = classifyEnd("Report.\n\n---\n## ✅ JOB DONE\n> Due dates on todos\n`f677536` feat(due-date): api — optional due date · branch `main` · not pushed\n");
   assert.equal(done.phase, "job-done");
