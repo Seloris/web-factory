@@ -76,7 +76,7 @@ A page stub gets its spec from the code that exists (its **bootstrap**): `/selo:
 - What looks like a bug, a dead path, or two pages disagreeing becomes a `Q-NN` of that spec, for the person to decide, never an FR: the spec must not turn a current bug into a requirement.
 - A rule that holds on several pages, or in the API whatever the page, goes to a domain sheet as a BR (a new sheet named after the entity, or the next free id of an existing one), and the page cites it.
 - The page spec follows the template, FRs by zone; the `Status: to bootstrap` line goes; the header gets its `Domain:`.
-- Shown to the person and committed alone, before any other change, on their yes: `docs({page}): bootstrap spec` (several pages at once: `docs(app): bootstrap specs`), body `Spec: {page} +FR-01 +FR-02 · {domain} +BR-03`, every id written out (never a range), checked with `spec-check {slug} --cite`. History keeps what was apart from what changes.
+- Shown to the person and committed alone, before any other change, on their yes (on a worktree's branch, without a question: it is shown at the landing, whose yes covers it): `docs({page}): bootstrap spec` (several pages at once: `docs(app): bootstrap specs`), body `Spec: {page} +FR-01 +FR-02 · {domain} +BR-03`, every id written out (never a range), checked with `spec-check {slug} --cite`. History keeps what was apart from what changes.
 
 ### The spec follows the code
 
@@ -207,4 +207,4 @@ Selo Ops reads these shapes from the turn's last message (the ops export, `scrip
 
 ## A 1.0 project
 
-A project still in the 1.0 shape (a `selo-flow.yaml` or a `factory.yaml` instead of `selo.yaml`, or a `.planning/features/*/00_spec.md`) is migrated first: `fastlane`, `blueprint`, `build`, `autopilot` and `review` say so, change nothing, and give `/selo:setup update`, which moves its areas to pages and domain sheets and its plans to legacy blueprints.
+A project still in the 1.0 shape, the layout of factory 0.8 and selo-flow 1.0 (a `factory.yaml` or a `selo-flow.yaml` instead of `selo.yaml`, or a `.planning/features/*/00_spec.md`), is migrated first: `fastlane`, `blueprint`, `build`, `autopilot` and `review` say so, change nothing, and give `/selo:setup update`, which moves its areas to pages and domain sheets and its plans to legacy blueprints.

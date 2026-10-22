@@ -1,6 +1,6 @@
 # webapp-factory
 
-The selo plugin for Claude Code and its marketplace: one disciplined workflow for web-application projects (spec, plan, implement in stages, one review at the end). `plugins/selo/` carries the workflow (skills, agents, scripts, templates, stack packs, docs, tests). A project installs the plugin and uses it in its own repository, with a `selo.yaml` at its root; nothing of a project lives here except the sample projects of `samples/` (each a full selo project, used to try the workflow), and nothing here reaches into a project.
+The selo plugin for Claude Code and its marketplace: one disciplined workflow for web-application projects (page specs, a one-screen blueprint, its stages built in one go, one review at the end). `plugins/selo/` carries the workflow (skills, agents, scripts, templates, stack packs, docs, tests). A project installs the plugin and uses it in its own repository, with a `selo.yaml` at its root; nothing of a project lives here except the sample projects of `samples/` (each a full selo project, used to try the workflow), and nothing here reaches into a project.
 
 ## Hard rules
 

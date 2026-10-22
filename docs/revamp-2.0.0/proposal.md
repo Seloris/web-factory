@@ -1,6 +1,6 @@
 # selo 2.0 — proposal (v5, 2026-10-22)
 
-Working document, meant to continue the reflection. Basis: a full read of selo-flow 1.0.0 (8 skills, 2 agents, `workflow-rules.md`, docs, templates), the `samples/todo-app` history (spec `home`, four plans), the 1.0.0 proposal in `docs/revamp-1.0.0/`, and four grill-me rounds with the person on 2026-10-21 (§3). Nothing in the plugin is changed yet.
+Working document, meant to continue the reflection. Basis: a full read of selo-flow 1.0.0 (8 skills, 2 agents, `workflow-rules.md`, docs, templates), the `samples/todo-app` history (spec `home`, four plans), the 1.0.0 proposal in `docs/revamp-1.0.0/`, and four grill-me rounds with the person on 2026-10-21 (§3). Implemented on branch `feat/revamp` as selo 2.0.0 (2026-10-22, §10 steps 2 to 8). selo-flow 1.0 was never installed in a project: the projects start from factory 0.8.0, whose layout 1.0 kept, so the "1.0" of this document reads "the layout of factory 0.8 and selo-flow 1.0".
 
 ## On one page
 
@@ -290,7 +290,7 @@ Breaking for every project: version 2.0.0, with the rollback note of 1.0.0 (pin 
 
 ## 8. Open questions
 
-Q1–Q13 are settled (§3, rounds 3 and 5), and the two ideas of round 4 too. None is open. The prototype of §10 is done (2026-10-22); the next step is §10 step 2.
+Q1–Q13 are settled (§3, rounds 3 and 5), and the two ideas of round 4 too. None is open. §10 is done up to step 8's version commit (2026-10-22); the merge is the person's.
 
 Round 6 (2026-10-22, before the implementation):
 
