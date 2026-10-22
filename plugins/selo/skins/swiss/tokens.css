@@ -1,0 +1,84 @@
+/* selo skin "swiss", copied from the selo plugin (skins/swiss/tokens.css). Do not edit:
+   switch skins with /selo:setup skin {component} {skin}; override variables in overrides.css. */
+:root {
+  --font-sans: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --font-display: var(--font-sans);
+  --font-size: 15px;
+  --title-size: 60px;
+  --title-weight: 800;
+  --title-tracking: -0.045em;
+  --title-transform: none;
+  --title-style: normal;
+  --label-size: 0.7em;
+  --label-weight: 700;
+  --label-transform: uppercase;
+  --label-tracking: 0.14em;
+  --radius: 0;
+  --radius-control: 0;
+  --radius-pill: 999px;
+  --check-radius: 0;
+  --switch-radius: 0;
+  --badge-radius: 0;
+  --border-width: 1px;
+  --control-h: 42px;
+  --panel-bg: transparent;
+  --panel-border: 0;
+  --panel-pad: 0;
+  --blur: none;
+  --bg-image: none;
+  --shadow-card: none;
+  --shadow-control: none;
+  --shadow-pop: 0 24px 60px -12px rgba(0,0,0,.35);
+  --list-gap: 0;
+  --list-rule: 2px solid var(--text);
+  --item-pad: 14px 0;
+  --item-bg: transparent;
+  --item-border: 0;
+  --item-rule: 1px solid var(--border);
+  --item-radius: 0;
+  --item-shadow: none;
+  --badge-border: 0;
+  --badge-transform: uppercase;
+  --badge-tracking: 0.12em;
+  --btn-border: transparent;
+  --btn-weight: 700;
+  --btn-transform: uppercase;
+  --btn-tracking: 0.08em;
+  --control-bg: var(--surface);
+  --control-border: var(--text);
+  --control-border-on: var(--accent);
+  --accent-text: #ffffff;
+  --accent-soft: transparent;
+  --accent-soft-text: var(--accent);
+  --danger-text: #ffffff;
+  --focus: color-mix(in srgb, var(--accent) 35%, transparent);
+  --pop-bg: var(--surface);
+  --scrim: rgba(15,17,22,.45);
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f0f0f0;
+  --border: #d4d4d4;
+  --text: #0a0a0a;
+  --text-muted: #6b6b6b;
+  --accent: #e3000f;
+  --danger: #e3000f;
+  --danger-soft: #fde8e8;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0a0a;
+    --surface: #0a0a0a;
+    --surface-2: #1c1c1c;
+    --border: #333333;
+    --text: #fafafa;
+    --text-muted: #9a9a9a;
+    --accent: #ff2d2d;
+    --accent-text: #0a0a0a;
+    --danger: #ff2d2d;
+    --danger-soft: #2a0d0d;
+    --danger-text: #0a0a0a;
+    color-scheme: dark;
+  }
+}

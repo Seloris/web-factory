@@ -1,9 +1,0 @@
-{
-  "name": "selo-flow",
-  "version": "1.0.0",
-  "description": "Spec → plan → implement → review workflow for web applications, driven by the project's selo-flow.yaml manifest. Skills: init, write-spec, write-plan, implement, autopilot, grill-me, review, test-in-browser. Agents: reviewer, runner.",
-  "author": {
-    "name": "Daniel Djordjevic"
-  },
-  "keywords": ["workflow", "spec", "plan", "review", "web", "selo-flow"]
-}

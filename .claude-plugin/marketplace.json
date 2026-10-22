@@ -1,14 +1,14 @@
 {
-  "name": "selo-flow",
+  "name": "selo",
   "description": "A Claude Code plugin to spec, plan, implement and review web applications (front, API, database) with a disciplined, reviewed workflow.",
   "owner": {
     "name": "Daniel Djordjevic"
   },
   "plugins": [
     {
-      "name": "selo-flow",
-      "source": "./plugins/selo-flow",
-      "description": "The workflow: /selo-flow:init sets up the project, then write-spec, write-plan, implement, autopilot, grill-me and review run the spec → plan → code → review loop, driven by the project's selo-flow.yaml manifest."
+      "name": "selo",
+      "source": "./plugins/selo",
+      "description": "The workflow: /selo:setup sets up the project, then blueprint, build, fastlane, autopilot, grill and review run the spec → plan → code → review loop, driven by the project's selo.yaml manifest."
     }
   ]
 }
