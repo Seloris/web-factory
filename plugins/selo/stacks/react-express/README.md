@@ -21,6 +21,16 @@ The minimum for which every command the templates declare passes with zero featu
 - **api**: `src/app.ts`, `server.ts`, `config.ts`; `db/schema.ts` and `db/client.ts` on PGlite; `shared/errors.ts` (the `AppError`s and the problem-details middleware), `validate.ts`, `clock.ts`, `openapi.ts` (the registry); `scripts/export-openapi.ts`; `test/setup.ts`, `test/factories.ts` and `test/shared/errors.test.ts` (a body that is not valid JSON gets a `400`); `drizzle.config.ts`, an empty migrations journal, `.data/.gitkeep` (PGlite needs the parent folder); Vitest, eslint flat config, strict tsconfig. One route, `GET /health`, in `features/health/` with its Supertest test: it proves the chain (app, clock, test context, OpenAPI registration) and is the first reference test. `src/demo.ts` and an empty `src/seed/demo.ts` give `npm run demo`: the app on an in-memory PGlite, migrated and seeded at each start, on `{{api_demo_port}}`.
 - **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (the theme imports first, then QueryClientProvider, RouterProvider), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; `src/shared/ui/theme/base.css`, an empty `overrides.css` and an empty `fonts.ts` (the skin's `skin.css` and its font imports come from the skin, below); the shared components of `src/shared/ui/` (below); eslint flat config with the React hooks rules, strict tsconfig; `npm run demo` serves it in the `demo` mode on `{{demo_port}}`, its `/api` proxy on the API's demo, with `--force`.
 
+## Routes
+
+Where `setup` finds a front's pages (the route scan, `setup` and `setup specs`). The routes are declared in one place, **`src/router.tsx`** of the front component: the array given to `createBrowserRouter([...])`. Each entry is read this way:
+
+- **The route:** its `path`. A nested entry (`children`) joins its parent's path (`/todos` + `:id` → `/todos/:id`); an `index: true` entry takes its parent's path.
+- **The page module:** the file of `lazy: () => import("./features/{feature}/pages/{Name}Page.tsx")`, or the component given to `element` and the file it is imported from. The recommended slug comes from it: `TodoDetailPage` → `todo-detail`, `HomePage` on `/` → `home`.
+- **Not a page:** an entry with no `path` and `children` (a layout: the shell, `domain/app.md`), a `*` entry (not found: `app`), an entry whose `element` is a `<Navigate>` (a redirect), an `element` that renders placeholder markup and no page module (the skeleton's `<h1>`): the scan lists none of them as a page.
+
+A route defined anywhere else (a second router, routes built in a loop) is named in the scan's report, with its file, for the person to place.
+
 ## Skin
 
 A front component of this pack has a `skin` (the selo plugin's `skins/`). `setup` copies the skin's `tokens.css` to **`src/shared/ui/theme/skin.css`**, and creates `src/shared/ui/theme/overrides.css` when absent (an existing one is never touched). `src/main.tsx` imports, before anything else, `fonts.ts`, then `skin.css`, then `base.css`, then `overrides.css`, so every component style comes after them.
