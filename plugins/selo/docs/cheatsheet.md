@@ -6,7 +6,7 @@ Sessions open at the project's root (or at a worktree of it) with the plugin loa
 
 | I want to… | Do this |
 |---|---|
-| Set up the project | `/selo:setup` |
+| Set up the project | `/selo:setup` (a front that already has code: its routes scanned, one page stub each) |
 | Bring the project up to date with the plugin (a 1.0 project: migrated to pages, domain sheets and blueprints) | `/selo:setup update` |
 | Give a front a skin, or switch it | `/selo:setup skin {component} {skin}`, then a blueprint to apply it to existing screens |
 | Ask a question, or fix a spec's wording | Just ask. No skill. |

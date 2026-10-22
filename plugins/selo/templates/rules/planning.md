@@ -27,7 +27,8 @@ The selo plugin's rules (`reference/rules.md`) hold the full conventions; the sk
 - **A page spec** is one route of a front: a business slug chosen at creation (`home`, `todo-detail`), its route in the header (`Route: /todos/:id`), FRs grouped by zone of the page in the order the person meets them. With two fronts or more, pages go under `pages/{component}/`.
 - **A domain sheet** holds what is true whatever the page: the entity's glossary, its BRs, a rule with no page as an FR. A page cites its ids (`` `todo` BR-01 ``), never restates them.
 - **Which file:** the person sees it on one page → that page; it holds on several pages, or on none → the domain sheet.
-- Present tense, each fact once, no history, no status, no date, never how (endpoints, tables, components). `FR`, `BR`, `US`, `Q` ids are per file, append-only, never reused; a dropped one goes on the file's `Retired:` line. A doubt is a `Q-NN` under `## Open questions`.
+- **A page stub** (`Status: to bootstrap` under its `Route:` line, nothing else) is a page whose code exists and whose spec is not written yet.
+- Present tense, each fact once, no history, no status (a stub's aside), no date, never how (endpoints, tables, components). `FR`, `BR`, `US`, `Q` ids are per file, append-only, never reused; a dropped one goes on the file's `Retired:` line. A doubt is a `Q-NN` under `## Open questions`.
 - `node ${CLAUDE_PLUGIN_ROOT}/scripts/spec-check.mjs {slug}` (the selo plugin's script) checks a file's ids and gives the next free ones.
 
 ## Blueprints
