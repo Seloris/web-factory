@@ -47,7 +47,7 @@ Every lane ends the same way: one review of the whole work, the full suites of t
 - **Several fronts:** from the second front on, pages go under `pages/{component}/`, and their slug is `{component}/{page}` (`web/home`); a single-front project stays flat.
 - **A domain sheet** (`templates/planning/domain.md`) is what holds whatever the page: the entity's glossary, its BRs, its lifecycle. A page spec cites a domain sheet's ids (`` `todo` BR-01 ``), never restates them. A rule with no page (an API-only rule, a job, an email) is an FR of a domain sheet. `app` is the one reserved sheet, for the shell.
 - **Which file gets the rule:** the person sees it on one page → that page; it holds on several pages, or on none → the domain sheet. A slug is unique across `pages/` and `domain/`.
-- **A page stub** is a page spec with its title, its `Route:` line and the line `Status: to bootstrap`, nothing else: the page's code exists, its spec is not written yet. `/selo:setup` writes the stubs from an existing front's routes (its **Route scan**); the line goes once the page's FRs are written.
+- **A page stub** is a page spec with its title, its `Route:` line and the line `Status: to bootstrap`, nothing else: the page's code exists, its spec is not written yet. `/selo:setup` writes the stubs from an existing front's routes (its **Route scan**); the line goes once the page's FRs are written (**A spec written from code**).
 - **Ids are per file:** `home FR-14`, `todo BR-06`. `FR`, `BR`, `US`, `Q` are append-only, never renumbered, never reused; a deleted one goes on the file's `Retired:` line. `node ${CLAUDE_PLUGIN_ROOT}/scripts/spec-check.mjs {slug}` checks a file's ids and gives the next free ones.
 
 ### Writing a spec
@@ -58,6 +58,16 @@ Every lane ends the same way: one review of the whole work, the full suites of t
 - A revised FR or BR is rewritten under its id. A dropped one is deleted and its id added to `Retired:`; never strike through. A doubt is a `Q-NN` in an `## Open questions` section, for the person to decide; once settled it is retired and becomes an FR or a BR.
 - Never how: endpoints, tables, components, contracts belong to the blueprint's Technical defaults or to the code.
 - Edited with targeted `Edit`s, never redrafted. Written in `language.repo`; business terms of the person's language inline in backticks or « ».
+
+### A spec written from code
+
+A page stub gets its spec from the code that exists (its **bootstrap**): `/selo:setup specs`, or the first fastlane or blueprint that touches the page.
+
+- **Observed behaviour only**, never an intention: what the page shows and does today, read from its code and what it calls (the API routes, their validation and rules).
+- What looks like a bug, a dead path, or two pages disagreeing becomes a `Q-NN` of that spec, for the person to decide, never an FR: the spec must not turn a current bug into a requirement.
+- A rule that holds on several pages, or in the API whatever the page, goes to a domain sheet as a BR (a new sheet named after the entity, or the next free id of an existing one), and the page cites it.
+- The page spec follows the template, FRs by zone; the `Status: to bootstrap` line goes; the header gets its `Domain:`.
+- Shown to the person and committed alone, before any other change, on their yes: `docs({page}): bootstrap spec` (several pages at once: `docs(app): bootstrap specs`), body `Spec: {page} +FR-01 +FR-02 … · {domain} +BR-NN …`, checked with `spec-check {slug} --cite`. History keeps what was apart from what changes.
 
 ### The spec follows the code
 

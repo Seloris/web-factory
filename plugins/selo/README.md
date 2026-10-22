@@ -19,7 +19,7 @@ Then `/selo:setup`. It writes both into the project's `.claude/settings.json` (`
 ```
 .claude-plugin/plugin.json
 skills/
-  setup/                set up the project, or update / migrate it (setup update)
+  setup/                set up the project, update / migrate it (setup update), specs of existing pages (setup specs)
   fastlane/             a request on one page or component: code, spec delta, review, commit(s)
   blueprint/            one screen: spec delta, decisions, stages, tests; one yes, one commit
   build/                a blueprint's stages chained, review, browser test, delta merged (or the worktree's landing)

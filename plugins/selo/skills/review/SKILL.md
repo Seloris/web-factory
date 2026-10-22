@@ -13,7 +13,7 @@ The prompt gives the scope:
 - `/selo:review {range or files}`.
 - `/selo:review {blueprint}`: a blueprint's work, as **Where commits go** defines it, plus this work's uncommitted files.
 - `/selo:review blueprint {blueprint}`: the blueprint itself, before it is built.
-- `/selo:review {slug}`: a page or a domain sheet (`home`, `web/home`, `todo`; a slug is unique across `pages/` and `domain/`): its spec against the code, and the open blueprints that touch it.
+- `/selo:review {slug}`: a page or a domain sheet (`home`, `web/home`, `todo`; a slug is unique across `pages/` and `domain/`): its spec against the code, and the open blueprints that touch it. A page stub (`Status: to bootstrap`) has no spec to check: say so and give `/selo:setup specs {slug}`.
 
 ## Steps
 
