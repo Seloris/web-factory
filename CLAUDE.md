@@ -13,13 +13,13 @@ The selo plugin for Claude Code and its marketplace: one disciplined workflow fo
 
 ## Commands
 
-- Plugin tests (manifest, spec-check, commit hook, skins): `node --test "plugins/*/tests/*.test.mjs"`
+- Plugin tests (manifest, spec-check, commit hook, skins, runs and launcher): `node --test "plugins/*/tests/*.test.mjs"`
 - Plugin validation: `claude plugin validate plugins/selo`
 - Resolved manifest of the test project: `node plugins/selo/scripts/manifest.mjs plugins/selo/examples/two-components`
 
 ## Where things are
 
-- `plugins/selo/`: the plugin. `skills/` (`setup`, `blueprint`, `build`, `fastlane`, `review`, `grill`, `try`, `autopilot`), `agents/` (`reviewer`, `runner`), `scripts/` (the manifest parser `manifest.mjs`, `timestamp.mjs`, `spec-check.mjs`, the commit hook `commit-hook.mjs`: ES modules, Node 20+, no dependency), `hooks/hooks.json` (the commit hook: warns, never blocks), `reference/` (`rules.md`: every shared rule, read first by every skill; `caveman.md`: the voice of agent-to-agent messages; `ui-design.md`: the design rules of every front), `skins/` (the looks of a front: the token contract, `recipes.css`, one folder per skin with its `tokens.css` and `SKIN.md`), `templates/` (what `setup` writes into a project; `planning/`: the page, domain and blueprint templates), `stacks/` (stack packs), `examples/two-components/` (the test project), `docs/` (`cheatsheet.md`: the commands and the flow; `manifest.md`: the manifest's format), `tests/`, `CHANGELOG.md`.
+- `plugins/selo/`: the plugin. `skills/` (`setup`, `blueprint`, `build`, `fastlane`, `review`, `grill`, `try`, `autopilot`), `agents/` (`reviewer`, `runner`), `scripts/` (the manifest parser `manifest.mjs`, `timestamp.mjs`, `spec-check.mjs`, the commit hook `commit-hook.mjs`, `run.mjs` and `slots.mjs`: the app started on a slot per worktree; ES modules, Node 20+, no dependency), `hooks/hooks.json` (the commit hook: warns, never blocks), `reference/` (`rules.md`: every shared rule, read first by every skill; `caveman.md`: the voice of agent-to-agent messages; `ui-design.md`: the design rules of every front), `skins/` (the looks of a front: the token contract, `recipes.css`, one folder per skin with its `tokens.css` and `SKIN.md`), `templates/` (what `setup` writes into a project; `planning/`: the page, domain and blueprint templates), `stacks/` (stack packs), `examples/two-components/` (the test project), `docs/` (`cheatsheet.md`: the commands and the flow; `manifest.md`: the manifest's format), `tests/`, `CHANGELOG.md`.
 - `IDEAS.md`: the person's ideas for selo, not yet worked on. When the person asks to note an idea, append it there in the format its header gives; never act on it.
 - `samples/todo-app/`: the sample project (a to-do app), built by the workflow itself: open a session at that folder and run `/selo:setup`, then the skills; only its `.claude/settings.json` (the plugin enabled) is written by hand.
 - `.claude-plugin/marketplace.json`: the marketplace (`selo`). `.claude/settings.json`: the push denial and the allowed scripts. `.claude/rules/memory.md`: the team memory of this repository.

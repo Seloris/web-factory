@@ -12,8 +12,8 @@ commands:
   integration_tests: node scripts/echo.mjs integration api --filter "{filter}"
   serve: node scripts/echo.mjs serve api
   demo: node scripts/echo.mjs demo api
-serve_url: http://localhost:3000
-demo_url: http://localhost:3101
+port: 3000
+demo_port: 3101
 ```
 
 ## Conventions

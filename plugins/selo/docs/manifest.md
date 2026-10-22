@@ -67,8 +67,8 @@ commands:
   handoff: npm run export-openapi            # produces the manifest's handoff file (api stage end)
   prepare: npm run generate-client           # front stage start, from the previous handoff
   integration_tests: npm run test:integration -- --filter "{filter}"   # never run unasked
-  serve: npm run dev                         # starts the local dev server, when a test needs it and it does not answer
-  demo: npm run demo                         # starts the demo: seeded data on its own port, what the browser test runs on
+  serve: npm run dev                         # starts the dev server on PORT (a run of the app, scripts/run.mjs)
+  demo: npm run demo                         # starts the demo on PORT: seeded data, what the browser test runs on
 port: 3000                                   # the dev server's base port; a front with a port is browser-tested
 demo_port: 3101                              # the demo's base port
 logins: .claude/local/test-logins.md         # accounts for try (git-ignored)
@@ -76,7 +76,11 @@ logins: .claude/local/test-logins.md         # accounts for try (git-ignored)
 
 Only `kind` and `commands.build` are required. A component without `test` gets no test step; one without `lint` gets no lint step.
 
-`demo` and `demo_url` are what `try` runs on: the demo of the tested component and of those it `needs`, in stage order, each started in the background and awaited on its `demo_url`, under a lock (`{git-common-dir}/selo/demo.lock`) so two sessions never share one, and stopped after the test. The person's dev servers and local data are never touched. With a `url` and a `demo`, the browser test runs by default on a plan's last stage. Without a demo, `serve` and `serve_url` start the dev servers that do not answer, stopped after the test the same way; a server that already answers is left as it is. `serve` runs only when its server is down, so it can chain a prerequisite that needs the server stopped (`npm run db:migrate && npm run dev`). `serve_url` is separate from `url` because `url` makes a component browser-tested; any HTTP status on either counts as answering. The parser returns them as `url` (a front with a `port`), `serveUrl` and `demoUrl`, `http://localhost:{port}`. `port` and `demo_port` sit in the component block or in its `components` entry of `selo.yaml`; the 1.0 keys `url`, `serve_url` and `demo_url` are still read, and `/selo:setup update` turns them into ports.
+`port` and `demo_port` are base ports. A run of the app (`scripts/run.mjs`, behind `/selo:run`, `try` and the project's `selo-run.mjs`) takes a slot, one per worktree that runs at the same time, and every component of slot n listens on its base port + 10 × n: slot 0 is the base ports. The parser returns `port` and `demoPort` as written, and the urls computed for a slot: `url` (a front with a `port`: it is browser-tested), `serveUrl` and `demoUrl`, `http://localhost:{port + 10 × slot}`. The CLI computes them for this root's slot (its live run, else the slot it had last, else 0), `--slot N` for another; `readManifest(dir, { slot })` from a script. `port` and `demo_port` sit in the component block or in its `components` entry of `selo.yaml`.
+
+`serve` and `demo` are what a run starts: `serve` on the dev port, `demo` (seeded data, in memory) on the demo port. Each command runs in the component's path with `PORT` (its port on the slot), `SELO_SLOT` and, for each component it `needs`, `{NAME}_URL` (`API_URL`): the stack pack's scripts read them (its `## Ports` section). `try` runs on the demo when every component it needs has one, else on the dev servers; a run's demo is held by one session at a time (`{git-common-dir}/selo/slots/{n}.demo.lock`), so two worktrees test side by side and two sessions on one worktree wait for each other. `serve` runs only when its component is not already running on the slot, so it can chain a prerequisite that needs the server stopped (`npm run db:migrate && npm run dev`).
+
+The 1.0 keys `url`, `serve_url` and `demo_url` are still read: a `http://localhost:{port}` one gives its port, which shifts with the slot; any other url is returned as it is. `/selo:setup update` turns them into ports.
 
 ## Stages
 
@@ -87,7 +91,7 @@ One stage per component, in the manifest's order, honouring `needs`. A stage:
 3. verifies: `build`, `test` in full, `lint` on the changed files;
 4. ends with `commands.handoff` when it has one, and one commit on the base branch.
 
-The last stage also runs the `reviewer` agent on the whole work, the full suites of every touched component and the browser test on the demo.
+The last stage also runs the `reviewer` agent on the whole work, the full suites of every touched component and the browser test (the demo, else the dev servers), on this worktree's slot.
 
 A project with one component has one stage; nothing in the plugin's skills knows the words "API" or "front".
 
@@ -97,6 +101,7 @@ A project with one component has one stage; nothing in the plugin's skills knows
 import { readManifest } from "<plugin root>/scripts/manifest.mjs";
 const m = readManifest(process.cwd());   // walks up to the nearest selo.yaml, stopping at a .git folder
 m.selo; m.name; m.baseBranch; m.models.planner; m.components[0].commands.build; m.warnings;
+readManifest(process.cwd(), { slot: 1 }).components[0].serveUrl;   // the urls of slot 1 (base port + 10)
 ```
 
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the project's root prints the resolved manifest as JSON, which is how a skill reads it without parsing YAML itself.

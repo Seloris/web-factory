@@ -4,6 +4,7 @@
       "Bash(node *scripts/timestamp.mjs)",
       "Bash(node *scripts/manifest.mjs*)",
       "Bash(node *scripts/spec-check.mjs*)",
+      "Bash(node *scripts/run.mjs*)",
       "Bash(node --test *)"
     ],
     "deny": [

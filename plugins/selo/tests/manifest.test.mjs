@@ -85,15 +85,17 @@ test("readManifest: the example project", () => {
   assert.equal(api.commands.build, "node scripts/echo.mjs build api");
   assert.equal(api.commands.serve, "node scripts/echo.mjs serve api");
   assert.equal(api.commands.demo, "node scripts/echo.mjs demo api");
-  assert.equal(api.demoUrl, "http://localhost:3101", "demo_url from the component block");
-  assert.equal(web.demoUrl, "http://localhost:5181", "demo_url from the manifest");
+  assert.equal(api.demoUrl, "http://localhost:3101", "demo_port from the component block");
+  assert.equal(web.demoUrl, "http://localhost:5181", "demo_port from the manifest");
+  assert.deepEqual([api.port, api.demoPort, web.port, web.demoPort], [3000, 3101, 4200, 5181], "base ports");
+  assert.equal(m.slot, 0);
   assert.deepEqual(m.warnings, []);
   assert.equal(api.url, null, "no url: no browser test on the api stage");
   assert.equal(api.serveUrl, "http://localhost:3000");
   assert.equal(web.kind, "front");
   assert.deepEqual(web.needs, ["api"]);
   assert.equal(web.url, "http://localhost:4200");
-  assert.equal(web.serveUrl, "http://localhost:4200", "serve_url falls back to url");
+  assert.equal(web.serveUrl, "http://localhost:4200");
   assert.equal(web.commands.prepare, "node scripts/echo.mjs prepare web");
   assert.equal(web.commands.serve, "node scripts/echo.mjs serve web");
   assert.equal(web.logins, ".claude/local/test-logins.md");
@@ -114,6 +116,30 @@ test("readManifest: port and demo_port give the urls (slot 0), a front with a po
     const [api, web] = readManifest(dir).components;
     assert.deepEqual([api.url, api.serveUrl, api.demoUrl], [null, "http://localhost:3000", "http://localhost:3101"]);
     assert.deepEqual([web.url, web.serveUrl, web.demoUrl], ["http://localhost:5173", "http://localhost:5173", "http://localhost:5181"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("readManifest: a slot shifts every url by 10 per slot, the base ports stay", () => {
+  const [api, web] = readManifest(example, { slot: 2 }).components;
+  assert.deepEqual([api.url, api.serveUrl, api.demoUrl], [null, "http://localhost:3020", "http://localhost:3121"]);
+  assert.deepEqual([web.url, web.serveUrl, web.demoUrl], ["http://localhost:4220", "http://localhost:4220", "http://localhost:5201"]);
+  assert.deepEqual([api.port, web.demoPort], [3000, 5181]);
+});
+
+test("readManifest: the 1.0 url keys are still read, a local one gives its port and shifts", () => {
+  const dir = mkdtempSync(join(tmpdir(), "selo-urls-"));
+  try {
+    writeFileSync(join(dir, "selo.yaml"), "name: p\ncomponents:\n  - {name: api, path: api, serve_url: http://localhost:3000, demo_url: http://localhost:3101}\n  - {name: web, path: web, url: http://localhost:4200}\n  - {name: ext, path: ext, url: https://staging.example.com}\n");
+    for (const name of ["api", "web", "ext"]) {
+      mkdirSync(join(dir, name));
+      writeFileSync(join(dir, name, "CLAUDE.md"), "```component\nkind: " + (name === "api" ? "api" : "front") + "\ncommands:\n  build: b\n```\n");
+    }
+    const [api, web, ext] = readManifest(dir, { slot: 1 }).components;
+    assert.deepEqual([api.port, api.url, api.serveUrl, api.demoUrl], [3000, null, "http://localhost:3010", "http://localhost:3111"]);
+    assert.deepEqual([web.port, web.url, web.serveUrl], [4200, "http://localhost:4210", "http://localhost:4210"]);
+    assert.deepEqual([ext.port, ext.url, ext.serveUrl], [null, "https://staging.example.com", "https://staging.example.com"], "a url elsewhere stays as it is");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

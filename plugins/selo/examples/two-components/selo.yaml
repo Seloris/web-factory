@@ -14,5 +14,5 @@ components:
   - name: web
     path: web
     needs: [api]
-    url: http://localhost:4200
-    demo_url: http://localhost:5181
+    port: 4200
+    demo_port: 5181

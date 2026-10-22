@@ -3,7 +3,8 @@
 // a small YAML subset is parsed here (maps, lists, scalars, inline [a, b] and {a: b}, # comments),
 // which is all a manifest needs.
 //
-// CLI: node manifest.mjs [dir]   → the resolved manifest as JSON (exit 1 with a message on error)
+// CLI: node manifest.mjs [dir] [--slot N]   → the resolved manifest as JSON, urls on slot N
+//      (default: this root's run slot, scripts/run.mjs; exit 1 with a message on error)
 // From the project's root: node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs
 
 export const MANIFEST_FILE = "selo.yaml";
@@ -11,6 +12,7 @@ export const MANIFEST_FILE = "selo.yaml";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { currentSlot } from "./slots.mjs";
 
 export const PRESETS = {
   standard: { planner: "opus", implementer: "sonnet", reviewer: "opus", runner: "haiku", explorer: "haiku" },
@@ -23,8 +25,29 @@ export const COMPONENT_KEYS = ["name", "path", "handoff", "needs", "port", "demo
 export const BLOCK_KEYS = ["kind", "stack", "skin", "layers", "commands", "logins", "port", "demo_port", "url", "serve_url", "demo_url"];
 
 // `port` and `demo_port` replace the 1.0 urls (selo 2.0 §4.8): a front with a `port` is browser-tested.
-// shortcut: slot 0 only (the base ports); run.mjs shifts them per slot at step 6 of the revamp.
-const local = (port) => (port == null ? null : `http://localhost:${port}`);
+// They are base ports: a run on slot n listens on base + 10 × n (scripts/run.mjs), and the urls follow.
+export const SLOT_STEP = 10;
+// The port of a 1.0 url on this machine, so the old keys shift with the slot too; any other url: null.
+const portOf = (url) => {
+  const m = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::(\d+))?\/?$/.exec(url ?? "");
+  return m ? Number(m[1] ?? 80) : null;
+};
+// The component's base ports and its urls on `slot`, from the new keys, else the 1.0 ones.
+const addresses = (c, spec, slot) => {
+  const at = (port) => (port == null ? null : `http://localhost:${port + SLOT_STEP * slot}`);
+  const url = c.url ?? spec.url ?? null;
+  const serveUrl = c.serve_url ?? spec.serve_url ?? null;
+  const demoUrl = c.demo_url ?? spec.demo_url ?? null;
+  const port = c.port ?? spec.port ?? portOf(serveUrl ?? url);
+  const demoPort = c.demo_port ?? spec.demo_port ?? portOf(demoUrl);
+  return {
+    port,
+    demoPort,
+    url: url !== null && portOf(url) === null ? url : url !== null || spec.kind === "front" ? at(portOf(url) ?? port) : null,
+    serveUrl: port !== null ? at(port) : serveUrl ?? url,
+    demoUrl: demoPort !== null ? at(demoPort) : demoUrl,
+  };
+};
 
 const unknownKeys = (map, known, where) =>
   map && typeof map === "object" ? Object.keys(map).filter((k) => !known.includes(k)).map((k) => `${where}: unknown key "${k}" (ignored)`) : [];
@@ -222,10 +245,10 @@ export const resolveModels = (spec) => {
   return out;
 };
 
-const readComponent = (root, c, warnings) => {
+const readComponent = (root, c, warnings, slot) => {
   const file = join(root, c.path, "CLAUDE.md");
   warnings.push(...unknownKeys(c, COMPONENT_KEYS, `selo.yaml, component "${c.name}"`));
-  const base = { name: c.name, path: c.path, handoff: c.handoff ?? null, needs: c.needs ?? [], url: c.url ?? null, serveUrl: local(c.port) ?? c.serve_url ?? c.url ?? null, demoUrl: local(c.demo_port) ?? c.demo_url ?? null, file: join(c.path, "CLAUDE.md") };
+  const base = { name: c.name, path: c.path, handoff: c.handoff ?? null, needs: c.needs ?? [], ...addresses(c, {}, slot), file: join(c.path, "CLAUDE.md") };
   if (!existsSync(file)) return { ...base, missingFile: true, kind: null, stack: null, skin: null, layers: [], commands: {}, logins: null };
   const block = fencedBlock(readFileSync(file, "utf8"), "component");
   if (block === null) return { ...base, missingFile: false, missingBlock: true, kind: null, stack: null, skin: null, layers: [], commands: {}, logins: null };
@@ -233,10 +256,9 @@ const readComponent = (root, c, warnings) => {
   warnings.push(...unknownKeys(spec, BLOCK_KEYS, base.file), ...unknownKeys(spec.commands, COMMAND_KEYS, `${base.file}, commands`));
   const commands = {};
   for (const key of COMMAND_KEYS) if (spec.commands?.[key] != null) commands[key] = String(spec.commands[key]);
-  const port = c.port ?? spec.port ?? null;
-  const demoUrl = local(c.demo_port ?? spec.demo_port) ?? c.demo_url ?? spec.demo_url ?? null;
+  const where = addresses(c, spec, slot);
   // Without its address the demo cannot be awaited: try falls back to the dev servers.
-  if (commands.demo && demoUrl === null) warnings.push(`${base.file}: commands.demo without demo_port (the browser test runs on the dev servers)`);
+  if (commands.demo && where.demoUrl === null) warnings.push(`${base.file}: commands.demo without demo_port (the browser test runs on the dev servers)`);
   const skin = spec.skin == null ? null : String(spec.skin);
   if (skin !== null && !existsSync(join(SKINS_DIR, skin, "tokens.css"))) throw new Error(`Manifest: component "${c.name}" names unknown skin "${skin}" in ${base.file}`);
   return {
@@ -248,13 +270,12 @@ const readComponent = (root, c, warnings) => {
     layers: Array.isArray(spec.layers) ? spec.layers.map(String) : [],
     commands,
     logins: spec.logins ?? null,
-    url: c.url ?? spec.url ?? (spec.kind === "front" ? local(port) : null),
-    serveUrl: local(port) ?? c.serve_url ?? spec.serve_url ?? c.url ?? spec.url ?? null,
-    demoUrl,
+    ...where,
   };
 };
 
-export const readManifest = (dir = process.cwd()) => {
+// `slot`: the run's slot (scripts/run.mjs), which shifts every url; the base ports stay as written.
+export const readManifest = (dir = process.cwd(), { slot = 0 } = {}) => {
   const root = findRoot(dir);
   if (!root) throw new Error(`No ${MANIFEST_FILE} found from ${resolve(dir)} upwards`);
   const spec = parseYaml(readFileSync(join(root, MANIFEST_FILE), "utf8")) ?? {};
@@ -267,7 +288,7 @@ export const readManifest = (dir = process.cwd()) => {
   ];
   const components = spec.components.map((c, i) => {
     if (!c || !c.name || !c.path) throw new Error(`Manifest: component #${i + 1} needs \`name\` and \`path\``);
-    return readComponent(root, c, warnings);
+    return readComponent(root, c, warnings, slot);
   });
   const names = new Set(components.map((c) => c.name));
   for (const c of components) for (const n of c.needs) if (!names.has(n)) throw new Error(`Manifest: component "${c.name}" needs unknown component "${n}"`);
@@ -276,6 +297,7 @@ export const readManifest = (dir = process.cwd()) => {
     name: String(spec.name),
     // The plugin version that wrote or last updated the project (`setup`, `setup update`); null before 1.0.0.
     selo: spec["selo"] == null ? null : String(spec["selo"]),
+    slot,
     baseBranch: spec.base_branch ? String(spec.base_branch) : "main",
     language: { chat: spec.language?.chat ?? "en", repo: spec.language?.repo ?? "en" },
     models: resolveModels(spec.models),
@@ -298,7 +320,13 @@ export const stages = (manifest) => {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const m = readManifest(process.argv[2] ?? process.cwd());
+    const args = process.argv.slice(2);
+    const at = args.indexOf("--slot");
+    const slot = at < 0 ? null : Number(args.splice(at, 2)[1]);
+    if (slot !== null && !(Number.isInteger(slot) && slot >= 0)) throw new Error("--slot takes a slot number (0, 1, …)");
+    const dir = args[0] ?? process.cwd();
+    const current = slot ?? currentSlot(findRoot(dir) ?? dir);
+    const m = readManifest(dir, { slot: current });
     process.stdout.write(JSON.stringify({ ...m, stages: stages(m).map((c) => c.name) }, null, 2) + "\n");
   } catch (e) {
     process.stderr.write(`${e.message}\n`);

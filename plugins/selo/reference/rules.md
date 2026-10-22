@@ -12,7 +12,7 @@ Useful to two projects or more: the plugin. Specific to one project: its `CLAUDE
 
 ## The manifest
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the JSON: `name`, `baseBranch`, `language`, `models`, `components` (name, path, kind, stack, skin, layers, commands, handoff, needs, url, serveUrl, demoUrl, logins), `stages` and `warnings` (unknown keys, ignored: tell the person). A component with `missingFile` has no `CLAUDE.md`: send the person to `/selo:setup component {name}`. Never parse `selo.yaml` yourself. A component's `CLAUDE.md` loads when you work under its path; read it yourself when you work for it from elsewhere.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the JSON: `name`, `baseBranch`, `language`, `models`, `components` (name, path, kind, stack, skin, layers, commands, handoff, needs, logins; `port` and `demoPort`, the base ports; `url`, `serveUrl` and `demoUrl`, computed for this root's run slot, `slot`: base port + 10 × slot, **Running the app**), `stages` and `warnings` (unknown keys, ignored: tell the person). A component with `missingFile` has no `CLAUDE.md`: send the person to `/selo:setup component {name}`. Never parse `selo.yaml` yourself. A component's `CLAUDE.md` loads when you work under its path; read it yourself when you work for it from elsewhere.
 
 ## Three lanes
 
@@ -25,6 +25,15 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the
 A fastlane that meets a new entity or business rule stops before its commit and proposes `/selo:blueprint {same request}`. A free sentence asking to change something is a fastlane.
 
 Every lane ends the same way: one review of the whole work, the full suites of the touched components (through `runner`), the browser test of a touched front, the commit(s). The browser test runs on the front's demo when it has `commands.demo`, else on its dev server (`commands.serve`, or the "Local run" of its `CLAUDE.md`): it is never skipped for want of a demo. Only the person skips it: ` — no browser`.
+
+## Running the app
+
+One script starts a project's components: `node ${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs [component … | all] [--demo]`, from the root, behind `/selo:run`, `try` and the project's `selo-run.mjs` (`node selo-run.mjs`, outside a session). Never start a component's server another way when it has a `serve` or a `demo` command.
+
+- **Slots.** Each run takes a slot, so several worktrees run their copy side by side: on slot n every port is the base port + 10 × n (slot 0 = the base ports). The slot is chosen when the run starts: this root's live run is reused, else the slot this root had last when it is free, else the lowest free one; a slot is free when no live run holds it and its ports are free. Recorded in `{git-common-dir}/selo/slots/{n}.json`, shared by every worktree of the repository.
+- **What it starts.** The components named (all by default) and those they `need`, in `stages` order, each awaited on its url: their `demo` with `--demo` when every one of them has one, else their `serve`. Each command gets `PORT`, `SELO_SLOT` and the `{NAME}_URL` of each component it needs. It stays in the foreground (a background command in a session) and prints one `SELO_RUN {json}` line once everything answers: the slot, the mode, each component's url and whether this call `started` it or found it running.
+- **Stop.** `run.mjs --stop [component …] [--demo]` stops this root's run, or those components of it. Stop only what you started: a component found running belongs to someone else.
+- **Demo.** A slot's demo serves one session at a time: `--demo` exits with code 3 while another live run holds it.
 
 ## Specs: pages and domains
 
