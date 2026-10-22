@@ -17,6 +17,8 @@ Shared, versioned memory for every agent and every teammate. It holds stable pro
 
 ## Entries
 
+- 2026-10-23 — A commit under `plugins/selo/` or `plugins/selo-ops/` is proposed together with its plugin update: one question, one yes for both (button « Oui, commite puis mets à jour »), then commit and run `claude plugin update` right away. The person always wants the update after such a commit; asking twice costs a turn.
+
 ## Known failing tests
 
 Tests that already fail on the base branch, independently of the current work. When a test fails, check this list first: if it is here, do not investigate it or re-run it without your changes to prove it, just mention it in the report. Add a test here once you have proven it fails without your changes; remove it when it is fixed.
