@@ -23,7 +23,7 @@ Why each rule of the process exists. A rule changes with the case that motivated
 
 **Rollback.** To stay on 1.0, do not run `/selo:setup update`: the project keeps `selo-flow@selo-flow` from its `selo-flow` marketplace. That marketplace is a directory and serves whatever its folder holds; once this repository is on 2.0, it holds no `selo-flow` plugin any more. Point the project's `extraKnownMarketplaces.selo-flow.source.path` at a checkout of the 1.0.0 release (`git worktree add ../webapp-factory-1.0 a802a0f`, the `feat(selo-flow): release 1.0.0` commit; the plugin is unchanged up to `441a74b`), run `claude plugin update selo-flow@selo-flow --scope project` in the project, and open a new session. The two versions have different names, so one machine holds both, one per project.
 
-Projects: install `selo@selo` (a 1.0 project: remove `selo-flow@selo-flow` and `selo-flow-board@selo-flow`, add the `selo` marketplace), or run `claude plugin update selo@selo --scope project`; open a new session, run `/selo:setup update`, then open a new session again. Version 2.0.0.
+Projects: install `selo@selo` (a 1.0 project: remove `selo-flow@selo-flow` and `selo-flow-board@selo-flow`; a project from before 1.0: remove `factory@webapp-factory` and `factory-board@webapp-factory`; then add the `selo` marketplace), or run `claude plugin update selo@selo --scope project`; open a new session, run `/selo:setup update`, then open a new session again. Version 2.0.0.
 
 ## 2026-10-21 — selo-flow 1.0.0: two lanes, living specs, the base branch shared
 
