@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkSpec, parseBlueprint, planIds, planMerge, specPath } from "../scripts/spec-check.mjs";
+import { checkSpec, parseBlueprint, planMerge, specPath } from "../scripts/spec-check.mjs";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -14,20 +14,19 @@ const spec = `# Live sessions — Spec
 - **FR-13** — The "waiting for you" filter includes awaiting-commit.
 ### Notifications
 - **FR-31** — One notification per session.
-- **FR-48** — (planned) One sound per notification.
+- **FR-48** — One sound per notification.
 ## Business Rules
 - **BR-23** — An empty filter shows every session.
 
 Retired: FR-07, FR-50, BR-04
 `;
 
-test("checkSpec: a clean spec, next ids past the retired ones, planned FRs listed", () => {
+test("checkSpec: a clean spec, next ids past the retired ones", () => {
   const r = checkSpec(spec, ["FR-13", "BR-23"]);
   assert.equal(r.ok, true);
   assert.equal(r.next.FR, "FR-51");
   assert.equal(r.next.BR, "BR-24");
   assert.equal(r.next.Q, "Q-01");
-  assert.deepEqual(r.planned, ["FR-48"]);
 });
 
 test("checkSpec: a duplicate id from two sessions, a retired id reused, a cited id missing", () => {
@@ -38,16 +37,7 @@ test("checkSpec: a duplicate id from two sessions, a retired id reused, a cited 
   assert.deepEqual(r.missing, ["FR-99"], "a retired id may be cited: the commit retires it");
 });
 
-test("checkSpec --done: a cited FR still planned at the end of a plan fails", () => {
-  assert.equal(checkSpec(spec, ["FR-48"]).ok, true);
-  const r = checkSpec(spec, ["FR-13", "FR-48"], { done: true });
-  assert.equal(r.ok, false);
-  assert.deepEqual(r.plannedLeft, ["FR-48"]);
-});
-
-test("planIds and specPath", () => {
-  assert.deepEqual(planIds("# Filter\n\nFeature: `live-sessions` · Components: `web` · Spec: FR-13, FR-48, BR-23\n"), ["FR-13", "FR-48", "BR-23"]);
-  assert.deepEqual(planIds("# No header\n"), []);
+test("specPath", () => {
   assert.match(specPath("x/00_spec.md", "/p").replace(/\\/g, "/"), /\/p\/x\/00_spec\.md$/);
   assert.match(specPath("live-sessions", "/no-project").replace(/\\/g, "/"), /\.planning\/pages\/live-sessions\.md$/, "a slug with no file is a page");
   const root = join(fixtures, "merge");

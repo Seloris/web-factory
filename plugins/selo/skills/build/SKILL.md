@@ -9,16 +9,16 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (**Blueprints** and **Wher
 
 ## Input
 
-`/selo:build .planning/blueprints/{file}`, optionally with ` — stage {N}`, ` — no browser`, ` — autonomous`.
+`/selo:build .planning/blueprints/{file}`, optionally with ` — stage {N}`, ` — no browser`, ` — autonomous`, ` — review: {findings}` (from `autopilot`, step 9).
 
 - The blueprint must be committed (`git log -- {file}`): an untracked one is a draft, say so and stop. `Spec merged` ticked: the work is done, say so and stop. A `Legacy:` line under its title: a 1.0 plan moved by `setup update`, history, never built: say so and stop.
 - Read it whole, then the page and domain specs it names (the `BR` ids it cites are resolved there), then a `## Mockup` image if any.
-- A 1.0 plan folder (`.planning/features/{slug}/dev-plans/…`): this skill does not read it; give `/selo:fastlane {plan folder}` instead.
+- A 1.0 project (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
 - Note the variant (**Where commits go**): on `baseBranch`, or on a worktree's branch.
 
 ## Stages
 
-One per line of the blueprint's `## Stages`, in that order, each one commit. The first stage to run is the first unticked line of Progress. By default every remaining stage runs, chained in this session; ` — stage {N}` runs that one and stops, and must be the one Progress picks (otherwise stop before coding and say where Progress is). Never skip or redo a stage. A stage with a `handoff` is committed with its handoff file before the next stage runs its `prepare`.
+One per line of the blueprint's `## Stages`, in that order, each one commit. The first stage to run is the first unticked line of Progress. By default every remaining stage runs, chained in this session; ` — stage {N}` runs that one and stops, and must be the one Progress picks (otherwise stop before coding and say where Progress is). Never skip or redo a stage; every stage ticked and `Review` not: go to **End of the work**. A stage with a `handoff` is committed with its handoff file before the next stage runs its `prepare`.
 
 For each stage:
 
@@ -29,11 +29,11 @@ For each stage:
 5. **Record the decisions** the blueprint left open as they are taken: one line each under `### Decided during build` at the end of Business decisions (what the person would want to check) or of Technical defaults (the rest), `- {question} → {answer} ({reason})`. A decision that refines or contradicts an FR or a BR of a spec also adds its `~` line to the Spec delta, with the exact "before" text. A departure from an approved decision or from the delta is asked first (under ` — autonomous`: recorded, listed first in the report).
 6. **Verify**, through `runner`, reading its errors with `file:line`: `build` with zero errors and zero warnings; `test` in full, once; `lint` on the files this stage wrote only (`{files}` placeholder). Fix and re-run until green. Before investigating a failure, check **Known failing tests** in `.claude/rules/memory.md`; a failure outside this work's files on `baseBranch` follows **Where commits go**.
 7. **Handoff:** the component's `commands.handoff`, when it has one.
-8. **Commit the stage** without a question, as **Where commits go** says, naming the files (code, tests, the handoff file or regenerated client, the blueprint with its tick and its new decisions): subject the Stages line, body the decisions this stage recorded and `Spec: pending (.planning/blueprints/{file})`. On the last stage, steps 9 to 11 run before this commit.
+8. **Commit the stage** without a question, as **Where commits go** says, naming the files (code, tests, the handoff file or regenerated client, the blueprint with its tick and its new decisions): subject the Stages line, body the decisions this stage recorded and `Spec: pending (.planning/blueprints/{file})`. On the last stage, steps 9 to 11 run before this commit (without the Agent tool: after it, step 9).
 
 ## End of the work (last stage)
 
-9. **Review.** Spawn the `reviewer` (`models.reviewer`) on the whole work, naming the blueprint: on `baseBranch`, the commits with the scope `({name})` from the one that added the blueprint, plus this work's uncommitted files; in a worktree, `{baseBranch}..HEAD` plus the uncommitted files. Fix the findings you agree with, re-run step 6 for each component changed, list the others with the reason. Fixes in a component already committed go in their own commit, `fix({name}): review — {summary}`, `Spec: pending (…)`. Tick `Review` once every finding is fixed or listed.
+9. **Review.** Spawn the `reviewer` (`models.reviewer`) on the whole work, naming the blueprint: on `baseBranch`, the commits with the scope `({name})` from the one that added the blueprint, plus this work's uncommitted files; in a worktree, `{baseBranch}..HEAD` plus the uncommitted files. Fix the findings you agree with, re-run step 6 for each component changed, list the others with the reason. Fixes in a component already committed go in their own commit, `fix({name}): review — {summary}`, `Spec: pending (…)`. Tick `Review` once every finding is fixed or listed. Without the Agent tool (a subagent under `autopilot`): commit the last stage first, then take the findings the prompt gives (` — review: {findings}`, `none` for a clean review) instead of spawning; with none given, stop and report `review needed`: `autopilot` spawns the reviewer and runs this skill again with its findings.
 10. **Full suites:** the full `test` of every touched component, through `runner`, after the fixes.
 11. **Browser test**, when a touched front has a `url`, unless ` — no browser`: follow `try` with the blueprint's `browser:` scenarios, on the front's demo when it has `commands.demo`, else on its dev server (`commands.serve`, or its `CLAUDE.md` "Local run"): never skipped for want of a demo. With a `## Mockup`, take a screenshot of the page and compare it in the report. Fix what it reveals, re-run step 6. Tick `Browser test` when every scenario passed; ` — no browser`: `- [-] Browser test: not run (no browser)`.
 12. **Integration tests** are never run unless the person asks, naming them, in this session: give the `integration_tests` command filtered on the work.

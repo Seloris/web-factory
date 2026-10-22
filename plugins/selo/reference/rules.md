@@ -20,11 +20,11 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the
 |---|---|---|
 | **Fastlane** | One page or one component, no new entity or business rule | `/selo:fastlane {request}` |
 | **Blueprint** | A new page, a new entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
-| **Autopilot** | The person leaves | `/selo:autopilot {request}` |
+| **Autopilot** | The person leaves | `/selo:autopilot {request \| blueprint}` |
 
 A fastlane that meets a new entity or business rule stops before its commit and proposes `/selo:blueprint {same request}`. A free sentence asking to change something is a fastlane.
 
-Every lane ends the same way: one review of the whole work, the full suites of the touched components (through `runner`), the browser test of a touched front, the commit(s). The browser test runs on the front's demo when it has `commands.demo`, else on its dev server (`commands.serve`, or the "Local run" of its `CLAUDE.md`): it is never skipped for want of a demo. Only the person skips it: ` — no browser` (` — without browser test` for `fastlane`).
+Every lane ends the same way: one review of the whole work, the full suites of the touched components (through `runner`), the browser test of a touched front, the commit(s). The browser test runs on the front's demo when it has `commands.demo`, else on its dev server (`commands.serve`, or the "Local run" of its `CLAUDE.md`): it is never skipped for want of a demo. Only the person skips it: ` — no browser`.
 
 ## Specs: pages and domains
 
@@ -179,6 +179,6 @@ When the job committed, end with the done footer, the very last lines:
 - A free request answered without a commit ends with the recap line alone, so "done, nothing to commit" never looks like "stopped halfway".
 - No footer when the turn stops on a question, or on a failure before any commit; a stop after commits still ends with the footer.
 
-## Legacy layout (1.0 projects)
+## A 1.0 project
 
-A project with at least one `.planning/features/*/00_spec.md` (the 1.0 layout; an empty `.planning/features/` does not count) whose specs are still `.planning/features/{slug}/00_spec.md` (an area: a screen, a route or a domain) and whose plans are `.planning/features/{slug}/dev-plans/{ts}-{type}-{name}/plan.md` keeps the 1.0 rules until its migration: `write-spec` is the only writer of `00_spec.md`; a new FR not built yet is marked `(planned)` and the stage that builds it removes the mark; the `Spec:` line names one area, `Spec: {slug} +FR-48 ~FR-13 -FR-07`, checked with `spec-check {slug} --cite "…"` (on a plan's last stage add `--plan {plan folder} --done`: FRs still `(planned)`); a plan's commits are those with the scope `({slug})` from the one that added its `plan.md`; decisions go in the plan's Business decisions and Technical defaults; its stages use `fastlane {plan folder} — stage N` or `— stages N-M (…), chained`. `write-spec`, `write-plan`, and `fastlane` with a plan folder serve this layout only.
+A project still in the 1.0 shape (a `selo-flow.yaml` or a `factory.yaml` instead of `selo.yaml`, or a `.planning/features/*/00_spec.md`) is migrated first: `fastlane`, `blueprint`, `build`, `autopilot` and `review` say so, change nothing, and give `/selo:setup update`, which moves its areas to pages and domain sheets and its plans to legacy blueprints.

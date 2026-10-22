@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // Checks a spec's ids and gives the next free ones; reads a blueprint's spec delta against the current specs.
-// Usage: node spec-check.mjs {slug | path to a spec .md} [--cite "FR-13 BR-23"] [--plan {plan folder}] [--done]
+// Usage: node spec-check.mjs {slug | path to a spec .md} [--cite "FR-13 BR-23"]
 //        node spec-check.mjs --merge {blueprint .md}
 //   {slug}   a page (`home`, `web/home`), a domain sheet (`todo`), or a 1.0 area (`.planning/features/{slug}/00_spec.md`);
-//   --cite   ids that must exist (a commit's Spec: group); --plan adds the ids of a 1.0 plan's header `Spec:` line;
-//   --done   a 1.0 plan's last stage: a cited FR or BR still marked (planned) is an error;
+//   --cite   ids that must exist (a commit's Spec: group);
 //   --merge  each delta line with its final id and its status (ok, conflict, missing, invalid); writes nothing.
 // Prints JSON; exits 1 when a check fails, 2 on a usage error.
 import { existsSync, readFileSync } from "node:fs";
@@ -17,28 +16,23 @@ const ID = /\b(?:FR|BR|US|Q)-\d+\b/g;
 
 export const idsIn = (text) => [...new Set(text.match(ID) ?? [])];
 
-// The ids of a plan's header line (`Feature: … · Spec: US-03, FR-02`), none without one.
-export const planIds = (planText) => idsIn(/^.*\bSpec:\s*(.*)$/m.exec(planText)?.[1] ?? "");
-
-export function checkSpec(text, cited = [], { done = false } = {}) {
+export function checkSpec(text, cited = []) {
   const defined = [...text.matchAll(/^\s*-\s+\*\*((?:FR|BR|US|Q)-\d+)\*\*/gm)].map((m) => m[1]);
   const retired = idsIn(/^Retired:\s*(.*)$/m.exec(text)?.[1] ?? "");
-  const planned = [...text.matchAll(/^\s*-\s+\*\*((?:FR|BR)-\d+)\*\*\s+—\s+\(planned\)/gm)].map((m) => m[1]);
 
   const seen = new Set();
   const duplicates = defined.filter((id) => (seen.has(id) ? true : (seen.add(id), false)));
   const retiredReused = defined.filter((id) => retired.includes(id));
   // A cited id may be one this commit retires (`-FR-07`): retired counts as known.
   const missing = cited.filter((id) => !seen.has(id) && !retired.includes(id));
-  const plannedLeft = done ? cited.filter((id) => planned.includes(id)) : [];
 
   const next = {};
   for (const k of KINDS) {
     const nums = [...defined, ...retired].filter((id) => id.startsWith(k + "-")).map((id) => Number(id.split("-")[1]));
     next[k] = `${k}-${String((nums.length ? Math.max(...nums) : 0) + 1).padStart(2, "0")}`;
   }
-  const ok = !duplicates.length && !retiredReused.length && !missing.length && !plannedLeft.length;
-  return { ok, duplicates, retiredReused, missing, planned, plannedLeft, next };
+  const ok = !duplicates.length && !retiredReused.length && !missing.length;
+  return { ok, duplicates, retiredReused, missing, next };
 }
 
 // The spec file of a slug, from the project's root: a page, else a domain sheet, else a 1.0 area; a path ending in .md as it is.
@@ -143,17 +137,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exit(r.ok ? 0 : 1);
   }
   const target = argv[0];
-  if (!target || target.startsWith("--")) fail('usage: spec-check.mjs {slug | spec .md} [--cite "FR-13 BR-23"] [--plan {plan folder}] [--done] | --merge {blueprint .md}');
+  if (!target || target.startsWith("--")) fail('usage: spec-check.mjs {slug | spec .md} [--cite "FR-13 BR-23"] | --merge {blueprint .md}');
   const file = specPath(target);
   if (!existsSync(file)) fail(`No spec at ${file}`);
-  const cited = idsIn(optionOf(argv, "--cite") ?? "");
-  const plan = optionOf(argv, "--plan");
-  if (plan) {
-    const planFile = join(resolve(plan), "plan.md");
-    if (!existsSync(planFile)) fail(`No plan at ${planFile}`);
-    cited.push(...planIds(readFileSync(planFile, "utf8")).filter((id) => !cited.includes(id)));
-  }
-  const r = checkSpec(readFileSync(file, "utf8"), cited, { done: argv.includes("--done") });
+  const r = checkSpec(readFileSync(file, "utf8"), idsIn(optionOf(argv, "--cite") ?? ""));
   console.log(JSON.stringify(r, null, 2));
   process.exit(r.ok ? 0 : 1);
 }

@@ -1,4 +1,4 @@
-// Prints the dev-plan folder timestamp, {YYYYMMDD}-{HHmmss} in local time. Skills run it instead
+// Prints the timestamp {YYYYMMDD}-{HHmmss} in local time (a blueprint's date). Skills run it instead
 // of writing a timestamp by hand (see the planning conventions).
 const d = new Date();
 const p = (n, w = 2) => String(n).padStart(w, "0");
