@@ -18,7 +18,8 @@ Sessions open at the project's root (or at a worktree of it) with the plugin loa
 | Review a blueprint before building it, or a built one | `/selo:review blueprint {blueprint}`, `/selo:review {blueprint}` |
 | Check a page or domain sheet against the code | `/selo:review {slug}` (lists its open blueprints too) |
 | Settle open decisions first | `/selo:grill {request}` |
-| Click through a front | `/selo:try {component} …` (its demo, else its dev server, started and stopped by the skill) |
+| Click through a front | `/selo:try {component} …` (its demo, else its dev servers, on this worktree's slot, started and stopped by the skill) |
+| Start the app, get its URLs | `/selo:run` (`{component}`, ` — demo`, ` — stop`): this worktree's slot, ports + 10 per slot; outside a session `node selo-run.mjs` (`npm run app` with `react-express`) |
 
 ## The flow
 
@@ -63,6 +64,16 @@ The page's code is read, then each component touched: tests first, build + full 
 ```
 
 Every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; `/selo:autopilot {blueprint}` resumes at its Progress.
+
+## Running the app
+
+```
+/selo:run            every component, dev servers
+/selo:run web — demo  the front's demo and the API's, seeded data
+/selo:run — stop
+```
+
+Each worktree that runs the app gets a slot: its ports are the manifest's `port` and `demo_port` + 10 × slot, so two worktrees run side by side and the same worktree keeps its ports. `try` and the browser test of `build` and `fastlane` run on it too. Outside a session: `node selo-run.mjs [component | all] [--demo]` at the project's root, Ctrl+C stops it.
 
 ## Commits
 

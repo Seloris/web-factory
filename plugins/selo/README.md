@@ -26,9 +26,11 @@ skills/
   autopilot/            no question: picks the fastlane or the blueprint lane, one fresh subagent per step
   grill/                the interview that settles decisions
   review/               the reviewer on recent work, a blueprint, or a page against its spec
-  try/                  click through a front component locally
+  try/                  click through a front component locally, on this worktree's slot
+  run/                  start the app on this worktree's slot, give its URLs, stop it
 agents/                 reviewer.md (read-only review), runner.md (builds, tests, lint)
-scripts/                manifest.mjs (the manifest parser), spec-check.mjs (spec ids, --merge), commit-hook.mjs, timestamp.mjs
+scripts/                manifest.mjs (the manifest parser), spec-check.mjs (spec ids, --merge), commit-hook.mjs, timestamp.mjs,
+                        run.mjs + slots.mjs (the app on a slot per worktree)
 hooks/hooks.json        the commit hook: warns, never blocks
 reference/              rules.md (read first by every skill), caveman.md (agent-to-agent voice), ui-design.md
 skins/                  the looks of a front: the token contract, recipes.css, one folder per skin
