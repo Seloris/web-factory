@@ -67,7 +67,7 @@ A page stub gets its spec from the code that exists (its **bootstrap**): `/selo:
 - What looks like a bug, a dead path, or two pages disagreeing becomes a `Q-NN` of that spec, for the person to decide, never an FR: the spec must not turn a current bug into a requirement.
 - A rule that holds on several pages, or in the API whatever the page, goes to a domain sheet as a BR (a new sheet named after the entity, or the next free id of an existing one), and the page cites it.
 - The page spec follows the template, FRs by zone; the `Status: to bootstrap` line goes; the header gets its `Domain:`.
-- Shown to the person and committed alone, before any other change, on their yes: `docs({page}): bootstrap spec` (several pages at once: `docs(app): bootstrap specs`), body `Spec: {page} +FR-01 +FR-02 … · {domain} +BR-NN …`, checked with `spec-check {slug} --cite`. History keeps what was apart from what changes.
+- Shown to the person and committed alone, before any other change, on their yes: `docs({page}): bootstrap spec` (several pages at once: `docs(app): bootstrap specs`), body `Spec: {page} +FR-01 +FR-02 · {domain} +BR-03`, every id written out (never a range), checked with `spec-check {slug} --cite`. History keeps what was apart from what changes.
 
 ### The spec follows the code
 
