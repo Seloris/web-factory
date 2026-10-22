@@ -21,6 +21,8 @@ One stage per component touched, in `stages` order, chained in this session. The
 
 A change that turns out to need a new page, entity or business rule stops before any commit and says so: it needs a blueprint, `/selo:blueprint {same request}` (under autopilot, the blueprint lane on the same request).
 
+Each step below that changes the substep marks it, as the rules' **Marks** say (step 3 `bootstrap`, step 5 `tests` then `code`, steps 7 to 9 `review`, `suites`, `try`, step 11 `commit`); the first mark names the page.
+
 ## Workflow
 
 1. **Resume.** `git status`, `git log`. Uncommitted changes of this request after an interrupted session are part of the work; files you cannot attribute belong to another session.

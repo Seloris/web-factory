@@ -199,6 +199,12 @@ When the job committed, end with the done footer, the very last lines:
 - A free request answered without a commit ends with the recap line alone, so "done, nothing to commit" never looks like "stopped halfway".
 - No footer when the turn stops on a question, or on a failure before any commit; a stop after commits still ends with the footer.
 
+Selo Ops reads these shapes from the turn's last message (the ops export, `scripts/ops.mjs`): the footer as the last lines flags the job done; a commit message in a code block as the last text, its first line `{type}({scope}): …`, flags a commit waiting for its yes; a last line ending with `?`, or the question of a next-step box, flags a question. A turn that ends on none of them shows as ended without its footer.
+
+## Marks
+
+`fastlane` and `build` mark where they are, one Bash call at each change: `node ${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs mark {substep} [sheet …]`, `{substep}` one of `bootstrap` (the spec of a page stub), `tests` (tests written, red), `code`, `suites`, `review`, `try`, `merge` (the delta merged), `commit`. A fastlane's first mark names its page (`mark tests home`). The script prints nothing and changes nothing: a hook reads the command for Selo Ops. A forgotten mark loses detail on the dashboard, never a state.
+
 ## A 1.0 project
 
 A project still in the 1.0 shape (a `selo-flow.yaml` or a `factory.yaml` instead of `selo.yaml`, or a `.planning/features/*/00_spec.md`) is migrated first: `fastlane`, `blueprint`, `build`, `autopilot` and `review` say so, change nothing, and give `/selo:setup update`, which moves its areas to pages and domain sheets and its plans to legacy blueprints.

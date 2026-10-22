@@ -1,6 +1,6 @@
 # selo 2.0 — the ops export (proposal, 2026-10-21)
 
-What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Claude Companion: every session of every project that installs the plugin, where it stands in the workflow, and the project's pages, domains and blueprints. Companion to `proposal.md` (the model: §4; the board removed: §5). Nothing is implemented yet.
+What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Claude Companion: every session of every project that installs the plugin, where it stands in the workflow, and the project's pages, domains and blueprints. Companion to `proposal.md` (the model: §4; the board removed: §5). Implemented at step 7 (2026-10-22): `plugins/selo/scripts/ops.mjs`, its hooks in `hooks/hooks.json`, tests in `tests/ops.test.mjs`; the choices the text left open are §8, 12 to 21.
 
 ## 1. Principles
 
@@ -9,7 +9,7 @@ What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Clau
 3. **Pointers, not copies.** A spec or a blueprint is exported as its path, title, counts and `mtime`; Selo Ops reads the markdown under the root when the person opens it, as Companion reads `plan.md` today (factory-board FR-35, BR-05/06). The export stays small and never lags the file.
 4. **Drawn as exported.** States, phases and next prompts are computed once, in the plugin, where the rules live; Selo Ops never re-derives them (factory-board BR-02 stays). What the plugin cannot know (is the process alive, what tool runs) stays Claude Code's.
 5. **Shell hooks, no mod.** The board was a function-hooks mod, the one reason it shaped rules of the workflow (`proposal.md` §1.8). The export is written by `hooks/hooks.json` command hooks running `scripts/ops.mjs` (ES module, Node 20+, no dependency, tests in `tests/`), like the commit hook: stack-agnostic, same plugin, versioned with it.
-6. **Atomic, versioned, forward-only.** Every file is written to `{file}.tmp` then renamed; carries `schemaVersion`; a field is added, never renamed. A reader that meets an unknown version says so and skips the file (factory-board FR-04).
+6. **Atomic, versioned, forward-only.** Every file is written to `{file}.{pid}.tmp` then renamed (the pid: two hooks of one session may run at once); carries `schemaVersion`; a field is added, never renamed. A reader that meets an unknown version says so and skips the file (factory-board FR-04).
 
 ## 2. Where
 
@@ -357,3 +357,16 @@ A session file is written by its own hooks only (§1.2): a file another session 
 9. **Substeps** → Marked by the skills (`ops.mjs mark`, §5.4), not guessed from the tools: only the skill knows that it moved from tests to code.
 10. **Technical fields** → `transcriptPath`, `permissionMode`, `effort` come from the hooks' common input; `model` only from SessionStart, which does not always carry it. Output style is in no hook input: left out. `unpushedCount` added: under "never push", it is what the person checks before closing.
 11. **The app's runs** → Not in the export: the slot files (proposal §4.8) already hold the ports and pids, written when a run starts and stops. Selo Ops reads them by `repo` and `root`; both sides use the same form of `root`.
+
+2026-10-22, at implementation (step 7):
+
+12. **The folder** → `SELO_OPS_DIR`, else `CLAUDE_CONFIG_DIR/selo`, else `~/.claude/selo`. The tests write to a temp folder through `SELO_OPS_DIR`; Selo Ops' configuration points at the same folder.
+13. **Concurrent hooks** → Parallel tool calls and parallel subagents fire hooks of one session at the same time: each read-modify-write of a session file runs under a lock (`locks/{sessionId}/`, the mkdir lock of `slots.mjs`, 2 s wait, stale after 10 s). A hook that cannot take it gives up silently: one event lost, never a blocked turn. A project file needs no lock: it is a pure function, the last writer is right.
+14. **Time and silence** → Each hook exits 0 and prints nothing whatever happens (`UserPromptSubmit` and `SessionStart` output would reach the agent's context), stops itself at 4.5 s (the hook's timeout is 5 s), each git call at 2 s. A `PostToolUse` on a Bash command that is neither a commit nor a mark leaves before any git or file work; the Edit hook touches no git. The project is rescanned on `SessionStart`, `Stop` and a commit only.
+15. **Commit detection** → No reliance on an exit-code field of the tool's response: after any command that `isCommit` (the commit hook's test) recognizes, `HEAD` is read, and added to the run only when no run of the session has its sha yet. A failed commit leaves `HEAD` on a known or foreign older commit; a foreign commit that happens to land between is the accepted shortcut.
+16. **The last message** → `last_assistant_message` of `Stop` / `SubagentStop` when the input has it, else the last assistant text read from the tail of `transcript_path` (`agent_transcript_path` for a subagent).
+17. **What answers a run** → A prompt that is not a `/selo:{lane}` command keeps the main run when its phase is `awaiting-commit`, `awaiting-answer` or `working` (a word typed after an Esc continues the same job); a `/selo:{lane}` prompt always opens a run. A `/selo:` command outside the lanes (`/selo:run`) is `free`.
+18. **A skill the main loop picks itself** → A `PreToolUse` on `Skill` without `agent_id`, naming a `selo:` lane, turns the current run into that lane when it is a `free` run still `working` (the model chose the skill from a free sentence). With `agent_id`, it sets the subagent's run, and an `autopilot` main run takes that run's step (and blueprint). A subagent's commits are added to the autopilot run too, whose footer lists them.
+19. **The wrap_up ask** → Kept in the session file's `ask` field from the `PostToolUse` to the turn's `Stop`, cleared by the next prompt; a reader ignores it.
+20. **Steps moved by a commit** → A commit whose subject is a stage line of the run's blueprint (or of any blueprint, which then names the run's) moves the run to the next stage, the last to `review`; `docs({name}): spec merged` moves it to `merge`. `resumePrompt` is the blueprint's `next.prompt` at each `Stop`.
+21. **Marks** → `reference/rules.md` **Marks** says when `fastlane` and `build` mark; `templates/settings.json` allows `node *scripts/ops.mjs mark*`, so a mark prompts nobody (`setup update` adds the missing allow). A session keeps its 100 newest runs.

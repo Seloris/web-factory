@@ -20,6 +20,8 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (**Blueprints** and **Wher
 
 One per line of the blueprint's `## Stages`, in that order, each one commit. The first stage to run is the first unticked line of Progress. By default every remaining stage runs, chained in this session; ` — stage {N}` runs that one and stops, and must be the one Progress picks (otherwise stop before coding and say where Progress is). Never skip or redo a stage; every stage ticked and `Review` not: go to **End of the work**. A stage with a `handoff` is committed with its handoff file before the next stage runs its `prepare`.
 
+Each step that changes the substep marks it, as the rules' **Marks** say: step 4 `tests` then `code`, step 8 `commit`; at the end of the work `review`, `suites`, `try`, `merge`.
+
 For each stage:
 
 1. **Resume.** Progress, `git status`, `git log`. Uncommitted changes in this stage's component after an interrupted session are part of the stage; files you cannot attribute belong to another session.
