@@ -12,8 +12,8 @@
 | 6. `(planned)` | None in the sample. |
 | 7. Instruction files | Tagged blocks rewritten with `selo:` tags; the glossary line and `docs/CONTRIBUTING.md`'s 1.0 sections replaced. |
 | 8. Ports | `web`: `url` → `port: 5173`; `api`: `serve_url` → `port: 3000`. Resolved urls unchanged. |
-| 9. Pack commands | `api`: `demo` added (`src/demo.ts`, an empty `src/seed/demo.ts` from the pack, the `demo` script, `demo_port: 3101`). `web`: not added (its `vite.config.ts` has no demo mode): the report gives `/selo:fastlane tooling: add the demo of web from the react-express pack`. |
+| 9. Pack commands | `api`: `demo` added (`src/demo.ts`, an empty `src/seed/demo.ts` from the pack, the `demo` script, `demo_port: 3101`). `web`: added on the round's yes: its `vite.config.ts` (no demo mode) replaced by the pack's mode-aware proxy, the `demo` script, `demo_port: 5181`. The resolved manifest gives both demo urls. |
 
-Fixed in the skill from this run: the plugin's old name in prose (`the selo-flow plugin`, `selo-flow init`) was not covered by the renames; text outside the tags still word for word the 1.0 template's is now replaced without a question.
+Fixed in the skill from this run: the plugin's old name in prose (`the selo-flow plugin`, `selo-flow init`) was not covered by the renames; text outside the tags still word for word the 1.0 template's is now replaced without a question; a pack command whose backing changes an existing file (the web demo) is shown in the round and added on a yes instead of being left out (§7 step 9 names this case); a `Legacy:` blueprint is refused by `build` and named in `reference/rules.md`.
 
-Not checked: the `api` build and test with the added demo files (the copy has no `node_modules`; the files are the pack's skeleton, whose imports match the sample's `app.ts`, `db/client.ts` and `shared/clock.ts`). The play was done by the session that wrote the skill, not by a fresh one.
+Not checked: the grouped question round and the `reviewer` comparison of step 4 (the answers were the recommended ones, the comparison done by reading); the `api` and `web` build and test with the added demo files (the copy has no `node_modules`; the files are the pack's skeleton, whose imports match the sample's `app.ts`, `db/client.ts` and `shared/clock.ts`). The play was done by the session that wrote the skill, not by a fresh one.

@@ -98,7 +98,7 @@ A blueprint (`templates/planning/blueprint.md`) is one screen: the spec delta, t
 2. A `conflict` or a `missing` line stops the merge and asks the person (under autopilot: the step stops, the stage commits stay).
 3. Otherwise the session applies each line to its file (an FR placed under its zone; a new page from the page template), rewrites in the blueprint every provisional id that changed (the delta and every mention), applying the printed `renames` in their order, ticks `Spec merged`, and commits the specs and the blueprint alone: `docs({name}): spec merged`, body the `specLine` the script printed (`Spec: todo-detail +FR-01 … · home +FR-18 · todo ~BR-03`), checked first with `spec-check {slug} --cite`.
 
-A blueprint is never edited after `Spec merged`; a new iteration is a new blueprint.
+A blueprint is never edited after `Spec merged`; a new iteration is a new blueprint. A file of `blueprints/` with a `Legacy:` line under its title is a 1.0 plan moved by `/selo:setup update`: history, never built, revised or listed as open.
 
 ## Where commits go
 
