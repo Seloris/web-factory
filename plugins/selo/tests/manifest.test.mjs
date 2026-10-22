@@ -74,7 +74,7 @@ test("readManifest: the example project", () => {
   const m = readManifest(join(example, "web"));
   assert.equal(m.root, example);
   assert.equal(m.name, "two-components");
-  assert.equal(m.selo, "1.0.0");
+  assert.equal(m.selo, "2.0.0");
   assert.equal(m.baseBranch, "main");
   assert.deepEqual(m.language, { chat: "fr", repo: "en" });
   assert.equal(m.models.preset, "standard");
