@@ -7,8 +7,8 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | I want to… | Do this |
 |---|---|
 | Set up the project | `/selo:setup` |
-| Bring the project up to date with the plugin | `/selo:setup update` |
-| Give a front a skin, or switch it | `/selo:setup skin {component} {skin}`, then a plan to apply it to existing screens |
+| Bring the project up to date with the plugin (a 1.0 project: migrated to pages, domain sheets and blueprints) | `/selo:setup update` |
+| Give a front a skin, or switch it | `/selo:setup skin {component} {skin}`, then a blueprint to apply it to existing screens |
 | Ask a question | Just ask. No skill. |
 | Change something, fix a bug (the fastlane) | `/selo:fastlane {request}` |
 | A new page, entity or rule, several pages (the blueprint lane) | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
