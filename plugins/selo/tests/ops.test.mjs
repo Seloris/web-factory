@@ -149,7 +149,12 @@ test("hooks write the session and project files of a build", () => {
   assert.equal(session().current.substep, "tests");
   assert.deepEqual(session().current.sheets, ["home"]);
 
-  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Stage 1 done.\n\n```\nfeat(due-date): api — optional due date\n\nSpec: pending (.planning/blueprints/2026-10-21-due-date.md)\n```" });
+  // The model in use comes from the transcript: the last real assistant message, not a synthetic one.
+  const transcript = join(ops, "t.jsonl");
+  const line = (model) => JSON.stringify({ type: "assistant", message: { model, content: [{ type: "text", text: "x" }] } });
+  writeFileSync(transcript, [line("claude-sonnet-5-5"), line("<synthetic>"), ""].join("\n"));
+  hook(ops, { ...base, transcript_path: transcript, hook_event_name: "Stop", last_assistant_message: "Stage 1 done.\n\n```\nfeat(due-date): api — optional due date\n\nSpec: pending (.planning/blueprints/2026-10-21-due-date.md)\n```" });
+  assert.equal(session().model, "claude-sonnet-5-5");
   assert.equal(session().current.phase, "awaiting-commit");
   assert.deepEqual(session().dirtyFiles, ["api/due.ts"]);
   assert.deepEqual(session().close.blockers, ["not-done", "pending-commit", "dirty-files"]);
@@ -207,7 +212,11 @@ test("subagents: an autopilot stands for the runs it spawns", () => {
   const base = { session_id: "s2", cwd: dir };
   const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s2.json"), "utf8"));
   hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: `/selo:autopilot ${BP}` });
+  hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Agent", tool_input: { description: "Review the code", prompt: "p", subagent_type: "reviewer" } });
+  hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Agent", tool_input: { description: "Build stage 1", prompt: "p" } });
   hook(ops, { ...base, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "general-purpose" });
+  assert.equal(session().runs[0].task, "Build stage 1", "the task of the call of its type");
+  assert.deepEqual(session().pendingAgents, [{ type: "reviewer", task: "Review the code" }]);
   hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: `${BP} — stage 1 — autonomous` } });
   let s = session();
   assert.equal(s.runs[0].agentId, "a1");

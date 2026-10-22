@@ -276,12 +276,12 @@ export function closeOf(s) {
 
 export const newSession = (id, root) => ({
   schemaVersion: SCHEMA, writtenAt: now(), sessionId: id, root: normRoot(root), rootKey: rootKey(root), repo: null, startedAt: now(), status: "live",
-  transcriptPath: null, model: null, permissionMode: null, effort: null, touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null,
+  transcriptPath: null, model: null, permissionMode: null, effort: null, pendingAgents: [], touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null,
 });
 
 const openRun = (s, fields, agentId = null) => {
   const since = now();
-  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, lane: "free", request: "", blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, commits: [], resumePrompt: null, since, updatedAt: since, ...fields };
+  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, commits: [], resumePrompt: null, since, updatedAt: since, ...fields };
   s.runs = [run, ...s.runs].slice(0, MAX_RUNS);
   return run;
 };
@@ -289,8 +289,9 @@ const mainRun = (s) => s.runs.find((r) => !r.agentId) ?? null;
 const runOf = (s, agentId) => (agentId ? s.runs.find((r) => r.agentId === agentId) ?? openRun(s, {}, agentId) : mainRun(s));
 const addSheets = (run, sheets) => (run.sheets = [...new Set([...run.sheets, ...sheets.filter(Boolean)])]);
 
-// The last assistant text of a transcript, read from its tail: for a Stop input without last_assistant_message.
-export function lastAssistantText(path) {
+// The assistant messages of a transcript, newest first, read from its tail.
+function* assistantTail(path) {
+  let text;
   try {
     const size = statSync(path).size;
     const len = Math.min(size, 512 * 1024);
@@ -298,20 +299,33 @@ export function lastAssistantText(path) {
     const fd = openSync(path, "r");
     readSync(fd, buf, 0, len, size - len);
     closeSync(fd);
-    for (const line of buf.toString("utf8").split("\n").reverse()) {
-      if (!line.includes('"assistant"')) continue;
-      try {
-        const e = JSON.parse(line);
-        const content = e.type === "assistant" ? e.message?.content : null;
-        const text = Array.isArray(content) ? content.filter((c) => c.type === "text").map((c) => c.text).join("\n") : typeof content === "string" ? content : "";
-        if (text.trim()) return text;
-      } catch {
-        // a line cut by the tail read
-      }
-    }
+    text = buf.toString("utf8");
   } catch {
-    // no transcript
+    return; // no transcript
   }
+  for (const line of text.split("\n").reverse()) {
+    if (!line.includes('"assistant"')) continue;
+    try {
+      const e = JSON.parse(line);
+      if (e.type === "assistant" && e.message) yield e.message;
+    } catch {
+      // a line cut by the tail read
+    }
+  }
+}
+
+// The last assistant text of a transcript: for a Stop input without last_assistant_message.
+export function lastAssistantText(path) {
+  for (const { content } of assistantTail(path)) {
+    const text = Array.isArray(content) ? content.filter((c) => c.type === "text").map((c) => c.text).join("\n") : typeof content === "string" ? content : "";
+    if (text.trim()) return text;
+  }
+  return null;
+}
+
+// The model of the last assistant message; no hook input carries it (SessionStart rarely does).
+export function lastModel(path) {
+  for (const { model } of assistantTail(path)) if (model && model !== "<synthetic>") return model;
   return null;
 }
 
@@ -365,6 +379,13 @@ export function applyHook(s, e, root) {
       Object.assign(cur, { phase: "working", pendingCommit: null, question: null, error: null });
       touch(cur);
     } else openRun(s, p);
+    return false;
+  }
+  // SubagentStart carries no prompt: the Agent call's task waits here for the subagent of its type.
+  if (event === "PreToolUse" && (e.tool_name === "Agent" || e.tool_name === "Task")) {
+    const i = e.tool_input ?? {};
+    const task = String(i.description || i.prompt || "").slice(0, 200);
+    s.pendingAgents = [...(s.pendingAgents ?? []), { type: String(i.subagent_type || "general-purpose"), task }].slice(-10);
     return false;
   }
   if (event === "PreToolUse" && e.tool_name === "Skill") {
@@ -444,7 +465,13 @@ export function applyHook(s, e, root) {
     return true;
   }
   if (event === "SubagentStart") {
-    openRun(s, { request: String(e.agent_type ?? "") }, agentId);
+    const type = String(e.agent_type ?? "");
+    // shortcut: two calls of one type started together may swap tasks; upgrade if a SubagentStart ever carries its prompt.
+    const pending = s.pendingAgents ?? [];
+    const i = pending.findIndex((p) => p.type === type);
+    const task = i >= 0 ? pending.splice(i, 1)[0].task : null;
+    s.pendingAgents = pending;
+    openRun(s, { request: type, task }, agentId);
     return false;
   }
   if (event === "SubagentStop") {
@@ -459,7 +486,8 @@ export function applyHook(s, e, root) {
       cur.resumePrompt = resumeOf(cur, root);
     }
     s.ask = null;
-    s.backgroundTasks = (e.background_tasks ?? []).map((b) => ({ id: String(b.id ?? ""), type: String(b.type ?? ""), status: String(b.status ?? ""), description: String(b.description ?? "") }));
+    s.model = lastModel(e.transcript_path) ?? s.model;
+    s.backgroundTasks =(e.background_tasks ?? []).map((b) => ({ id: String(b.id ?? ""), type: String(b.type ?? ""), status: String(b.status ?? ""), description: String(b.description ?? "") }));
     // A foreground subagent cannot outlive its turn: one with no SubagentStop (an Esc) is stopped.
     if (!s.backgroundTasks.some((b) => b.status === "running")) for (const r of s.runs) if (r.agentId && r.phase === "working") Object.assign(r, { phase: "stopped", updatedAt: t });
     s.dirtyFiles = dirtyOf(root, s.touchedFiles);

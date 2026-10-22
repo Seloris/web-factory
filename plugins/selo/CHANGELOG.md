@@ -2,6 +2,13 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-22 — selo 2.0.1: the model and the subagents' tasks in the ops export
+
+Selo Ops showed no model and no subagent task: every session file of the first real sessions had `model: null`, and a subagent run held only its type.
+
+- **`model` from the transcript.** `SessionStart` carries no `model`, neither in print mode nor in the desktop app. Each `Stop` now sets it from the transcript's last assistant message (a `<synthetic>` one skipped).
+- **A subagent run has its `task`.** `SubagentStart` carries no prompt. A `PreToolUse` on `Agent` (or `Task`) queues the call's `description` (else its `prompt`) in the session's `pendingAgents`; the next `SubagentStart` of that type takes it as the run's `task`. Two calls of one type started together may swap their tasks.
+
 ## 2026-10-22 — selo 2.0.0: pages and domains, blueprint and build, one plugin
 
 **Breaking.** A project in the older layout (a `factory.yaml`, a `selo-flow.yaml` or a `.planning/features/*/00_spec.md`) must run `/selo:setup update` before any other skill: `fastlane`, `blueprint`, `build`, `autopilot` and `review` refuse it and give that prompt. Every project set up before this version runs it, if only to get the ops marks allowed (below). selo-flow 1.0 was never installed in a project: the projects come from factory 0.8.0, whose layout 1.0 kept, so the migration goes from that layout to 2.0 in one step.

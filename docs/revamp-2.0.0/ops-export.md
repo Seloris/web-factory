@@ -33,8 +33,9 @@ Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, w
 | `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. A `node {plugin}/scripts/ops.mjs mark …` command sets the run's `substep` and `sheets` (§5.4). |
 | `PostToolUse` | `Edit\|Write\|NotebookEdit` | Adds the path to the session's `touchedFiles`. A file under `.planning/blueprints/` names the run's `blueprint` (a draft has one before its commit); a file under `.planning/pages/` or `.planning/domain/` adds its sheet to `sheets`. |
 | `PostToolUse` | `mcp__ccd_turn__wrap_up` | Keeps the call's `ask` for this turn: in the desktop app the question sits in that box, not in the last line of text (§5.3). |
-| `SubagentStart` / `SubagentStop` | | Opens / closes the subagent's run, from `last_assistant_message`. |
-| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Rescans the project. |
+| `PreToolUse` | `Agent\|Task` | Queues the call's task (`description`, else `prompt`) in `pendingAgents`, under its `subagent_type`. |
+| `SubagentStart` / `SubagentStop` | | Opens the subagent's run, its `task` taken from the oldest queued call of its `agent_type` / closes it, from `last_assistant_message`. |
+| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Sets `model` from the transcript's last assistant message. Rescans the project. |
 | `StopFailure` | | An API error ended the turn: phase `stopped`, `error` set. |
 | `SessionEnd` | | `status: ended`; a run still `working` becomes `stopped`. |
 
@@ -161,7 +162,7 @@ type SeloSession = {
   status: 'live' | 'ended'
   /** From the hooks' input: where Selo Ops reads the transcript, without guessing its folder from the cwd. */
   transcriptPath: string | null
-  /** SessionStart's `model`, when Claude Code gives it; the transcript stays the source for the model in use. */
+  /** The model of the transcript's last assistant message, set at each `Stop`; SessionStart's `model` before the first one, when Claude Code gives it. */
   model: string | null
   /** The latest `permission_mode` and `effort.level` a hook received. */
   permissionMode: string | null
@@ -172,6 +173,8 @@ type SeloSession = {
   dirtyFiles: string[]
   /** `background_tasks` of the last `Stop`: the shells and agents still running after the turn. */
   backgroundTasks: { id: string; type: string; status: string; description: string }[]
+  /** Agent calls whose subagent has not started yet: SubagentStart carries no prompt. At most 10. */
+  pendingAgents: { type: string; task: string }[]
   /** Can the person close the session? Computed at each `Stop` (§5.5). */
   close: { ok: boolean; blockers: CloseBlocker[] }
   /** Every run of the session, newest first: the main loop's and its subagents'. */
@@ -186,8 +189,10 @@ type Run = {
   /** The subagent the run works in (an autopilot's build, a review); null for the main loop. */
   agentId: string | null
   lane: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
-  /** The prompt's text after the command, shortened to 200 characters. */
+  /** The prompt's text after the command, shortened to 200 characters; a subagent's `agent_type` until a skill names its lane. */
   request: string
+  /** A subagent's task: its Agent call's `description` (else its `prompt`), 200 characters; null for the main loop. Two calls of one type started together may swap. */
+  task: string | null
   /** The blueprint the run works on (its `name`), once known: named by the command, written by the run (a draft), or found when a stage commit lands. */
   blueprint: string | null
   /** The sheets the run works on: from `ops.mjs mark`, the spec files it writes, then its commits' `Spec:` lines. A fastlane names its page before coding. */
@@ -286,7 +291,7 @@ A session file is written by its own hooks only (§1.2): a file another session 
 | `Tour interrompu` (Esc) | `phase: working` while Claude Code says `idle`: no `Stop` fired (§3) |
 | Badge `Tu peux fermer` / its blockers | `close` of the session file (§5.5) |
 | Band `page · sous-étape` | `current.sheets`, `current.substep` |
-| Session's technical line: model, effort, permission mode | `permissionMode`, `effort` of the session file; the model from the transcript (`model` of the file when it has none yet) |
+| Session's technical line: model, effort, permission mode | `permissionMode`, `effort`, `model` of the session file |
 | Project: `N non poussés` | `unpushedCount` (`aheadCount` stays the distance to the base branch) |
 | Project `Activité` | Among the root's session files: `awaiting-commit`, then `awaiting-answer`, then `working`, else the latest |
 | Stale project | `writtenAt` older than 60 s **and** no live session on the root (a project with no session open is simply not rescanned: it is not stale, it is quiet) |
@@ -316,12 +321,14 @@ A session file is written by its own hooks only (§1.2): a file another session 
   "touchedFiles": ["web/src/features/todos/TodoList.tsx", "web/src/features/todos/TodoForm.tsx"],
   "dirtyFiles": ["web/src/features/todos/TodoList.tsx", "web/src/features/todos/TodoForm.tsx"],
   "backgroundTasks": [],
+  "pendingAgents": [],
   "close": { "ok": false, "blockers": ["not-done", "pending-commit", "dirty-files"] },
   "current": {
     "id": "59ec7eff-18ab-44b0-829d-e33b4e8e040e:1792598402000",
     "agentId": null,
     "lane": "build",
     "request": ".planning/blueprints/2026-10-21-due-date.md",
+    "task": null,
     "blueprint": "2026-10-21-due-date",
     "sheets": ["home", "todo"],
     "step": "stage:2",
@@ -355,7 +362,7 @@ A session file is written by its own hooks only (§1.2): a file another session 
 7. **Desktop questions** → A `PostToolUse` on `mcp__ccd_turn__wrap_up` keeps its `ask`. It names one host's tool; with another host the last-line rule stays.
 8. **Esc** → No `Stop` fires on an interrupt (checked in the hooks reference, 2026-10-22); Selo Ops reads `working` + `idle` as an interrupted turn.
 9. **Substeps** → Marked by the skills (`ops.mjs mark`, §5.4), not guessed from the tools: only the skill knows that it moved from tests to code.
-10. **Technical fields** → `transcriptPath`, `permissionMode`, `effort` come from the hooks' common input; `model` only from SessionStart, which does not always carry it. Output style is in no hook input: left out. `unpushedCount` added: under "never push", it is what the person checks before closing.
+10. **Technical fields** → `transcriptPath`, `permissionMode`, `effort` come from the hooks' common input; `model` from the transcript at each `Stop` (SessionStart carries it in neither print mode nor the desktop app, 2026-10-22), SessionStart's when it has one before. Output style is in no hook input: left out. `unpushedCount` added: under "never push", it is what the person checks before closing.
 11. **The app's runs** → Not in the export: the slot files (proposal §4.8) already hold the ports and pids, written when a run starts and stops. Selo Ops reads them by `repo` and `root`; both sides use the same form of `root`.
 
 2026-10-22, at implementation (step 7):
