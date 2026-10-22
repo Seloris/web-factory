@@ -2,4 +2,4 @@
 
 The plugin's test project: an `api` component handing an OpenAPI file to a `web` component, every command an `echo`, so the workflow can be exercised on a stack that cannot fail. The plugin's tests (`node --test "plugins/selo/tests/*.test.mjs"` from the repository root) read this project's manifest (`selo.yaml`).
 
-To try the workflow on it by hand, copy it to a folder of its own, `git init` there, then `/selo:write-plan demo`, `/selo:fastlane …`. `.planning/features/demo/00_spec.md` is a sample spec to plan from.
+To try the workflow on it by hand, copy it to a folder of its own, `git init` there, then `/selo:blueprint …` or `/selo:fastlane …`. `.planning/pages/demo.md` and `.planning/domain/counter.md` are sample specs to start from.

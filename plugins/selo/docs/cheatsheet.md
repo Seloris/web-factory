@@ -1,6 +1,6 @@
 # Cheat sheet
 
-Sessions open at the project's root with the plugin loaded. Paths start there (`.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/`). Skills carry the plugin's prefix: `/selo:…`. Everything is committed on the base branch.
+Sessions open at the project's root (or at a worktree of it) with the plugin loaded. Skills carry the plugin's prefix: `/selo:…`. Every rule lives in `reference/rules.md`; this page lists the commands.
 
 ## Which path?
 
@@ -9,62 +9,69 @@ Sessions open at the project's root with the plugin loaded. Paths start there (`
 | Set up the project | `/selo:setup` |
 | Bring the project up to date with the plugin (a 1.0 project: migrated to pages, domain sheets and blueprints) | `/selo:setup update` |
 | Give a front a skin, or switch it | `/selo:setup skin {component} {skin}`, then a blueprint to apply it to existing screens |
-| Ask a question | Just ask. No skill. |
-| Change something, fix a bug (the fastlane) | `/selo:fastlane {request}` |
-| A new page, entity or rule, several pages (the blueprint lane) | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
-| Specify then develop a feature (1.0 layout, the feature lane) | `/selo:write-spec {request}`, then `/selo:write-plan {slug}` |
-| Implement an existing plan | `/selo:fastlane {plan folder}` |
-| Let it choose the lane and do everything, no click | `/selo:autopilot {request}` (or `{slug}`, or `{plan folder}` to resume); ` — fastlane`, ` — with plan`, ` — until spec`, ` — until plan`, ` — without browser test` |
-| Review recent work | `/selo:review` (or a range, files) |
-| Review a plan before coding, or settle a plan's open review | `/selo:review plan {plan folder}`, `/selo:review {plan folder}` |
-| Check a whole area's spec against the code | `/selo:review {slug}` |
-| Rewrite an old spec in the present tense | `/selo:write-spec {slug} — rewrite` |
-| Settle open decisions first | `/selo:grill {slug}` |
-| Click through the app on its demo | `/selo:try {component} …` (starts the demo in the background, stops it after) |
+| Ask a question, or fix a spec's wording | Just ask. No skill. |
+| Change something on one page, fix a bug | `/selo:fastlane {request}` |
+| A new page, entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
+| Let it choose the lane and do everything, no click | `/selo:autopilot {request}` (or `{blueprint}` to resume); ` — fastlane`, ` — blueprint`, ` — until blueprint`, ` — no browser` |
+| Review recent work, a range, files | `/selo:review` (or `/selo:review {range or files}`) |
+| Review a blueprint before building it, or a built one | `/selo:review blueprint {blueprint}`, `/selo:review {blueprint}` |
+| Check a page or domain sheet against the code | `/selo:review {slug}` (lists its open blueprints too) |
+| Settle open decisions first | `/selo:grill {request}` |
+| Click through a front | `/selo:try {component} …` (its demo, else its dev server, started and stopped by the skill) |
+
+## The flow
+
+```mermaid
+flowchart TD
+    request([Request])
+    lane{One page or one component,<br/>no new page, entity or rule?}
+    request --> lane
+    lane -- "yes" --> fast["/selo:fastlane {request}<br/><i>code test-first, spec delta in the same commit</i>"]
+    lane -- "no" --> bp["/selo:blueprint {request}<br/><i>grill, delta + decisions + stages, ONE yes, one commit</i>"]
+    bp --> build["/selo:build {blueprint}<br/><i>stages chained, one commit each, Spec: pending</i>"]
+    fast --> end1["Review, full suites, browser test"]
+    build --> end1
+    end1 --> where{Branch?}
+    where -- "base branch" --> done["Commits on the base branch<br/><i>a blueprint: delta merged, docs(name): spec merged</i>"]
+    where -- "worktree" --> land["Landing: sync, delta merged,<br/>ONE squashed commit on your yes"]
+    done --> push([A human pushes])
+    land --> push
+```
+
+`/selo:autopilot` reads the code, picks the lane, and runs it with no question (each step a fresh subagent); in a worktree it stops on the landing's yes. A fastlane that meets a new page, entity or rule stops before its commit and proposes `/selo:blueprint {same request}`.
 
 ## Fastlane
 
 ```
-/selo:fastlane Add a cutoff time on order publication
+/selo:fastlane Show the due date in red once it has passed
 ```
 
-The area's code is read, then each component touched: tests first, build + full test + lint, the spec delta. On the last one: the review of the whole work, the full suites, the browser test on the demo. Then one commit per component, each with its `Spec:` line. A change that creates a business rule or an entity stops and asks for the feature lane.
+The page's code is read, then each component touched: tests first, build + full test + lint, the page or domain spec delta. On the last one: the review of the whole work, the full suites, the browser test. Then one commit per component, each with its `Spec:` line.
 
 ## Blueprint lane
 
-1. `/selo:blueprint {request}` → `.planning/blueprints/{date}-{name}.md` (a short grill, then one screen: the spec delta, decisions, stages, tests)
-2. Read the delta and the stage subjects, say **yes**: one commit
-3. `/selo:build {blueprint}`: every stage chained, one commit each (`Spec: pending (…)`), the review, the full suites, the browser test (demo, else the dev server), then the delta merged into `.planning/pages/` and `.planning/domain/` (`docs({name}): spec merged`). ` — stage N` runs one stage.
+1. `/selo:blueprint {request}` → `.planning/blueprints/{date}-{name}.md`: a short grill, then one screen: the spec delta, Business decisions, Technical defaults, stages and their commit subjects, tests, Progress.
+2. Read the delta and the stage subjects, say **yes**: one commit. The page and domain specs are untouched.
+3. `/selo:build {blueprint}`: every stage chained, one commit each (`Spec: pending (…)`), the decisions it takes under `### Decided during build`, then the review, the full suites, the browser test, and the delta merged into `.planning/pages/` and `.planning/domain/` (`docs({name}): spec merged`). ` — stage N` runs one stage; ` — no browser` skips the browser test.
 4. In a worktree (a branch other than the base branch): the build ends with the landing, one squashed commit on the base branch on your yes.
-
-## Feature lane (1.0 layout)
-
-1. `/selo:write-spec {request}` → `.planning/features/{slug}/00_spec.md` (a short grill, new FRs `(planned)`)
-2. `/selo:write-plan {slug}` → `.planning/features/{slug}/dev-plans/{ts}-{type}-{plan}/plan.md`
-3. Read the summary and the commit messages it proposes (the plan's and each stage's), say **yes** to commit it (silence is not approval)
-4. Optional: `/selo:review plan {plan folder}`
-5. New session per stage: `/selo:fastlane {plan folder} — stage {N} ({component})`, or all the remaining ones in one session: `/selo:fastlane {plan folder} — stages {N}-{M} ({components}), chained`
-6. The last stage reviews the whole plan, runs the full suites and the demo browser test. Findings left open: `/selo:review {plan folder}` once they are fixed.
-
-Each step ends with the next prompt ready to copy.
 
 ## Autopilot
 
 ```
-/selo:autopilot Add a cutoff time on order publication
+/selo:autopilot Add a due date to todos
 ```
 
-It reads the code first and picks the lane, then runs it, each step a fresh subagent, no question: every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; relaunch the same command to resume.
+Every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; `/selo:autopilot {blueprint}` resumes at its Progress.
 
 ## Commits
 
 ```
-git add {new files} && git commit --only -m "feat(orders): api — cutoff time" -m "Spec: orders +FR-12 ~FR-03" -- {files}
+git add {new files} && git commit --only -m "feat(due-date): api — optional due date" -m "Spec: pending (.planning/blueprints/2026-10-21-due-date.md)" -- {files}
 ```
 
-- Name the files: never `-a`, `git add -A`, `git add .` or `--amend` (other sessions share the checkout).
-- A code commit carries `Spec: {slug} +FR-NN ~FR-NN -FR-NN`, or `Spec: none ({reason})`. The commit hook warns when it is missing.
-- A file another session is editing: wait for its commit, or stop.
+- Name the files: never `-a`, `git add -A`, `git add .` or `--amend`.
+- A code commit carries `Spec: home +FR-18 ~FR-03 · todo ~BR-06`, `Spec: pending (…)` during a build, or `Spec: none ({reason})`. The commit hook warns when it is missing.
+- On the base branch, other sessions share the checkout: `--only`, and a file another session is editing waits for its commit. In a worktree, commits go on its branch and land squashed.
 
 ## Remember
 
