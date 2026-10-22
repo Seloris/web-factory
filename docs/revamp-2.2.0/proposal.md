@@ -2,7 +2,7 @@
 
 Working document. Two changes, released together:
 
-- **selo-ops 1.1.0**: every run of the ops export carries what it consumed, read from the transcript: tokens per kind, per model and per prompt, the tools it called, the skills it loaded. The session carries its totals. It also fixes a bug of 1.0.0 found on the way: a background subagent's end opened an empty run (§5.5).
+- **selo-ops 2.2.0**: every run of the ops export carries what it consumed, read from the transcript: tokens per kind, per model and per prompt, the tools it called, the skills it loaded. The session carries its totals. It also fixes a bug of 1.0.0 found on the way: a background subagent's end opened an empty run (§5.5).
 - **selo 2.2.0**: a `PreToolUse` hook puts selo's subagents on their role's model from `selo.yaml`, whatever the call names.
 
 Basis: a read of the Kookiz repository's `session-debug` and `kookiz-helper` mods (`ELI-FR-KOOKIZ/.claude/plugins/`), of `plugins/selo-ops/scripts/ops.mjs`, and of Claude Code's hooks reference (2026-10-22).
@@ -36,7 +36,7 @@ Claude Code writes one JSONL per session (`transcriptPath`) and one per subagent
 
 The code is ported from session-debug's `scripts/aggregate.mjs` (pure, no I/O, same author), cut to what §4 needs: no weighted "effective" figure, which is an estimate and not a price; the raw counts only.
 
-## 4. Export format (selo-ops 1.1.0)
+## 4. Export format (selo-ops 2.2.0)
 
 Forward-only (`ops-export.md` §1.6): fields added, none renamed, `schemaVersion` stays `1`. A reader of 1.0.0 ignores them.
 
@@ -83,7 +83,7 @@ type SeloSession = {
 
 `model` (session) keeps its meaning. A subagent run's real model is `usage.byModel[0].model`. The model the call asked for is not exported: it stays in the lead's `tool_use` row, which keeps the call as the model wrote it, before any rewrite of §6 (§11).
 
-## 5. When it is computed (selo-ops 1.1.0)
+## 5. When it is computed (selo-ops 2.2.0)
 
 ### 5.1 The hooks
 
@@ -125,13 +125,13 @@ Claude Code's hooks reference: at `Stop`, "the transcript file isn't guaranteed 
 
 Found by the spike (§11). When a background subagent ends, Claude Code hands its result to the lead as a prompt, `<task-notification>…</task-notification>`, which fires `UserPromptSubmit`. 1.0.0 treats it as a typed prompt: `stripWrappers` drops the block, `parsePrompt` gets an empty text, and a new `free` run opens with `request: ""`. Selo Ops shows it as « Demande non lisible dans l'export » (`sessions-live` FR-24), and the run the person started loses its place as `current`.
 
-1.1.0: a prompt that holds nothing but `<task-notification>` blocks keeps the main run, as a subagent's `<agent-message>` hand-back already does (`ops-export.md` §3, the `UserPromptSubmit` row): phase back to `working`, `pendingCommit`, `question` and `error` cleared, `updatedAt` moved; no new run. Sessions written by 1.0.0 keep their empty runs.
+2.2.0: a prompt that holds nothing but `<task-notification>` blocks keeps the main run, as a subagent's `<agent-message>` hand-back already does (`ops-export.md` §3, the `UserPromptSubmit` row): phase back to `working`, `pendingCommit`, `question` and `error` cleared, `updatedAt` moved; no new run. Sessions written by 1.0.0 keep their empty runs.
 
 ## 6. Subagent models (selo 2.2.0)
 
 ### 6.1 The hook
 
-`plugins/selo/hooks/hooks.json` gets a `PreToolUse` hook on `Agent|Task`, running `scripts/agent-model.mjs`. It reads the call's `tool_input`, finds the project's `selo.yaml` up the `cwd` and resolves its models with `manifest.mjs` (`resolveModels`, presets included). Outside a selo project, or on a manifest that fails to parse, it exits 0 and prints nothing.
+`plugins/selo/hooks/hooks.json` gets a `PreToolUse` hook on `Agent|Task`, running `scripts/agent-model.mjs`. It reads the call's `tool_input`, finds the project's `selo.yaml` up the `cwd` and reads its models with `manifest.mjs` (`findRoot`, then `readManifest`, whose `models` is `resolveModels`' output, presets included). Outside a selo project, or on a manifest that fails to parse, it exits 0 and prints nothing.
 
 When the role's model differs from the call's `model`, it prints:
 
@@ -166,7 +166,7 @@ The ops hook and the model hook are two plugins on one `PreToolUse`: whether the
 
 The hooks reference documents `updatedInput` for `PreToolUse` and lists `model` among the Agent tool's fields, but says nothing about the Agent tool in particular, nor whether `updatedInput` applies without `permissionDecision`. The spike of §11 settled both, headless: the rewrite applies to the Agent tool, `updatedInput` alone.
 
-Still to check, before the release: the same in the desktop app, which runs its sessions through the SDK. A session there on a folder with the throwaway hook, `Explore` asked on one model, the subagent's `.meta.json` read. If the desktop app ignores the rewrite, §6 is dropped and selo 2.2.0 is not released; selo-ops 1.1.0 goes alone.
+Still to check, before the release: the same in the desktop app, which runs its sessions through the SDK. A session there on a folder with the throwaway hook, `Explore` asked on one model, the subagent's `.meta.json` read. If the desktop app ignores the rewrite, §6 is dropped; both plugins still go to 2.2.0, selo with no change but its version and a `CHANGELOG.md` line saying so, to keep them aligned.
 
 ### 6.5 Tests
 
@@ -174,10 +174,10 @@ Still to check, before the release: the same in the desktop app, which runs its 
 
 ## 7. Versions and roll-out
 
-One commit, two versions, as `ops-plugin.md` §5:
+One commit, two versions, as `ops-plugin.md` §5. The two plugins are aligned on 2.2.0: `selo-ops` goes from 1.0.0 to 2.2.0, the same as `selo` (settled 2026-10-22). `selo-ops` skips 1.x; the project header's `selo` field (the writer's version, `ops-export.md` §6) reads `2.2.0`.
 
 0. The desktop check of §6.4.
-1. `selo-ops` 1.1.0: `scripts/usage.mjs`, `ops.mjs`, tests, `CHANGELOG.md` (the usage, and the fix of §5.5); `docs/revamp-2.0.0/ops-export.md` §3 and §5.1 get the fields of §4 and the hooks of §5.1, the `<task-notification>` case of §5.5 included.
+1. `selo-ops` 2.2.0: `scripts/usage.mjs`, `ops.mjs`, tests, `CHANGELOG.md` (the usage, and the fix of §5.5); `docs/revamp-2.0.0/ops-export.md` §3 and §5.1 get the fields of §4 and the hooks of §5.1, the `<task-notification>` case of §5.5 included.
 2. `selo` 2.2.0: `hooks/hooks.json`, `scripts/agent-model.mjs`, tests, `docs/manifest.md`, `reference/rules.md`, `CHANGELOG.md`. `manifest.mjs` unchanged: `selo-ops`' copy stays identical (`tests/shared.test.mjs`).
 3. `node --test "plugins/*/tests/*.test.mjs"`, `claude plugin validate plugins/selo`, `plugins/selo-ops`, `.`.
 
@@ -189,18 +189,18 @@ Then, by the person: `claude plugin update selo-ops@selo --scope user`, `claude 
 - **The "now / doing" line.** Engine events (`tool.call`, `turn.step`): what a session is at this second. Not wanted.
 - **Compliance score**, **per-developer model choices**, **prompt-box tiles**, **prompt composition**: kookiz-helper's, not wanted in the export.
 
-Per-call durations are not settled: they are not engine-only (§10.4).
+Per-call durations are not engine-only; left out for now (§10.4).
 
 ## 9. Selo Ops' side
 
-A blueprint in its own repository, once 1.1.0 is out: the session detail shows the session's totals and per-model split, each run's tokens, models, tools and skills, each prompt's tokens, each subagent run's real model; the export's `model` falls back to the latest `usage.byModel` when null. A session outside selo (no export file) shows none. Sessions exported by 1.0.0 have `usage` absent: shown as « — ». With the fix of §5.5, a new session no longer gets the empty runs that show « Demande non lisible dans l'export »; FR-24 stays for those already written.
+A blueprint in its own repository, once 2.2.0 is out: the session detail shows the session's totals and per-model split, each run's tokens, models, tools and skills, each prompt's tokens, each subagent run's real model; the export's `model` falls back to the latest `usage.byModel` when null. A session outside selo (no export file) shows none. Sessions exported by 1.0.0 have `usage` absent: shown as « — ». With the fix of §5.5, a new session no longer gets the empty runs that show « Demande non lisible dans l'export »; FR-24 stays for those already written.
 
-## 10. Open questions
+## 10. Decisions (settled 2026-10-22)
 
-1. **Explicit model on selo's own agents**: §6.2 overrides it always (as kookiz-helper does). The alternative: only when the call names none, like `Explore`. Recommended: always; the manifest is the project's decision.
-2. **`prompts` per main run, capped at 50**: enough for an autopilot run (one prompt) and a long free run? Recommended: yes; the run's totals stay exact past the cap.
-3. **Read cap of 32 MB**, for a main run's slice and a subagent's transcript alike: recommended. Measured on the Kookiz transcripts (2026-10-22): the largest main transcript is 9.0 MB whole, the largest subagent transcript 4.3 MB.
-4. **Per-call durations**: readable from the transcript too (each `tool_use` row and its `tool_result` row are timestamped), so 1.1.0 could add a `durationMs` per tool name in `RunUsage.tools`, or a run's working time. Left out of this proposal unless the person asks for it: Selo Ops has no view that needs it yet.
+1. **Explicit model on selo's own agents**: always overridden (§6.2), as kookiz-helper does: the manifest is the project's decision. `Explore` and `Plan` keep a model the call names.
+2. **`prompts` per main run**: capped at 50, the latest kept; the run's totals stay exact past the cap.
+3. **Read cap**: 32 MB, for a main run's slice and a subagent's transcript alike, flagged `partial: true` past it. Measured on the Kookiz transcripts (2026-10-22): the largest main transcript is 9.0 MB whole, the largest subagent transcript 4.3 MB.
+4. **Per-call durations**: not in 2.2.0. Readable from the transcript (each `tool_use` row and its `tool_result` row are timestamped); added, forward-only, once a Selo Ops view needs them.
 
 ## 11. Spike (2026-10-22)
 
@@ -211,4 +211,4 @@ Run headless (`claude -p`, Claude Code 2.1.303, lead on Haiku) in a throwaway fo
 - **`UserPromptSubmit` fires before the prompt row is written.** On the first prompt the transcript does not exist yet; on a later one its last row is a `queue-operation`, not the prompt. So `transcriptFrom` = the transcript's size at `UserPromptSubmit` (0 when the file is missing), as §5.1 says, and the run's slice starts with its own prompt row.
 - **`UserPromptSubmit` input** carries `prompt_id`, beside `session_id`, `transcript_path`, `cwd`, `permission_mode`, `prompt`.
 - **Assistant rows carry more than `message.model`**: `requestedModel`, `advisorModel`, `effort` and `perTurnEffort`. Not exported by this proposal; noted for a later field. A model named in an `attachment` row (the session's context) is no call: §3 reads `message.model` of `assistant` rows only.
-- **Side finding, a bug of 1.0.0.** In the second run the model sent the subagent to the background; its end came back as a `<task-notification>` prompt, and the spike's session file shows a third run with `request: ""`. Fixed in 1.1.0 (§5.5).
+- **Side finding, a bug of 1.0.0.** In the second run the model sent the subagent to the background; its end came back as a `<task-notification>` prompt, and the spike's session file shows a third run with `request: ""`. Fixed in 2.2.0 (§5.5).
