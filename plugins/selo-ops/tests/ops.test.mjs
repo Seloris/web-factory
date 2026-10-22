@@ -261,11 +261,58 @@ test("subagents: an autopilot stands for the runs it spawns", () => {
   assert.equal(session().current.error, "overloaded");
 });
 
-test("a hook outside a selo project writes nothing and stays silent", () => {
+test("a plain root is exported without the workflow (ops-plugin.md §3)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "selo-ops-plain-"));
+  const g = (...args) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: dir, encoding: "utf8" });
+  g("init", "-q", "-b", "main");
+  writeFileSync(join(dir, "a.txt"), "a\n");
+  g("add", ".");
+  g("commit", "-q", "-m", "chore(repo): start");
+  mkdirSync(join(dir, "sub"));
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  // From a sub-folder: the root is the git top level.
+  const base = { session_id: "s3", cwd: join(dir, "sub") };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s3.json"), "utf8"));
+  const projectFile = () => JSON.parse(readFileSync(join(ops, "projects", `${rootKey(dir)}.json`), "utf8"));
+
+  assert.equal(hook(ops, { ...base, hook_event_name: "SessionStart" }), "");
+  assert.equal(session().selo, false);
+  assert.equal(session().rootKey, rootKey(dir));
+  const p = projectFile();
+  assert.equal(p.manifest, null);
+  assert.equal(p.error, null);
+  assert.equal(p.branch, "main");
+  assert.deepEqual([p.sheets, p.blueprints], [[], []]);
+
+  // A /selo: prompt is a free run there; a mark is ignored.
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: `/selo:build ${BP}` });
+  assert.equal(session().current.lane, "free");
+  assert.equal(session().current.blueprint, null);
+  hook(ops, { ...base, hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: `node "${script}" mark tests home` } });
+  assert.equal(session().current.substep, null);
+
+  hook(ops, { ...base, hook_event_name: "PostToolUse", tool_name: "Write", tool_input: { file_path: join(dir, "a.txt") } });
+  writeFileSync(join(dir, "a.txt"), "b\n");
+  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Done.\n\n```\nfix(a): b\n```" });
+  assert.equal(session().current.phase, "awaiting-commit");
+  assert.deepEqual(session().close.blockers, ["pending-commit", "dirty-files"]);
+
+  // The yes continues the run; the commit is recorded; an ended turn does not block the close.
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "oui" });
+  assert.equal(session().runs.length, 1);
+  const out = g("commit", "-am", "fix(a): b");
+  hook(ops, { ...base, hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: 'git commit -am "fix(a): b"' }, tool_response: { stdout: out } });
+  assert.equal(session().current.commits[0].subject, "fix(a): b");
+  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Committed." });
+  assert.equal(session().current.phase, "turn-ended");
+  assert.deepEqual(session().close, { ok: true, blockers: [] });
+});
+
+test("the hook stays silent on bad input; a hook outside git uses its cwd", () => {
   const dir = mkdtempSync(join(tmpdir(), "selo-ops-none-"));
   const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
-  assert.equal(hook(ops, { session_id: "s3", cwd: dir, hook_event_name: "SessionStart" }), "");
-  assert.equal(existsSync(join(ops, "sessions")), false);
+  assert.equal(hook(ops, { session_id: "s4", cwd: dir, hook_event_name: "SessionStart" }), "");
+  assert.equal(JSON.parse(readFileSync(join(ops, "sessions", "s4.json"), "utf8")).rootKey, rootKey(dir));
   assert.equal(execFileSync(process.execPath, [script, "hook"], { input: "not json", encoding: "utf8" }), "");
   assert.equal(execFileSync(process.execPath, [script, "mark", "code", "home"], { encoding: "utf8" }), "");
 });

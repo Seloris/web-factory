@@ -90,5 +90,5 @@ git add {new files} && git commit --only -m "feat(due-date): api — optional du
 - Agents **never push**. You push.
 - Integration tests run only when you ask, by name.
 - `✅ JOB DONE` footer = the job is done: its commits, on the branch named; a free request answered without a commit shows the recap alone.
-- Selo Ops: the plugin's hooks write one JSON per session and per project under `~/.claude/selo/` (`SELO_OPS_DIR` overrides it), silently. `node {plugin}/scripts/ops.mjs scan {root}` rescans a project with no session open.
+- Selo Ops: the `selo-ops` plugin, enabled once at user scope (`claude plugin install selo-ops@selo --scope user`), writes one JSON per session and per project under `~/.claude/selo/` (`SELO_OPS_DIR` overrides it), silently, in a selo project or not. `node {selo-ops}/scripts/ops.mjs scan {root}` rescans a project with no session open.
 - The session's model is yours to pick: the manifest's `models` says which one each role is meant for.

@@ -1,6 +1,6 @@
 # selo 2.0 — the ops export (proposal, 2026-10-21)
 
-What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Claude Companion: every session of every project that installs the plugin, where it stands in the workflow, and the project's pages, domains and blueprints. Companion to `proposal.md` (the model: §4; the board removed: §5). Implemented at step 7 (2026-10-22): `plugins/selo/scripts/ops.mjs`, its hooks in `hooks/hooks.json`, tests in `tests/ops.test.mjs`; the choices the text left open are §8, 12 to 22.
+What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Claude Companion: every session of every project that installs the plugin, where it stands in the workflow, and the project's pages, domains and blueprints. Companion to `proposal.md` (the model: §4; the board removed: §5). Implemented at step 7 (2026-10-22): `plugins/selo/scripts/ops.mjs`, its hooks in `hooks/hooks.json`, tests in `tests/ops.test.mjs`; the choices the text left open are §8, 12 to 22. **Since selo 2.1.0 the export is the `selo-ops` plugin's** (`plugins/selo-ops/`, enabled at user scope) and covers every session, a selo project or a plain root: `ops-plugin.md`. Where this text says "the plugin" or `{plugin}`, read `selo-ops`.
 
 ## 1. Principles
 
@@ -16,7 +16,7 @@ What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Clau
 ```
 ~/.claude/selo/
   projects/{rootKey}.json     one per project root (a worktree is a root), §4
-  sessions/{sessionId}.json   one per session that ran a hook in a selo project, §5
+  sessions/{sessionId}.json   one per session that ran a hook, §5 (a plain root too since selo-ops 1.0.0: ops-plugin.md §3)
 ```
 
 Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, written by `run.mjs` (proposal §4.8). Selo Ops joins a session to its run by `root`; `repo` (the git common dir) says where to look.
@@ -52,7 +52,7 @@ type SeloProject = {
   schemaVersion: 1
   /** ISO 8601, everywhere in the export. */
   writtenAt: string
-  /** Which build wrote it: the plugin's version. */
+  /** Which build wrote it: the plugin's version (`selo-ops`' since its 1.0.0; `selo`'s version is in `installed_plugins.json`). */
   selo: string
   root: string
   /** The git common dir, absolute: the same from every worktree, joins the roots of one repository. Null without git. */
@@ -156,6 +156,8 @@ type SeloSession = {
   sessionId: string
   root: string
   rootKey: string
+  /** True in a selo project; false in a plain root (no `selo.yaml` up the tree: ops-plugin.md §3), whose runs are all `free`. Added by selo-ops 1.0.0. */
+  selo: boolean
   repo: string | null
   startedAt: string
   /** `live` from SessionStart to SessionEnd. Whether the process is alive is Claude Code's pid file. */
@@ -355,7 +357,7 @@ A session file is written by its own hooks only (§1.2): a file another session 
 1. **Tokens** → Not in the export. Selo Ops counts them from the transcript, as Companion does.
 2. **Claude Code's status vs the plugin's phase** → By Claude Code's status, never by timestamps (§6, "Pill: which source"): `running` / `awaitingAnswer` are Claude Code's, `idle` reads the plugin's phase. A timestamp rule was rejected: at a turn's end both files are written within milliseconds, and the pid file winning would hide an `awaiting-commit` behind `idle`.
 3. **A session with several roots** → One session file, its `root` the last root; every root it passed through gets its project file rescanned.
-4. **Idle projects** → `node {plugin}/scripts/ops.mjs scan {root}` rescans a project without a session; Selo Ops may run it, read-only, on the roots `installed_plugins.json` lists for `selo`.
+4. **Idle projects** → `node {selo-ops}/scripts/ops.mjs scan {root}` rescans a project without a session; Selo Ops may run it, read-only, on the roots `installed_plugins.json` lists for `selo` (selo's own `ops.mjs` is a stub since 2.1.0).
 
 2026-10-22, after a challenge of the export against "can I close this session?":
 

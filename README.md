@@ -12,6 +12,7 @@ Born from the tooling of a .NET / Angular project, rewritten generic.
 .claude-plugin/marketplace.json the marketplace: selo
 plugins/selo/                   the workflow plugin: agents, skills, scripts, templates, stacks, skins, docs, tests
   CHANGELOG.md                  why each rule of the process exists
+plugins/selo-ops/               the ops export for Selo Ops: hooks only, enabled once at user scope
 samples/todo-app/               a sample project built by the workflow itself
 docs/                           two HTML films: init, then the whole workflow on the todo app
 CLAUDE.md                       rules for working on this repository
@@ -26,6 +27,8 @@ In the project's folder (an empty one is fine):
 /plugin install selo@selo
 /selo:setup
 ```
+
+For Selo Ops, once per machine, in a shell: `claude plugin install selo-ops@selo --scope user`. Every session is then exported, in a selo project or not.
 
 `setup` interviews you (name, base branch, language, model preset, then each component: name, path, kind, stack, commands, URL) and writes the instruction layer: `selo.yaml`, `CLAUDE.md`, one autonomous `CLAUDE.md` per component, `.planning/`, `.claude/settings.json` (the marketplace known, the plugin enabled, push denied), `.claude/rules/`, `docs/CONTRIBUTING.md`. No application code: that is the job of a stack pack, or yours.
 

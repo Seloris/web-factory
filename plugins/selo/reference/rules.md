@@ -199,7 +199,7 @@ When the job committed, end with the done footer, the very last lines:
 - A free request answered without a commit ends with the recap line alone, so "done, nothing to commit" never looks like "stopped halfway".
 - No footer when the turn stops on a question, or on a failure before any commit; a stop after commits still ends with the footer.
 
-Selo Ops reads these shapes from the turn's last message (the ops export, `scripts/ops.mjs`): the footer as the last lines flags the job done; a commit message in a code block as the last text, its first line `{type}({scope}): …`, flags a commit waiting for its yes; a last line ending with `?`, or the question of a next-step box, flags a question. A turn that ends on none of them shows as ended without its footer.
+Selo Ops reads these shapes from the turn's last message (the ops export of the `selo-ops` plugin): the footer as the last lines flags the job done; a commit message in a code block as the last text, its first line `{type}({scope}): …`, flags a commit waiting for its yes; a last line ending with `?`, or the question of a next-step box, flags a question. A turn that ends on none of them shows as ended without its footer.
 
 ## Marks
 

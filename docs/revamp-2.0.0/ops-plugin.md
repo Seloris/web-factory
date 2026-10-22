@@ -1,6 +1,6 @@
-# selo 2.0 — the ops export in its own plugin (proposal, 2026-10-22)
+# selo 2.0 — the ops export in its own plugin (proposal, 2026-10-22; implemented: selo 2.1.0, selo-ops 1.0.0)
 
-The ops export (`ops-export.md`) leaves the `selo` plugin for a plugin of its own, `selo-ops`, in the same marketplace, enabled once at user scope. Every Claude Code session then reaches Selo Ops, in a selo project or not: the person adds a workspace without thinking about it. Nothing is implemented yet.
+The ops export (`ops-export.md`) leaves the `selo` plugin for a plugin of its own, `selo-ops`, in the same marketplace, enabled once at user scope. Every Claude Code session then reaches Selo Ops, in a selo project or not: the person adds a workspace without thinking about it. Implemented on 2026-10-22; §9 records what the implementation settled.
 
 ## 1. Why
 
@@ -70,8 +70,18 @@ Changes to the dashboard, by a blueprint in its own repository:
 - **Prompts on disk.** A run's `request` and `recap` of every workspace land in `~/.claude/selo/`, beside the transcripts Claude Code already keeps in `~/.claude/projects/`: local, not new in kind, wider in reach.
 - **Version skew.** `selo-ops` parses `selo.yaml` and the blueprints with its copies of `manifest.mjs` and `spec-check.mjs`; a project pinned to an older `selo` may differ in format. Both plugins are released from one commit; a project that stays behind gets `error` on its project file, never a failing hook.
 
-## 8. Open questions
+## 8. Open questions (settled)
 
-1. `baseBranch` of a plain root: `main` by default, or the upstream's default branch (`git symbolic-ref refs/remotes/origin/HEAD`), one more git call per scan.
-2. Should a `free` run in a plain root keep the `/selo:` lanes when the person types one there by mistake? Proposed: no, `free`.
-3. `claude plugin validate` on two plugins of one marketplace sharing script names: to check at implementation.
+1. `baseBranch` of a plain root → `main`. A repository without it gets `aheadCount: null`, harmless; no extra git call.
+2. A `/selo:` prompt in a plain root → `free`.
+3. `claude plugin validate` → passes on `plugins/selo`, `plugins/selo-ops` and the marketplace (`.`).
+
+## 9. Settled at implementation
+
+- **§3 "every prompt opens a `free` run"** is read as: the lane is always `free`, and the continuation rule of `ops-export.md` §5.2 stays. A "oui" to a proposed commit keeps the run (and its `pendingCommit` clears), as in a selo project.
+- **`job-done` in a plain root** needs no code: no footer there, so `classifyEnd` never reads one. The change is `closeOf` only: `not-done` is skipped when `selo` is false.
+- **A plain root's project file has `error: null`**: no `readManifest`, no `.planning` read. A repository without selo is not a broken project; `manifest: null` with `error: null` is how Selo Ops tells it.
+- **Root**: `findRoot` stops at the first `.git` without a `selo.yaml`; the plain root is then `git rev-parse --show-toplevel`, else the `cwd`. A selo project in a sub-folder of a repository stays a selo root from inside it.
+- **The two `selo` fields**: the session's `selo` is a boolean (new); the project header's `selo` stays "the writer's version", now `selo-ops`'. Different files, different meanings, both in `ops-export.md`.
+- **The stub** is a comment-only module: any mode exits 0 and prints nothing, so an older `scan` caller on `selo`'s path stays silent (and writes nothing).
+- **Marketplace source** is a local directory: no push is needed for `install selo-ops@selo`; `claude plugin marketplace update selo` may be needed first for the new entry to be seen.

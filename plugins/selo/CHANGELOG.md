@@ -2,6 +2,15 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-22 — selo 2.1.0: the ops export moves to its own plugin, selo-ops
+
+The export reached Selo Ops only from sessions where `selo` was enabled, and left at once without a `selo.yaml`: a session in any other workspace never showed on the dashboard. Enabling `selo` at user scope would list every `/selo:*` skill in every session; a user-level hook pointing at this repository would run its working copy, outside any version. The proposal is `docs/revamp-2.0.0/ops-plugin.md`.
+
+- **`selo-ops`, a plugin of hooks only**, in the same marketplace, enabled once at user scope: `claude plugin install selo-ops@selo --scope user`. It adds nothing to a session's context. **A selo project now needs it to reach Selo Ops.**
+- **`selo` keeps the commit hook only.** `scripts/ops.mjs` is a stub: `mark` prints nothing and does nothing, as before; the skills, `reference/rules.md` **Marks** and the allow of `templates/settings.json` are unchanged (the `selo-ops` hook reads the command, whatever the plugin's path). `tests/ops.test.mjs` moved to `selo-ops`.
+- **Roll-out order.** Update `selo` in each selo project first, then install `selo-ops`: a project still on `selo` 2.0.x with `selo-ops` installed would write every event twice.
+- **Shared scripts.** `selo-ops` carries byte-identical copies of `manifest.mjs`, `spec-check.mjs`, `commit-hook.mjs` and `slots.mjs` (a plugin cannot import another's files); `selo` stays their source, and a test of `selo-ops` fails when a copy differs.
+
 ## 2026-10-22 — selo 2.0.3: the request read past the harness's context blocks
 
 Selo Ops showed « Demande non lisible dans l'export » for prompts sent from an artifact view: the desktop app puts an `<artifact-view-context>` block of 200+ characters before the person's text, and the 200-character cut kept only the start of that block.
