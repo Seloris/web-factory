@@ -216,11 +216,13 @@ test("subagents: an autopilot stands for the runs it spawns", () => {
   hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Agent", tool_input: { description: "Build stage 1", prompt: "p" } });
   hook(ops, { ...base, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "general-purpose" });
   assert.equal(session().runs[0].task, "Build stage 1", "the task of the call of its type");
+  assert.equal(session().runs[0].agentType, "general-purpose");
   assert.deepEqual(session().pendingAgents, [{ type: "reviewer", task: "Review the code" }]);
   hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: `${BP} — stage 1 — autonomous` } });
   let s = session();
   assert.equal(s.runs[0].agentId, "a1");
   assert.equal(s.runs[0].lane, "build");
+  assert.equal(s.runs[0].agentType, "general-purpose", "a skill keeps the subagent's type");
   assert.equal(s.current.lane, "autopilot");
   assert.equal(s.current.step, "stage:1");
   hook(ops, { ...base, hook_event_name: "PostToolUse", tool_name: "mcp__ccd_turn__wrap_up", tool_input: { recap: "r", ask: "Land it?" } });
@@ -234,6 +236,12 @@ test("subagents: an autopilot stands for the runs it spawns", () => {
   assert.equal(s.current.question, "Land it?");
   hook(ops, { ...base, hook_event_name: "SubagentStop", agent_id: "a1", last_assistant_message: "## ✅ JOB DONE\n> stage 1" });
   assert.equal(session().runs[0].phase, "job-done");
+  const before = session().runs.length;
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: `<agent-message from="a1">\n[Subagent hand-back] done</agent-message>` });
+  s = session();
+  assert.equal(s.runs.length, before, "a hand-back opens no run");
+  assert.equal(s.current.lane, "autopilot");
+  assert.equal(s.current.phase, "working");
   hook(ops, { ...base, hook_event_name: "SubagentStart", agent_id: "a2" });
   hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Stopped." });
   assert.equal(session().runs[0].phase, "stopped", "a subagent with no SubagentStop ends with its turn");

@@ -28,7 +28,7 @@ Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, w
 | Hook | Matcher | `ops.mjs` does |
 |---|---|---|
 | `SessionStart` | | Writes the session file (`status: live`, root, repo, `startedAt`, `transcriptPath`, `model` when the input has it), rescans the project. |
-| `UserPromptSubmit` | | A `/selo:{lane} …` prompt opens a run on its step (§5.2); any other prompt opens a `free` run, or keeps the current run when it answers its question (a commit's yes, an answer). Phase → `working`. |
+| `UserPromptSubmit` | | A `/selo:{lane} …` prompt opens a run on its step (§5.2); any other prompt opens a `free` run, or keeps the current run when it answers its question (a commit's yes, an answer). A subagent's hand-back (`<agent-message from="{agent_id}">` of a known subagent run) keeps the main run too. Phase → `working`. |
 | `PreToolUse` | `Skill` | Same as above for a brief-driven call: an autopilot's subagents run the skills through the Skill tool, never from a typed prompt. `agent_id` makes it a subagent run. |
 | `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. A `node {plugin}/scripts/ops.mjs mark …` command sets the run's `substep` and `sheets` (§5.4). |
 | `PostToolUse` | `Edit\|Write\|NotebookEdit` | Adds the path to the session's `touchedFiles`. A file under `.planning/blueprints/` names the run's `blueprint` (a draft has one before its commit); a file under `.planning/pages/` or `.planning/domain/` adds its sheet to `sheets`. |
@@ -188,6 +188,8 @@ type Run = {
   id: string
   /** The subagent the run works in (an autopilot's build, a review); null for the main loop. */
   agentId: string | null
+  /** The subagent's `agent_type`, from `SubagentStart`; kept when a skill names its lane. Null for the main loop. */
+  agentType: string | null
   lane: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
   /** The prompt's text after the command, shortened to 200 characters; a subagent's `agent_type` until a skill names its lane. */
   request: string

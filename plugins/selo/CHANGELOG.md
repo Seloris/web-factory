@@ -2,6 +2,13 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-22 — selo 2.0.2: the subagent's type and its hand-back in the ops export
+
+Selo Ops, on the first real sessions: a subagent run lost its type as soon as it ran a skill, and a subagent's hand-back showed as a new turn of the session, its report as the request.
+
+- **`agentType` on a run.** `SubagentStart` sets it from `agent_type`; a skill run by the subagent no longer erases it (`request` held the type, and the skill's arguments replaced it).
+- **A hand-back opens no run.** Claude Code passes a subagent's report to the main loop as a `UserPromptSubmit` whose prompt starts with `<agent-message from="{agent_id}">`. When that id is a subagent run of the session, the main run continues (`working`) instead of a `free` run opening.
+
 ## 2026-10-22 — selo 2.0.1: the model and the subagents' tasks in the ops export
 
 Selo Ops showed no model and no subagent task: every session file of the first real sessions had `model: null`, and a subagent run held only its type.

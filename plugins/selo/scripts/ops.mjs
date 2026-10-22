@@ -281,7 +281,7 @@ export const newSession = (id, root) => ({
 
 const openRun = (s, fields, agentId = null) => {
   const since = now();
-  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, commits: [], resumePrompt: null, since, updatedAt: since, ...fields };
+  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, commits: [], resumePrompt: null, since, updatedAt: since, ...fields };
   s.runs = [run, ...s.runs].slice(0, MAX_RUNS);
   return run;
 };
@@ -374,6 +374,13 @@ export function applyHook(s, e, root) {
     s.ask = null;
     const p = parsePrompt(e.prompt, root);
     const cur = mainRun(s);
+    // A subagent's hand-back comes as a prompt: it continues the main run, it asks nothing.
+    const from = /^s*<agent-message from="([^"]+)"/.exec(e.prompt ?? "")?.[1];
+    if (from && cur && s.runs.some((r) => r.agentId === from)) {
+      Object.assign(cur, { phase: "working", pendingCommit: null, question: null, error: null });
+      touch(cur);
+      return false;
+    }
     // A prompt that answers the run (a commit's yes, an answer, a word after an Esc) keeps it.
     if (p.lane === "free" && cur && ["awaiting-commit", "awaiting-answer", "working"].includes(cur.phase)) {
       Object.assign(cur, { phase: "working", pendingCommit: null, question: null, error: null });
@@ -471,7 +478,7 @@ export function applyHook(s, e, root) {
     const i = pending.findIndex((p) => p.type === type);
     const task = i >= 0 ? pending.splice(i, 1)[0].task : null;
     s.pendingAgents = pending;
-    openRun(s, { request: type, task }, agentId);
+    openRun(s, { agentType: type || null, request: type, task }, agentId);
     return false;
   }
   if (event === "SubagentStop") {
