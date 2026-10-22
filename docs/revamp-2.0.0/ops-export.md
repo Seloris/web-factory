@@ -153,6 +153,8 @@ The stage `sha` is found as the board finds it: a commit whose subject equals th
 type SeloSession = {
   schemaVersion: 1
   writtenAt: string
+  /** The version of `selo-ops` that wrote the file, at every write; null if its `plugin.json` is unreadable. Added by selo-ops 2.2.1. */
+  writtenBy: string | null
   sessionId: string
   root: string
   rootKey: string
@@ -350,6 +352,7 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 {
   "schemaVersion": 1,
   "writtenAt": "2026-10-21T14:02:11.000Z",
+  "writtenBy": "2.2.1",
   "sessionId": "59ec7eff-18ab-44b0-829d-e33b4e8e040e",
   "root": "C:/WS/ia-projects/selo-ops",
   "rootKey": "C--WS-ia-projects-selo-ops",

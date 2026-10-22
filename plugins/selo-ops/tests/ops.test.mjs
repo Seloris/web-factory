@@ -195,6 +195,7 @@ test("hooks write the session and project files of a build", () => {
 
   const p = projectFile();
   assert.equal(p.schemaVersion, 1);
+  assert.equal(session().writtenBy, JSON.parse(readFileSync(new URL("../.claude-plugin/plugin.json", import.meta.url), "utf8")).version);
   assert.equal(p.branch, "main");
   assert.equal(p.aheadCount, null);
   assert.equal(p.unpushedCount, null);

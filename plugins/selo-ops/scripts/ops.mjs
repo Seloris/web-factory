@@ -306,7 +306,7 @@ export function closeOf(s) {
 }
 
 export const newSession = (id, root) => ({
-  schemaVersion: SCHEMA, writtenAt: now(), sessionId: id, root: normRoot(root), rootKey: rootKey(root), selo: true, repo: null, startedAt: now(), status: "live",
+  schemaVersion: SCHEMA, writtenAt: now(), writtenBy: VERSION, sessionId: id, root: normRoot(root), rootKey: rootKey(root), selo: true, repo: null, startedAt: now(), status: "live",
   transcriptPath: null, model: null, permissionMode: null, effort: null, pendingAgents: [], touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null, usage: null,
 });
 
@@ -675,6 +675,7 @@ export async function handle(e, { dir = opsDir(), deadline = Date.now() + 4000 }
       const project = rescan ? scanProject(root, { dir, selo }) : null;
       moveStep(s, project);
       s.writtenAt = now();
+      s.writtenBy = VERSION;
       s.current = mainRun(s);
       writeJson(file, s);
       // After the session file: the project's blueprints list the sessions working on them, this one included.

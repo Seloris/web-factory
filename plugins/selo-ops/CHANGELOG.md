@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-23 — selo-ops 2.2.1: the session file says which version wrote it
+
+A session file carried no version: a reader could not tell a file of 1.0.0 from one of 2.2.0. Its new field `writtenBy` is the version of `selo-ops` that wrote it, set at every write (null if `plugin.json` is unreadable). Forward-only: `schemaVersion` stays 1. The project file already has it, as `selo`.
+
 ## 2026-10-22 — selo-ops 2.2.0: what each run consumed, and no empty run on a background subagent's end
 
 Selo Ops showed what a session does, not what it costs nor on which models it ran (`docs/revamp-2.2.0/proposal.md`). The version jumps from 1.0.0 to 2.2.0 to align with `selo`, released with it. Forward-only: `schemaVersion` stays 1, a 1.0.0 reader ignores the new fields.
