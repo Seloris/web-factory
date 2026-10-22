@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  PORT: z.coerce.number().int().positive().default(3000),
+  PORT: z.coerce.number().int().positive().default({{api_port}}),
   PGLITE_DIR: z.string().default(".data/pglite"),
 });
 

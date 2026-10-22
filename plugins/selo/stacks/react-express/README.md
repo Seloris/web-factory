@@ -16,7 +16,7 @@ Two component templates and three skills, TypeScript end to end, Node 22 or late
 
 ## Skeleton
 
-The minimum for which every command the templates declare passes with zero features. `setup` copies `skeleton/{kind}/` into the component's path when that path holds nothing but its `CLAUDE.md`, fills the placeholders (`{{name}}`, `{{node_version}}`, `{{api_url}}`), then runs **`npm install`** from the component's path (a front then gets its skin's tokens and fonts, see Skin below), and checks that the component's `build` and `test` commands are green before committing. Dependency versions are pinned; `npm install` writes the lock file the project commits, and `npm ci` is the setup from then on.
+The minimum for which every command the templates declare passes with zero features. `setup` copies `skeleton/{kind}/` into the component's path when that path holds nothing but its `CLAUDE.md`, fills the placeholders (`{{name}}`, `{{node_version}}`, the ports), then runs **`npm install`** from the component's path (a front then gets its skin's tokens and fonts, see Skin below), and checks that the component's `build` and `test` commands are green before committing. Dependency versions are pinned; `npm install` writes the lock file the project commits, and `npm ci` is the setup from then on.
 
 - **api**: `src/app.ts`, `server.ts`, `config.ts`; `db/schema.ts` and `db/client.ts` on PGlite; `shared/errors.ts` (the `AppError`s and the problem-details middleware), `validate.ts`, `clock.ts`, `openapi.ts` (the registry); `scripts/export-openapi.ts`; `test/setup.ts`, `test/factories.ts` and `test/shared/errors.test.ts` (a body that is not valid JSON gets a `400`); `drizzle.config.ts`, an empty migrations journal, `.data/.gitkeep` (PGlite needs the parent folder); Vitest, eslint flat config, strict tsconfig. One route, `GET /health`, in `features/health/` with its Supertest test: it proves the chain (app, clock, test context, OpenAPI registration) and is the first reference test. `src/demo.ts` and an empty `src/seed/demo.ts` give `npm run demo`: the app on an in-memory PGlite, migrated and seeded at each start, on `{{api_demo_port}}`.
 - **front**: Vite with the React plugin and the `/api` proxy, `src/main.tsx` (the theme imports first, then QueryClientProvider, RouterProvider), `src/router.tsx` (one route), `src/api/client.ts` (`openapi-fetch`) and an empty but valid `src/api/schema.d.ts`, so `build` is green before the first `handoff` / `prepare`; `src/shared/ui/theme/base.css`, an empty `overrides.css` and an empty `fonts.ts` (the skin's `skin.css` and its font imports come from the skin, below); the shared components of `src/shared/ui/` (below); eslint flat config with the React hooks rules, strict tsconfig; `npm run demo` serves it in the `demo` mode on `{{demo_port}}`, its `/api` proxy on the API's demo, with `--force`.
@@ -30,6 +30,15 @@ Where `setup` finds a front's pages (the route scan, `setup` and `setup specs`).
 - **Not a page:** an entry with no `path` and `children` (a layout: the shell, `domain/app.md`), a `*` entry (not found: `app`), an entry whose `element` is a `<Navigate>` (a redirect), an `element` that renders placeholder markup and no page module (the skeleton's `<h1>`): the scan lists none of them as a page.
 
 A route defined anywhere else (a second router, routes built in a loop) is named in the scan's report, with its file, for the person to place.
+
+## Ports
+
+How a run of the app (the selo plugin's `run.mjs`, behind `/selo:run`, `try` and `npm run app`) reaches the components' scripts; `setup update` applies it to a component of a 1.0 project (its step "Ports instead of urls").
+
+- **Keys.** Each component block carries `port` (dev) and `demo_port` (demo), the base ports: a run on slot n adds 10 × n. No `url`, `serve_url` or `demo_url`.
+- **API.** `src/config.ts` reads `PORT` (default `{{api_port}}`), `src/demo.ts` reads `PORT` (default `{{api_demo_port}}`). Its PGlite folder (`.data/pglite`) belongs to the worktree: a dev API started by hand and a run on the same worktree cannot share it, stop the first.
+- **Front.** `vite.config.ts` sets `server.port` from `PORT` (default `{{port}}`, `{{demo_port}}` in the `demo` mode) with `strictPort: true`, and the `/api` proxy's target from `API_URL` (default the API's base port of the mode). The `demo` script is `vite --mode demo --force`, with no `--port`: the config gives it. Never `$PORT` in a `package.json` script: `cmd.exe` does not expand it.
+- **`npm run app`.** `setup` writes the project's `selo-run.mjs` launcher, and this pack adds, in a `package.json` at the project's root (created with `"private": true` and nothing else when absent), the scripts `"app": "node selo-run.mjs"` and `"app:demo": "node selo-run.mjs --demo"`: `npm run app` starts every component on the worktree's slot, Ctrl+C stops them.
 
 ## Skin
 
@@ -93,24 +102,25 @@ The API's route tests run in-process against in-memory PGlite: they touch no ext
 
 The front has no unit tests of its components, as in the workflow's default: the `try` skill checks a change on the demo. Its pure `.ts` modules (no React, no DOM) may have Vitest tests: the project adds Vitest and `test: npx vitest run` to its front component, and every front stage then gains a test step.
 
-The demo (`commands.demo`, `demo_url` in both component blocks) is what `try` runs on by default: seeded data, its own ports, started in the background and stopped after the test, so the developer's servers and local database are never touched.
+The demo (`commands.demo`, `demo_port` in both component blocks) is what `try` runs on by default: seeded data, its own ports, started in the background and stopped after the test, so the developer's servers and local database are never touched.
 
 ## Placeholders
 
-The templates' `{{placeholders}}` are asked by `setup` (round 2, after the common ones: `{{name}}`, `{{description}}`, `{{url}}`, `{{logins}}`, `{{skin}}`), with these recommended values. An optional one left empty drops its line.
+The templates' `{{placeholders}}` are asked by `setup` (round 2, after the common ones: `{{name}}`, `{{description}}`, `{{logins}}`, `{{skin}}`), with these recommended values. An optional one left empty drops its line.
 
 | Placeholder | Template | Recommended | Meaning |
 |---|---|---|---|
 | `{{handoff_file}}` | api | `openapi.json` | the API's OpenAPI document, relative to the api component |
 | `{{api_handoff}}` | front | `../api/openapi.json` | the same file seen from the front component |
-| `{{api_url}}` | api, front | `http://localhost:3000` | where the API listens locally (the front's `/api` proxy target) |
+| `{{api_port}}` | api, front | `3000` | the API's dev port, the api component's `port` (the front's `/api` proxy target without `API_URL`) |
+| `{{port}}` | front | `5173` | the front's dev port, the component's `port` |
 | `{{node_version}}` | api, front | `22` | the Node major version |
 | `{{reference_tests}}` | api | `test/health/health.routes.test.ts` | the test files `write-api-tests` imitates: the skeleton's health route test until the project has richer ones |
 | `{{authenticated_calls}}` | api | `` `seed.user({ roles })` then `.set(authHeader(user))` `` when the application has a sign-in; empty otherwise (optional) | how a route test authenticates |
 | `{{i18n_file}}` | front | `src/shared/lib/i18n/{lang}.json` | where the translation keys live |
 | `{{styling}}` | front | `CSS Modules` | the styling approach |
-| `{{api_demo_port}}` | api, front | `3101` | the port of the API's demo (`npm run demo`), apart from the dev server's |
-| `{{demo_port}}` | front | `5181` | the port of the front's demo, the component's `demo_url` |
+| `{{api_demo_port}}` | api, front | `3101` | the port of the API's demo (`npm run demo`), the api component's `demo_port` |
+| `{{demo_port}}` | front | `5181` | the port of the front's demo, the component's `demo_port` |
 | `{{local_dependencies}}` | api | empty (optional) | what else must run locally (a third-party API, a queue…) |
 
 Conventions worth keeping when the templates are adapted: time through an injected `Clock`, never `new Date()` or `Date.now()` in services; booleans with the `is`/`has`/`can` prefix; one zod schema per input and output, the TypeScript types inferred from it (`z.infer`), never declared twice; errors as typed `AppError`s mapped to problem details by one middleware, never a bare `throw new Error`; no hand-edited migration; every write route's test asserts the database state.
