@@ -9,11 +9,6 @@
       "name": "selo-flow",
       "source": "./plugins/selo-flow",
       "description": "The workflow: /selo-flow:init sets up the project, then write-spec, write-plan, implement, autopilot, grill-me and review run the spec → plan → code → review loop, driven by the project's selo-flow.yaml manifest."
-    },
-    {
-      "name": "selo-flow-board",
-      "source": "./plugins/selo-flow-board",
-      "description": "A mod (function hooks) for selo-flow: a pane that lists the project's features, their dev plans and the stages running in other sessions, and prepares the next /selo-flow: prompt with one button."
     }
   ]
 }

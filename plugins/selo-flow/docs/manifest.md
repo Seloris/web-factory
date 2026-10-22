@@ -34,7 +34,7 @@ A key the parser does not know (at the top level, in a component, its `commands`
 
 ### Models
 
-One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). The one preset, `standard`, is the recommended set; `init` asks for each role with it as the answer, and writes the map only for the roles the person changed (the board's `⚙ Modèles` screen writes it the same way):
+One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). The one preset, `standard`, is the recommended set; `init` asks for each role with it as the answer, and writes the map only for the roles the person changed:
 
 | Role | `standard` |
 |---|---|

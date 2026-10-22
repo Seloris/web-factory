@@ -9,10 +9,9 @@ Born from the tooling of a .NET / Angular project, rewritten generic.
 ## Layout
 
 ```
-.claude-plugin/marketplace.json the marketplace: selo-flow, selo-flow-board
+.claude-plugin/marketplace.json the marketplace: selo-flow
 plugins/selo-flow/                the workflow plugin: agents, skills, scripts, templates, stacks, skins, docs, tests
   CHANGELOG.md                  why each rule of the process exists
-plugins/selo-flow-board/          the board mod: a pane that follows the features and prepares the next prompt
 samples/todo-app/               a sample project built by the workflow itself
 docs/                           two HTML films: init, then the whole workflow on the todo app
 CLAUDE.md                       rules for working on this repository
@@ -55,14 +54,6 @@ node --test "plugins/*/tests/*.test.mjs"
 
 ```bash
 claude plugin validate plugins/selo-flow
-```
-
-```bash
-claude plugin validate plugins/selo-flow-board
-```
-
-```bash
-claude plugin test plugins/selo-flow-board
 ```
 
 ```bash
