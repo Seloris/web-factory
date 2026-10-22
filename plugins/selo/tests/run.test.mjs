@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { envFor, envName, killTree, plan } from "../scripts/run.mjs";
+import { envFor, envName, killTree, plan, portFree } from "../scripts/run.mjs";
 import { project, runScript, slotFile, start, stopRun, waitFree } from "./fixtures/run-project.mjs";
-import { chooseSlot, isAlive, normRoot, withLock } from "../scripts/slots.mjs";
+import { bootTime, chooseSlot, isAlive, isLive, normRoot, withLock } from "../scripts/slots.mjs";
 import { readManifest } from "../scripts/manifest.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -16,9 +16,10 @@ const example = join(here, "..", "examples", "two-components");
 
 const alive = (pids) => (pid) => pids.includes(pid);
 const allFree = async () => true;
+const boot = bootTime();
 
 test("chooseSlot: this root's live run is reused", async () => {
-  const records = [{ slot: 2, root: "C:/a", pid: 10, stoppedAt: null, components: [] }];
+  const records = [{ slot: 2, root: "C:/a", pid: 10, boot, stoppedAt: null, components: [] }];
   assert.deepEqual(await chooseSlot({ records, root: "C:/a", alive: alive([10]), portsFree: allFree }), { slot: 2, reused: true });
 });
 
@@ -32,9 +33,9 @@ test("chooseSlot: else the slot this root had last, when free", async () => {
 
 test("chooseSlot: else the lowest free slot; a live run of another root holds its slot, a dead pid frees it", async () => {
   const records = [
-    { slot: 0, root: "C:/b", pid: 20, stoppedAt: null, components: [] },
-    { slot: 1, root: "C:/c", pid: 21, stoppedAt: null, components: [{ name: "web", pid: 22 }] },
-    { slot: 2, root: "C:/d", pid: 23, stoppedAt: null, components: [] },
+    { slot: 0, root: "C:/b", pid: 20, boot, stoppedAt: null, components: [] },
+    { slot: 1, root: "C:/c", pid: 21, boot, stoppedAt: null, components: [{ name: "web", pid: 22 }] },
+    { slot: 2, root: "C:/d", pid: 23, boot, stoppedAt: null, components: [] },
   ];
   assert.equal((await chooseSlot({ records, root: "C:/a", alive: alive([20, 22]), portsFree: allFree })).slot, 2, "slot 2's pid is dead");
   assert.equal((await chooseSlot({ records, root: "C:/a", alive: alive([20, 22, 23]), portsFree: allFree })).slot, 3);
@@ -45,6 +46,14 @@ test("chooseSlot: a taken port moves the run to the next slot, its last slot inc
   const portsFree = async (n) => n !== 0 && n !== 1;
   assert.equal((await chooseSlot({ records, root: "C:/a", alive: alive([]), portsFree })).slot, 2);
   await assert.rejects(chooseSlot({ records: [], root: "C:/a", alive: alive([]), portsFree: async () => false }), /No free slot/);
+});
+
+test("isLive: a run recorded before this boot is dead, whatever its pids", () => {
+  const rec = { slot: 0, root: "C:/a", pid: 10, boot, stoppedAt: null, components: [] };
+  assert.equal(isLive(rec, alive([10])), true);
+  assert.equal(isLive({ ...rec, boot: boot - 86400000 }, alive([10])), false, "an older boot");
+  assert.equal(isLive({ ...rec, boot: undefined }, alive([10])), false, "no boot recorded");
+  assert.equal(isLive({ ...rec, stoppedAt: "t" }, alive([10])), false);
 });
 
 test("normRoot, envName, envFor: the root's form, the peers' urls on the slot", () => {
@@ -124,6 +133,43 @@ test("run.mjs: a taken port moves the run to slot 1, --stop frees it, the next r
     assert.ok(await waitFree(base + 10));
   } finally {
     squatter.close();
+    for (const pid of pids) killTree(pid);
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+});
+
+test("run.mjs: a slot file left from before this boot never reaches a live process with a reused pid", { timeout: 60000 }, async () => {
+  const { dir, base } = project();
+  const sleeper = spawn(process.execPath, ["-e", "setInterval(() => {}, 1e9)"], { stdio: "ignore" });
+  const pids = [];
+  try {
+    mkdirSync(join(dir, ".git", "selo", "slots"), { recursive: true });
+    const stale = { slot: 0, root: normRoot(dir), pid: sleeper.pid, boot: bootTime() - 86400000, startedAt: "t", stoppedAt: null, components: [{ name: "srv", mode: "dev", url: `http://localhost:${base}`, pid: sleeper.pid }] };
+    writeFileSync(join(dir, ".git", "selo", "slots", "0.json"), JSON.stringify(stale));
+    const { child, run } = await start(dir);
+    pids.push(child.pid);
+    assert.deepEqual([run.slot, run.components[0].started], [0, true], "the stale run is not reused: srv is started");
+    assert.match(stopRun(dir), /Slot 0: stopped srv \(dev\)/);
+    assert.ok(await waitFree(base));
+    assert.ok(isAlive(sleeper.pid), "the process holding the old pid is left alone");
+  } finally {
+    sleeper.kill();
+    for (const pid of pids) killTree(pid);
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+});
+
+test("run.mjs --stop: components named stop in one mode only, dev unless --demo", { timeout: 60000 }, async () => {
+  const { dir, base } = project();
+  const pids = [];
+  try {
+    const { child } = await start(dir);
+    pids.push(child.pid);
+    assert.match(stopRun(dir, ["srv", "--demo"]), /stopped nothing/, "no demo of srv runs: its dev server stays");
+    assert.equal(await portFree(base), false);
+    assert.match(stopRun(dir, ["srv"]), /stopped srv \(dev\)/);
+    assert.ok(await waitFree(base));
+  } finally {
     for (const pid of pids) killTree(pid);
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }

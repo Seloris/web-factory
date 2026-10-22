@@ -5,6 +5,7 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { uptime } from "node:os";
 import { join, resolve } from "node:path";
 
 export const MAX_SLOTS = 20;
@@ -28,8 +29,14 @@ export const isAlive = (pid) => {
   }
 };
 
-// A run is live while it is not stopped and its supervisor or one of its components is alive.
-export const isLive = (rec, alive = isAlive) => !!rec && rec.stoppedAt == null && (alive(rec.pid) || (rec.components ?? []).some((c) => alive(c.pid)));
+// When this machine booted: a run recorded before it is dead, whatever its pids (Windows reuses them fast).
+export const bootTime = () => Date.now() - uptime() * 1000;
+
+// A run is live while it is not stopped, was recorded since this boot, and its supervisor or one of its
+// components is alive.
+// shortcut: a pid reused within the same boot still reads as alive; record each process's start time if it bites.
+export const isLive = (rec, alive = isAlive) =>
+  !!rec && rec.stoppedAt == null && rec.boot != null && Math.abs(rec.boot - bootTime()) < 120000 && (alive(rec.pid) || (rec.components ?? []).some((c) => alive(c.pid)));
 
 export const readSlots = (dir) =>
   existsSync(join(dir, "slots"))

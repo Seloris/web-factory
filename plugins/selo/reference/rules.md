@@ -32,7 +32,7 @@ One script starts a project's components: `node ${CLAUDE_PLUGIN_ROOT}/scripts/ru
 
 - **Slots.** Each run takes a slot, so several worktrees run their copy side by side: on slot n every port is the base port + 10 × n (slot 0 = the base ports). The slot is chosen when the run starts: this root's live run is reused, else the slot this root had last when it is free, else the lowest free one; a slot is free when no live run holds it and its ports are free. Recorded in `{git-common-dir}/selo/slots/{n}.json`, shared by every worktree of the repository.
 - **What it starts.** The components named (all by default) and those they `need`, in `stages` order, each awaited on its url: their `demo` with `--demo` when every one of them has one, else their `serve`. Each command gets `PORT`, `SELO_SLOT` and the `{NAME}_URL` of each component it needs. It stays in the foreground (a background command in a session) and prints one `SELO_RUN {json}` line once everything answers: the slot, the mode, each component's url and whether this call `started` it or found it running.
-- **Stop.** `run.mjs --stop [component …] [--demo]` stops this root's run, or those components of it. Stop only what you started: a component found running belongs to someone else.
+- **Stop.** `run.mjs --stop [component …] [--demo]` stops this root's run, or those components of it (named ones in one mode: dev, or demo with `--demo`). Stop only what you started: a component found running belongs to someone else.
 - **Demo.** A slot's demo serves one session at a time: `--demo` exits with code 3 while another live run holds it.
 
 ## Specs: pages and domains

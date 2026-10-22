@@ -37,7 +37,7 @@ export const start = (cwd, script = runScript, env = process.env) =>
     child.once("exit", (code) => fail(new Error(`run exited ${code}: ${text}`)));
   });
 
-export const stopRun = (cwd) => execFileSync(process.execPath, [runScript, "--stop"], { cwd, encoding: "utf8" });
+export const stopRun = (cwd, args = []) => execFileSync(process.execPath, [runScript, "--stop", ...args], { cwd, encoding: "utf8" });
 export const slotFile = (dir, n) => JSON.parse(readFileSync(join(dir, ".git", "selo", "slots", `${n}.json`), "utf8"));
 export const waitFree = async (port) => {
   for (let i = 0; i < 40 && !(await portFree(port)); i++) await new Promise((r) => setTimeout(r, 100));

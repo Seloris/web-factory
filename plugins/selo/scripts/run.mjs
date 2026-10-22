@@ -17,7 +17,7 @@ import { createInterface } from "node:readline";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readManifest, SLOT_STEP, stages } from "./manifest.mjs";
-import { chooseSlot, isAlive, isLive, normRoot, readSlots, seloDir, withLock, writeSlot } from "./slots.mjs";
+import { bootTime, chooseSlot, isAlive, isLive, normRoot, readSlots, seloDir, withLock, writeSlot } from "./slots.mjs";
 
 export { MAX_SLOTS } from "./slots.mjs";
 
@@ -111,13 +111,14 @@ const stop = async ({ root, dir, names, demo, out }) => {
     const rec = readSlots(dir).find((r) => r.root === root && isLive(r));
     if (!rec) return null;
     const all = names.length === 0 || names.includes("all");
-    const hit = rec.components.filter((c) => (all || names.includes(c.name)) && (!demo || c.mode === "demo"));
+    // Components named: that mode only (dev without --demo), so a test's demo stop never hits the dev servers.
+    const modeOk = (c) => (demo ? c.mode === "demo" : all || c.mode === "dev");
+    const hit = rec.components.filter((c) => (all || names.includes(c.name)) && modeOk(c));
+    // Only the components: a supervisor ends by itself with its last child, and one still starting has
+    // entries that carry its own pid.
     hit.forEach((c) => killTree(c.pid));
     rec.components = rec.components.filter((c) => !hit.includes(c) && isAlive(c.pid));
-    if (rec.components.length === 0) {
-      if (rec.pid !== process.pid) killTree(rec.pid);
-      rec.stoppedAt = now();
-    }
+    if (rec.components.length === 0) rec.stoppedAt = now();
     if (!rec.components.some((c) => c.mode === "demo")) rmSync(join(dir, "slots", `${rec.slot}.demo.lock`), { force: true });
     writeSlot(dir, rec);
     return { slot: rec.slot, hit };
@@ -144,7 +145,7 @@ export const main = async (argv, { cwd = process.cwd(), out = (l) => console.log
     const records = readSlots(dir);
     const portsFree = async (n) => (await Promise.all(units.map((u) => portFree(u.port + SLOT_STEP * n)))).every(Boolean);
     const { slot, reused } = await chooseSlot({ records, root, portsFree });
-    const rec = reused ? records.find((r) => r.slot === slot) : { slot, root, pid: process.pid, startedAt: now(), stoppedAt: null, components: [] };
+    const rec = reused ? records.find((r) => r.slot === slot) : { slot, root, pid: process.pid, boot: bootTime(), startedAt: now(), stoppedAt: null, components: [] };
     rec.components = rec.components.filter((c) => isAlive(c.pid));
     const running = units.filter((u) => rec.components.some((c) => c.name === u.name && c.mode === mode));
     const toStart = units.filter((u) => !running.includes(u));
@@ -192,6 +193,8 @@ export const main = async (argv, { cwd = process.cwd(), out = (l) => console.log
     if (demoLock) rmSync(demoLock, { force: true });
     process.exit(code);
   };
+  // Before the first spawn: a Ctrl+C while a component starts still stops what was started.
+  if (toStart.length) for (const signal of ["SIGINT", "SIGTERM", "SIGBREAK"]) process.on(signal, () => end(0));
 
   for (const u of toStart) {
     const child = spawn(u.command, {
@@ -228,7 +231,6 @@ export const main = async (argv, { cwd = process.cwd(), out = (l) => console.log
     }
   }
 
-  if (toStart.length) for (const signal of ["SIGINT", "SIGTERM", "SIGBREAK"]) process.on(signal, () => end(0));
   const components = units.map((u) => ({ name: u.name, mode, url: urlOf(u.port, slot), started: toStart.includes(u) }));
   for (const c of components) out(`${c.name}  ${c.url}${c.started ? "" : "  (already running)"}`);
   out(`SELO_RUN ${JSON.stringify({ slot, mode, root, components })}`);
