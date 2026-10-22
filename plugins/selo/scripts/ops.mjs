@@ -408,13 +408,22 @@ export function applyHook(s, e, root) {
     if (mark) {
       const run = runOf(s, agentId);
       if (!run) return false;
-      if (SUBSTEPS.includes(mark[1])) run.substep = mark[1];
-      addSheets(run, mark[2].trim().split(/\s+/).filter((w) => /^[\w/-]+$/.test(w)));
-      touch(run);
+      const main = mainRun(s);
+      // An autopilot stands for its subagents: their marks are its marks too.
+      for (const r of agentId && main?.lane === "autopilot" ? [run, main] : [run]) {
+        if (SUBSTEPS.includes(mark[1])) r.substep = mark[1];
+        addSheets(r, mark[2].trim().split(/\s+/).filter((w) => /^[\w/-]+$/.test(w)));
+        touch(r);
+      }
       return false;
     }
     if (!isCommit(command)) return false;
-    const head = git(root, ["log", "-1", "--format=%h%x09%cI%x09%s%x00%B"]);
+    // git prints `[branch sha] subject` on success: that sha is this command's commit, never another
+    // session's that landed meanwhile. Only a quiet commit (`-q`) falls back to HEAD.
+    const printed = /\[[^\]\s]+(?: \(root-commit\))? ([0-9a-f]{7,40})\]/.exec(JSON.stringify(e.tool_response ?? ""))?.[1];
+    // No `[branch sha]` line in the output of a loud commit: it failed (nothing staged, a refusing hook).
+    if (!printed && e.tool_response != null && !/\s(?:-q|--quiet)\b/.test(command)) return false;
+    const head = git(root, ["log", "-1", "--format=%h%x09%cI%x09%s%x00%B", printed ?? "HEAD"]);
     const run = runOf(s, agentId);
     if (!head || !run) return true;
     const [meta, body = ""] = head.split("\0");
@@ -451,6 +460,8 @@ export function applyHook(s, e, root) {
     }
     s.ask = null;
     s.backgroundTasks = (e.background_tasks ?? []).map((b) => ({ id: String(b.id ?? ""), type: String(b.type ?? ""), status: String(b.status ?? ""), description: String(b.description ?? "") }));
+    // A foreground subagent cannot outlive its turn: one with no SubagentStop (an Esc) is stopped.
+    if (!s.backgroundTasks.some((b) => b.status === "running")) for (const r of s.runs) if (r.agentId && r.phase === "working") Object.assign(r, { phase: "stopped", updatedAt: t });
     s.dirtyFiles = dirtyOf(root, s.touchedFiles);
     s.close = closeOf(s);
     return true;
