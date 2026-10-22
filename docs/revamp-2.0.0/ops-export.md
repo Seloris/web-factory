@@ -4,7 +4,7 @@ What the `selo` plugin writes for **Selo Ops**, the dashboard that replaces Clau
 
 ## 1. Principles
 
-1. **Two sources, joined on `sessionId`.** Claude Code already publishes the liveness of a session (`~/.claude/sessions/{pid}.json`: pid, cwd, `status`, name, `hostSessionId` for the desktop link) and its activity (the transcript: last prompt, current tool, subagents, question, tokens). Companion reads both today and keeps doing so in Selo Ops. The plugin writes **only what the workflow knows**: the lane, the blueprint, the step, the phase at the end of a turn, the proposed commit, the recap, the commits. Nothing is written twice.
+1. **Two sources, joined on `sessionId`.** Claude Code already publishes the liveness of a session (`~/.claude/sessions/{pid}.json`: pid, cwd, `status`, name, `hostSessionId` for the desktop link) and its activity (the transcript: last prompt, current tool, subagents, question, tokens). Companion reads both today and keeps doing so in Selo Ops. The plugin writes **only what the workflow knows**: the lane, the blueprint, the step, the phase at the end of a turn, the proposed commit, the recap, the commits. Nothing is written twice. Since selo-ops 2.2.0 it also writes what each run consumed, read from the transcript once, where the runs are known (§5.6).
 2. **One file per session, one file per project.** The board wrote one file per root that every session rewrote at each scan: with 3–5 sessions on one checkout, writes raced. A session file is written by that session's hooks only; a project file is a pure function of the files and git, so the last writer is always right.
 3. **Pointers, not copies.** A spec or a blueprint is exported as its path, title, counts and `mtime`; Selo Ops reads the markdown under the root when the person opens it, as Companion reads `plan.md` today (factory-board FR-35, BR-05/06). The export stays small and never lags the file.
 4. **Drawn as exported.** States, phases and next prompts are computed once, in the plugin, where the rules live; Selo Ops never re-derives them (factory-board BR-02 stays). What the plugin cannot know (is the process alive, what tool runs) stays Claude Code's.
@@ -28,16 +28,16 @@ Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, w
 | Hook | Matcher | `ops.mjs` does |
 |---|---|---|
 | `SessionStart` | | Writes the session file (`status: live`, root, repo, `startedAt`, `transcriptPath`, `model` when the input has it), rescans the project. |
-| `UserPromptSubmit` | | A `/selo:{lane} …` prompt opens a run on its step (§5.2); any other prompt opens a `free` run, or keeps the current run when it answers its question (a commit's yes, an answer). A subagent's hand-back (`<agent-message from="{agent_id}">` of a known subagent run) keeps the main run too. Phase → `working`. |
+| `UserPromptSubmit` | | A `/selo:{lane} …` prompt opens a run on its step (§5.2); any other prompt opens a `free` run, or keeps the current run when it answers its question (a commit's yes, an answer). A subagent's hand-back (nothing but `<agent-message from="{agent_id}">` blocks of a known subagent run, after the harness's blocks and the `Another Claude session sent a message:` preamble) keeps the main run too, and so does a prompt holding nothing but `<task-notification>` blocks (a background subagent's end; selo-ops 1.0.0 opened an empty `free` run there). Phase → `working`, `pendingCommit`, `question` and `error` cleared. Opening a main run first settles the previous one's `usage` on its slice up to the transcript's size now (§5.6), then sets the new run's `transcriptFrom` to that size (0 when the transcript does not exist yet). |
 | `PreToolUse` | `Skill` | Same as above for a brief-driven call: an autopilot's subagents run the skills through the Skill tool, never from a typed prompt. `agent_id` makes it a subagent run. |
 | `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. A `node {plugin}/scripts/ops.mjs mark …` command sets the run's `substep` and `sheets` (§5.4). |
 | `PostToolUse` | `Edit\|Write\|NotebookEdit` | Adds the path to the session's `touchedFiles`. A file under `.planning/blueprints/` names the run's `blueprint` (a draft has one before its commit); a file under `.planning/pages/` or `.planning/domain/` adds its sheet to `sheets`. |
 | `PostToolUse` | `mcp__ccd_turn__wrap_up` | Keeps the call's `ask` for this turn: in the desktop app the question sits in that box, not in the last line of text (§5.3). |
 | `PreToolUse` | `Agent\|Task` | Queues the call's task (`description`, else `prompt`) in `pendingAgents`, under its `subagent_type`. |
-| `SubagentStart` / `SubagentStop` | | Opens the subagent's run, its `task` taken from the oldest queued call of its `agent_type` / closes it, from `last_assistant_message`. |
-| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Sets `model` from the transcript's last assistant message. Rescans the project. |
+| `SubagentStart` / `SubagentStop` | | Opens the subagent's run, its `task` taken from the oldest queued call of its `agent_type` / closes it, from `last_assistant_message`; sets its `usage` from `agent_transcript_path` read whole, `settled: true` (§5.6). |
+| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Sets `model` from the transcript's last assistant message. Sets the current main run's `usage` from its slice (`transcriptFrom` to the end), `settled: false` (§5.6). Rescans the project. |
 | `StopFailure` | | An API error ended the turn: phase `stopped`, `error` set. |
-| `SessionEnd` | | `status: ended`; a run still `working` becomes `stopped`. |
+| `SessionEnd` | | `status: ended`; a run still `working` becomes `stopped`. Settles the current main run's `usage` (§5.6). |
 
 Every hook also copies the input's `permission_mode` and `effort.level`, when present, to the session file: the latest value wins.
 
@@ -160,6 +160,8 @@ type SeloSession = {
   selo: boolean
   repo: string | null
   startedAt: string
+  /** Every run's usage summed, the main loop's and the subagents', including runs dropped past the 100 kept (§5.6). Null before the first one. Added by selo-ops 2.2.0. */
+  usage: Usage | null
   /** `live` from SessionStart to SessionEnd. Whether the process is alive is Claude Code's pid file. */
   status: 'live' | 'ended'
   /** From the hooks' input: where Selo Ops reads the transcript, without guessing its folder from the cwd. */
@@ -229,8 +231,35 @@ type Run = {
   commits: { sha: string; subject: string; spec: string | null; at: string }[]
   /** The prompt that resumes the run where its blueprint's Progress is; null when nothing resumes it. */
   resumePrompt: string | null
+  /** What the run consumed (§5.6). Null until its first `Stop` (main run) or `SubagentStop` (subagent run); stays null for a subagent stopped by Esc, which fires no `SubagentStop`, and for a run written by 1.0.0. Added by selo-ops 2.2.0. */
+  usage: RunUsage | null
+  /** Main run: the transcript's size in bytes when the run opened, where its slice starts. Subagent run: null. Internal to the export; Selo Ops does not read it. Added by selo-ops 2.2.0. */
+  transcriptFrom: number | null
   since: string
   updatedAt: string
+}
+
+type Tokens = { input: number; cacheRead: number; cacheWrite: number; output: number }
+
+type Usage = {
+  /** API calls, deduplicated by message id; a `<synthetic>` row is none. */
+  calls: number
+  tokens: Tokens
+  /** One row per model the calls ran on (`message.model` of assistant rows), most tokens first. A subagent run's real model is its first row. */
+  byModel: { model: string; calls: number; tokens: Tokens }[]
+}
+
+type RunUsage = Usage & {
+  /** Tool calls by name, most first; the advisor as `advisor`. */
+  tools: { name: string; count: number }[]
+  /** Skills loaded, without a leading slash: `tool` (the Skill tool), `command` (typed as `/{name}`), `preloaded` (an agent's frontmatter). */
+  skills: { name: string; count: number; how: 'tool' | 'command' | 'preloaded' }[]
+  /** Main runs only: one row per prompt the person typed in the run, oldest first, at most 50 (the latest kept). A subagent run has []. */
+  prompts: { at: string | null; calls: number; tokens: Tokens }[]
+  /** False while read at a `Stop`, whose transcript may lack the turn's last message; true once settled (§5.6). */
+  settled: boolean
+  /** True when the slice was over the read cap (32 MB): the figures cover its last 32 MB only. */
+  partial: boolean
 }
 
 type CloseBlocker =
@@ -282,12 +311,21 @@ A skill marks where it is with one Bash call, `node ${CLAUDE_PLUGIN_ROOT}/script
 
 A session file is written by its own hooks only (§1.2): a file another session commits later leaves `dirty-files` until this session's next `Stop`. Selo Ops shows `close` as is, and the blockers in words on the tile.
 
+### 5.6 Usage (selo-ops 2.2.0)
+
+Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md` §3 to §5): an API call is an `assistant` row with `message.usage` and `message.id`, deduplicated by id; only `message.model` of assistant rows names a model (an `attachment` row naming one is no call); a tool call is a `tool_use` part, the advisor a `server_tool_use` part named `advisor`; a skill is a `Skill` call, a typed `<command-name>`, or a meta row holding `<skill-format>true</skill-format>` that no Skill call or command just announced (a preload); a built-in or local command (`/compact`, `/model`, `/clear`, a mod's command: its row comes after a meta `<local-command-caveat>` row, or is followed by a `<local-command-stdout>` row) is neither a skill nor a prompt; a prompt is a user row that is not meta, not a compaction summary, holds no `tool_result`, and is neither `<local-command-…>`, `<task-notification>`, an Esc marker (`[Request interrupted by user…`) nor a subagent's hand-back (`<agent-message from=…`). A row written twice (same `uuid`, a transcript replaying its history) is read once; a sidechain row is its subagent's.
+
+- **A main run reads its slice**: from its `transcriptFrom` (the size at its `UserPromptSubmit`, which fires before the prompt's row is written) to the end at `Stop` (`settled: false`: the last message may be missing), to the next main run's `transcriptFrom` when that run opens, or to the end at `SessionEnd` (`settled: true`). An Esc'd turn is caught by the settling read. A subagent run reads its own transcript whole at `SubagentStop`.
+- **The session's totals** move by the difference: `usage += new − previous` for the run read. A run dropped past the 100 kept keeps its last contribution.
+- **Cost**: only lines holding `"type":"assistant"` or `"type":"user"` are parsed (a request shape naming a role is not); a cut line is skipped; a slice over 32 MB is read from its last 32 MB, `partial: true`. The slice is read before the session's lock, from the session file read without it, and set under the lock only on a main run whose `id` and `transcriptFrom` are unchanged (a subagent run: on its `agentId`); an empty slice changes nothing: under the lock only JSON is read and written. When the read before the lock failed, or decided the prompt kept the run while it opens one under the lock, the transcript's size and the settling read are taken under the lock instead (rare). The lock wait is shortened so the hook stays inside its 4.5 s, and a hook whose read used up its time writes nothing; the next read catches up.
+
 ## 6. What Selo Ops derives, and from what
 
 | On the dashboard | From |
 |---|---|
 | Alive, cwd, title, desktop link, origin | Claude Code's `~/.claude/sessions/{pid}.json` |
-| Current tool, subagents at work, last prompt, question asked by Claude Code, tokens | The transcript, as Companion reads it |
+| Current tool, subagents at work, last prompt, question asked by Claude Code | The transcript, as Companion reads it |
+| Tokens per run, per model, per prompt; tools, skills; a subagent's real model; session totals | `usage` of each run and of the session (§5.6, selo-ops 2.2.0); « — » for a session file of 1.0.0 |
 | Column `Vous attend` | `phase` ∈ {`awaiting-commit`, `awaiting-answer`}, or Claude Code's `awaitingAnswer` |
 | Pill: which source | Claude Code's status while it says `running` or `awaitingAnswer` (a turn, a dialog); the plugin's `phase` once it says `idle` (only the plugin knows why the turn ended). No timestamp comparison: at a turn's end the pid file and the session file are written within milliseconds, in either order. A stale phase goes at the next prompt (`working`). |
 | Band `blueprint › étape`, stage segments | `current` of the session file + its blueprint in the project file |
@@ -354,7 +392,7 @@ A session file is written by its own hooks only (§1.2): a file another session 
 
 ## 8. Decisions (2026-10-21)
 
-1. **Tokens** → Not in the export. Selo Ops counts them from the transcript, as Companion does.
+1. **Tokens** → Not in the export. Selo Ops counts them from the transcript, as Companion does. Superseded by 23 (selo-ops 2.2.0).
 2. **Claude Code's status vs the plugin's phase** → By Claude Code's status, never by timestamps (§6, "Pill: which source"): `running` / `awaitingAnswer` are Claude Code's, `idle` reads the plugin's phase. A timestamp rule was rejected: at a turn's end both files are written within milliseconds, and the pid file winning would hide an `awaiting-commit` behind `idle`.
 3. **A session with several roots** → One session file, its `root` the last root; every root it passed through gets its project file rescanned.
 4. **Idle projects** → `node {selo-ops}/scripts/ops.mjs scan {root}` rescans a project without a session; Selo Ops may run it, read-only, on the roots `installed_plugins.json` lists for `selo` (selo's own `ops.mjs` is a stub since 2.1.0).
@@ -382,3 +420,9 @@ A session file is written by its own hooks only (§1.2): a file another session 
 20. **Steps moved by a commit** → A commit whose subject is a stage line of the run's blueprint (or of any blueprint, which then names the run's) moves the run to the next stage, the last to `review`; `docs({name}): spec merged` moves it to `merge`. `resumePrompt` is the blueprint's `next.prompt` at each `Stop`.
 21. **Marks** → `reference/rules.md` **Marks** says when `fastlane` and `build` mark; `templates/settings.json` allows `node *scripts/ops.mjs* mark*` (the script's path may be quoted), so a mark prompts nobody; a project set up before must run `setup update`, which adds the missing allow, or an autopilot in `acceptEdits` stops at the first mark. A session keeps its 100 newest runs.
 22. **Checked live** (2026-10-22, Claude Code 2.1.303, `claude -p --plugin-dir` in `examples/two-components`): the hooks load and write; `transcript_path`, `permission_mode`, `effort.level` arrive as named; a last line ending with `?` gives `awaiting-answer`. `SessionStart` carried no `model` in print mode: `model` stays null there.
+
+2026-10-22, selo-ops 2.2.0 (`docs/revamp-2.2.0/proposal.md` §10):
+
+23. **Usage in the export** → Each run carries `usage`, the session its totals (§5.6), read from the transcript by the plugin: the raw counts only, no weighted estimate. `prompts` capped at 50 per main run, the latest kept; read cap 32 MB, flagged `partial`. Per-call durations and the plan windows are out.
+24. **A `<task-notification>` prompt** → Keeps the main run (§3), as a hand-back does: no settling, no new run.
+25. **Edge rows** → A `<synthetic>` assistant row is no call. A call with no `message.model` counts in the totals, not in `byModel`. `byModel` is sorted by the sum of the four token kinds, then by name. A skill's `name` has no leading slash; `how` tells the sources apart, one row per (name, how). A prompt row with no timestamp has `at: null`.

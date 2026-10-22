@@ -2,6 +2,15 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-22 — selo 2.2.0: selo's subagents on their role's model, enforced by a hook
+
+A skill passed the role's model when it spawned `reviewer` or `runner`; a skill that forgot, a call that named another model, or an `Explore` spawned with no model ran off the manifest, silently. The proposal is `docs/revamp-2.2.0/proposal.md` §6; its spike showed the rewrite applies to the Agent tool, headless and in the desktop app, with `updatedInput` alone.
+
+- **The model hook.** `hooks/hooks.json` gets a `PreToolUse` hook on `Agent|Task`, `scripts/agent-model.mjs`: it reads `models` from the project's `selo.yaml` (`manifest.mjs`, presets resolved) and, when the call's `model` differs from its role's, prints `updatedInput`: every field of the call kept, `model` replaced. No permission decision, so no permission prompt is skipped. Nothing outside a selo project or on a manifest that fails to parse.
+- **Which agent.** `selo:reviewer` / `reviewer` and `selo:runner` / `runner`: always their role's model (the manifest is the project's decision). `Explore` and `Plan`: `explorer` and `planner` only when the call names no model (a lead may want a stronger search on purpose). Any other agent is untouched.
+- **The skills keep passing the role's model**: the hook is the guard, not the source (`docs/manifest.md`, "Models"; `reference/rules.md`, **Subagents**). The lead's transcript keeps the call as written; the subagent's transcript shows the model it ran on.
+- `manifest.mjs` is unchanged: `selo-ops`' copy stays identical.
+
 ## 2026-10-22 — selo 2.1.0: the ops export moves to its own plugin, selo-ops
 
 The export reached Selo Ops only from sessions where `selo` was enabled, and left at once without a `selo.yaml`: a session in any other workspace never showed on the dashboard. Enabling `selo` at user scope would list every `/selo:*` skill in every session; a user-level hook pointing at this repository would run its working copy, outside any version. The proposal is `docs/revamp-2.0.0/ops-plugin.md`.

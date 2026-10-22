@@ -1,6 +1,6 @@
 {
   "name": "selo",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Fastlane, blueprint and build, one review at the end: the workflow for web applications, driven by the project's selo.yaml manifest. Skills: setup, blueprint, build, fastlane, autopilot, grill, review, try, run. Agents: reviewer, runner.",
   "author": {
     "name": "Daniel Djordjevic"

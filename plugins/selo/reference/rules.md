@@ -155,6 +155,8 @@ The session leads: it plans, decides, writes. Each subagent is spawned with its 
 - `runner`: a command whose output floods the context (a full suite, a build, a lint run); it returns the errors with `file:line`;
 - `Explore` (`models.explorer`): a broad search; for a task that needs judgment, `general-purpose` on `models.implementer`.
 
+Always pass the role's model: the plugin's model hook is the guard, not the source. It puts `reviewer` and `runner` on their role's model whatever the call names, `Explore` and `Plan` on `explorer` and `planner` when the call names none, and leaves any other agent as called (`docs/manifest.md`, "Models").
+
 Put the role first in the spawn's description (`runner · web tests`). A blueprint or an implementation is not a subagent's job, except under `autopilot`. A subagent without the Agent tool runs its commands itself, filtered to the errors, and says what it could not delegate.
 
 ## Decisions

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { blueprintOf, classifyEnd, closeOf, newSession, parsePrompt, rootKey } from "../scripts/ops.mjs";
+import { applyHook, blueprintOf, classifyEnd, closeOf, newSession, parsePrompt, rootKey } from "../scripts/ops.mjs";
 
 const script = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "ops.mjs");
 const BP = ".planning/blueprints/2026-10-21-due-date.md";
@@ -324,4 +324,163 @@ test("scan writes a project file without a session", () => {
   const p = JSON.parse(readFileSync(join(ops, "projects", `${rootKey(dir)}.json`), "utf8"));
   assert.equal(p.blueprints[0].state, "ready");
   assert.equal(p.error, null);
+});
+
+// ---------- usage (selo-ops 2.2.0) ----------
+
+const row = (r) => JSON.stringify(r) + "\n";
+const promptRow = (text) => row({ type: "user", timestamp: "2026-10-22T10:00:00.000Z", message: { role: "user", content: text } });
+const callRow = (id, input, model = "claude-opus-5-5") => row({ type: "assistant", timestamp: "2026-10-22T10:00:01.000Z", message: { id, model, role: "assistant", usage: { input_tokens: input, output_tokens: 1 }, content: [{ type: "text", text: "x" }] } });
+
+test("usage: read at Stop, settled at the next prompt, an Esc'd turn caught, a subagent at SubagentStop", () => {
+  const { dir } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const transcript = join(ops, "t.jsonl");
+  const base = { session_id: "s5", cwd: dir, transcript_path: transcript };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s5.json"), "utf8"));
+  const append = (text) => writeFileSync(transcript, (existsSync(transcript) ? readFileSync(transcript, "utf8") : "") + text);
+
+  // The session's first prompt: the transcript does not exist yet.
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/selo:fastlane rename a label" });
+  let s = session();
+  assert.equal(s.current.transcriptFrom, 0);
+  assert.equal(s.current.usage, null);
+  assert.equal(s.usage, null);
+  const first = s.current.id;
+
+  append(promptRow("/selo:fastlane rename a label") + callRow("m1", 100));
+  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Done, nothing to commit." });
+  s = session();
+  assert.equal(s.current.usage.calls, 1);
+  assert.equal(s.current.usage.settled, false);
+  assert.equal(s.current.usage.prompts.length, 1);
+  assert.equal(s.current.usage.byModel[0].model, "claude-opus-5-5");
+  assert.equal(s.usage.calls, 1);
+
+  // The turn's last message lands after the Stop: the next run's prompt settles the run on its whole slice.
+  append(callRow("m2", 50));
+  const size = readFileSync(transcript).length;
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/selo:fastlane add a filter" });
+  s = session();
+  const settled = s.runs.find((r) => r.id === first);
+  assert.equal(settled.usage.calls, 2);
+  assert.equal(settled.usage.settled, true);
+  assert.equal(settled.usage.tokens.input, 150);
+  assert.equal(s.current.transcriptFrom, size, "the new run starts where the previous one ends");
+  assert.deepEqual([s.usage.calls, s.usage.tokens.input], [2, 150], "the totals take the difference, not the sum");
+
+  // An Esc'd turn: no Stop, its run still working; the next lane prompt settles it.
+  append(promptRow("/selo:fastlane add a filter") + callRow("m3", 7, "claude-sonnet-5-5"));
+  const escd = s.current.id;
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/selo:review" });
+  s = session();
+  const caught = s.runs.find((r) => r.id === escd);
+  assert.deepEqual([caught.usage.calls, caught.usage.settled, caught.usage.byModel[0].model], [1, true, "claude-sonnet-5-5"]);
+  assert.equal(s.usage.calls, 3);
+  assert.deepEqual(s.usage.byModel.map((m) => m.model), ["claude-opus-5-5", "claude-sonnet-5-5"]);
+
+  // A subagent's transcript is read whole at its SubagentStop.
+  const agentFile = join(ops, "agent-a1.jsonl");
+  writeFileSync(agentFile, promptRow("Review the work") + callRow("x1", 30, "claude-haiku-5-5") + callRow("x2", 30, "claude-haiku-5-5"));
+  hook(ops, { ...base, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "reviewer" });
+  hook(ops, { ...base, hook_event_name: "SubagentStop", agent_id: "a1", agent_transcript_path: agentFile, last_assistant_message: "No finding." });
+  s = session();
+  const sub = s.runs.find((r) => r.agentId === "a1");
+  assert.equal(sub.transcriptFrom, null);
+  assert.deepEqual([sub.usage.calls, sub.usage.settled, sub.usage.prompts.length, sub.usage.byModel[0].model], [2, true, 0, "claude-haiku-5-5"]);
+  assert.equal(s.usage.calls, 5);
+
+  // SessionEnd settles the current main run.
+  append(promptRow("/selo:review") + callRow("m4", 1));
+  hook(ops, { ...base, hook_event_name: "SessionEnd" });
+  s = session();
+  assert.deepEqual([s.current.usage.calls, s.current.usage.settled], [1, true]);
+  assert.equal(s.usage.calls, 6);
+});
+
+test("a <task-notification> prompt keeps the main run, its request and its phase (§5.5)", () => {
+  const { dir } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const base = { session_id: "s6", cwd: dir };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s6.json"), "utf8"));
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/selo:fastlane add a filter" });
+  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Waiting for the background agent." });
+  const before = session();
+  assert.equal(before.current.phase, "turn-ended");
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "<task-notification>\n<task-id>b1</task-id>\n<status>completed</status>\n<result>done</result>\n</task-notification>" });
+  const s = session();
+  assert.equal(s.runs.length, before.runs.length, "no empty run");
+  assert.equal(s.current.id, before.current.id);
+  assert.equal(s.current.request, "add a filter");
+  assert.equal(s.current.lane, "fastlane");
+  assert.equal(s.current.phase, "working");
+  // Text beside the notification is a prompt of its own.
+  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Done." });
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "<task-notification>x</task-notification>\nnow the tests" });
+  assert.equal(session().runs.length, before.runs.length + 1);
+});
+
+test("the session's totals keep the runs dropped past MAX_RUNS", () => {
+  const { dir } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const transcript = join(ops, "t.jsonl");
+  writeFileSync(transcript, promptRow("go") + callRow("m1", 10) + callRow("m2", 10));
+  const u = (calls) => ({ calls, tokens: { input: calls, cacheRead: 0, cacheWrite: 0, output: 0 }, byModel: [{ model: "m", calls, tokens: { input: calls, cacheRead: 0, cacheWrite: 0, output: 0 } }] });
+  const old = Array.from({ length: 99 }, (_, i) => ({ id: `s7:${i}`, agentId: `a${i}`, phase: "job-done", usage: { ...u(1), tools: [], skills: [], prompts: [], settled: true, partial: false }, transcriptFrom: null, commits: [], sheets: [] }));
+  const main = { id: "s7:main", agentId: null, lane: "free", request: "go", phase: "job-done", usage: null, transcriptFrom: 0, commits: [], sheets: [] };
+  // 99 runs kept, 5 calls of runs already dropped.
+  const seeded = { ...newSession("s7", dir), runs: [main, ...old], usage: u(104) };
+  mkdirSync(join(ops, "sessions"), { recursive: true });
+  writeFileSync(join(ops, "sessions", "s7.json"), JSON.stringify(seeded));
+  hook(ops, { session_id: "s7", cwd: dir, transcript_path: transcript, hook_event_name: "UserPromptSubmit", prompt: "/selo:fastlane next" });
+  const s = JSON.parse(readFileSync(join(ops, "sessions", "s7.json"), "utf8"));
+  assert.equal(s.runs.length, 100);
+  assert.equal(s.runs.some((r) => r.id === "s7:98"), false, "the oldest run is dropped");
+  assert.equal(s.runs.find((r) => r.id === "s7:main").usage.calls, 2);
+  assert.equal(s.usage.calls, 106, "dropped runs keep their contribution");
+  assert.deepEqual(s.usage.byModel.map((m) => [m.model, m.calls]), [["m", 104], ["claude-opus-5-5", 2]]);
+});
+
+test("a usage read before the lock lands only on the run it was read for (§5.3)", () => {
+  const u = { calls: 1, tokens: { input: 1, cacheRead: 0, cacheWrite: 0, output: 0 }, byModel: [], tools: [], skills: [], prompts: [], settled: false, partial: false };
+  const fresh = () => ({ ...newSession("s8", "C:/p"), runs: [{ id: "s8:2", agentId: null, phase: "working", transcriptFrom: 40, usage: null }] });
+  const stop = { hook_event_name: "Stop", session_id: "s8", last_assistant_message: "Done." };
+  const s1 = fresh();
+  applyHook(s1, stop, "C:/p", { read: { runId: "s8:1", agentId: null, from: 40, usage: u } });
+  assert.equal(s1.runs[0].usage, null, "another run's id");
+  const s2 = fresh();
+  applyHook(s2, stop, "C:/p", { read: { runId: "s8:2", agentId: null, from: 0, usage: u } });
+  assert.equal(s2.runs[0].usage, null, "another transcriptFrom");
+  const s3 = fresh();
+  applyHook(s3, stop, "C:/p", { read: { runId: "s8:2", agentId: null, from: 40, usage: u } });
+  assert.equal(s3.runs[0].usage.calls, 1);
+  assert.equal(s3.usage.calls, 1);
+});
+
+test("a hand-back with its preamble keeps the main run after a Stop", () => {
+  const { dir } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const base = { session_id: "s9", cwd: dir };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s9.json"), "utf8"));
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/selo:fastlane add a filter" });
+  hook(ops, { ...base, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "reviewer" });
+  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Waiting for the reviewer." });
+  const before = session();
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "<system-reminder>r</system-reminder>\nAnother Claude session sent a message:\n<agent-message from=\"a1\">\nNo finding.\n</agent-message>" });
+  const s = session();
+  assert.equal(s.runs.length, before.runs.length, "no free run");
+  assert.equal(s.current.id, before.current.id);
+  assert.equal(s.current.phase, "working");
+});
+
+test("a prompt whose read before the lock failed still gets its transcriptFrom, and settles the run under the lock", () => {
+  const dir = mkdtempSync(join(tmpdir(), "selo-ops-ctx-"));
+  const transcript = join(dir, "t.jsonl");
+  writeFileSync(transcript, promptRow("go") + callRow("m1", 10));
+  const s = { ...newSession("s10", dir), runs: [{ id: "s10:1", agentId: null, lane: "free", phase: "job-done", transcriptFrom: 0, usage: null, commits: [], sheets: [] }] };
+  applyHook(s, { hook_event_name: "UserPromptSubmit", session_id: "s10", transcript_path: transcript, prompt: "next one" }, dir, {});
+  assert.equal(s.runs.length, 2);
+  assert.equal(s.runs[0].transcriptFrom, readFileSync(transcript).length);
+  assert.deepEqual([s.runs[1].usage.calls, s.runs[1].usage.settled], [1, true]);
+  assert.equal(s.usage.calls, 1);
 });

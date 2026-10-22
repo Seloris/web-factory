@@ -4,6 +4,7 @@
 // hooks/hooks.json, never read back by the workflow. Every session is exported: a root with no selo.yaml up
 // the tree is a plain root (its git top level, else the cwd), exported without the workflow (docs/revamp-2.0.0/ops-plugin.md §3).
 // manifest.mjs, spec-check.mjs, commit-hook.mjs and slots.mjs are byte-identical copies of the selo plugin's (tests/shared.test.mjs).
+// usage.mjs reads what each run consumed from the transcript (since 2.2.0: docs/revamp-2.2.0/proposal.md §3 to §5).
 // Usage: node ops.mjs hook                       a hook: its input on stdin; prints nothing, always exits 0
 //        node ops.mjs mark {substep} [sheet …]   a skill's mark: does nothing, the PostToolUse hook reads the command
 //        node ops.mjs scan {root}                rescans a project with no session
@@ -16,6 +17,7 @@ import { isCommit, parseSpecLine, specSlug } from "./commit-hook.mjs";
 import { findRoot, readManifest } from "./manifest.mjs";
 import { idsIn, checkSpec, parseBlueprint } from "./spec-check.mjs";
 import { normRoot, withLock } from "./slots.mjs";
+import { addUsage, readSlice, readUsage, subUsage } from "./usage.mjs";
 
 export const SCHEMA = 1;
 export const LANES = ["fastlane", "blueprint", "build", "autopilot", "review", "try", "grill", "setup"];
@@ -305,18 +307,103 @@ export function closeOf(s) {
 
 export const newSession = (id, root) => ({
   schemaVersion: SCHEMA, writtenAt: now(), sessionId: id, root: normRoot(root), rootKey: rootKey(root), selo: true, repo: null, startedAt: now(), status: "live",
-  transcriptPath: null, model: null, permissionMode: null, effort: null, pendingAgents: [], touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null,
+  transcriptPath: null, model: null, permissionMode: null, effort: null, pendingAgents: [], touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null, usage: null,
 });
 
 const openRun = (s, fields, agentId = null) => {
   const since = now();
-  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, commits: [], resumePrompt: null, since, updatedAt: since, ...fields };
+  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, commits: [], resumePrompt: null, usage: null, transcriptFrom: null, since, updatedAt: since, ...fields };
   s.runs = [run, ...s.runs].slice(0, MAX_RUNS);
   return run;
 };
 const mainRun = (s) => s.runs.find((r) => !r.agentId) ?? null;
 const runOf = (s, agentId) => (agentId ? s.runs.find((r) => r.agentId === agentId) ?? openRun(s, {}, agentId) : mainRun(s));
 const addSheets = (run, sheets) => (run.sheets = [...new Set([...run.sheets, ...sheets.filter(Boolean)])]);
+
+// A background subagent's end comes back as a prompt holding nothing but `<task-notification>` blocks (§5.5 of the 2.2 proposal).
+export const isTaskNotification = (prompt) =>
+  /<task-notification>/.test(prompt ?? "") && !stripWrappers(String(prompt).replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")).trim();
+
+// The agent a hand-back comes from, when the prompt holds nothing but `<agent-message from="…">` blocks,
+// after the harness's blocks and the "Another Claude session sent a message:" preamble; else null.
+export function handBackFrom(prompt) {
+  const text = stripWrappers(prompt);
+  const from = /<agent-message from="([^"]+)"/.exec(text)?.[1];
+  if (!from) return null;
+  const rest = text.replace(/<agent-message\b[\s\S]*?(?:<\/agent-message>|$)/g, "").replace(/Another Claude session sent a message:/g, "");
+  return stripWrappers(rest).trim() ? null : from;
+}
+
+// What a prompt does to the main run: `keep` it (an answer, a hand-back, a task notification) or `open` a new one.
+// Called before the lock (to read the settled run's slice) and under it (to apply the prompt), on the same rules.
+export function promptAction(s, prompt, root) {
+  const cur = mainRun(s);
+  if (isTaskNotification(prompt)) return { kind: "keep", cur, p: null };
+  // A subagent's hand-back comes as a prompt: it continues the main run, it asks nothing.
+  const from = handBackFrom(prompt);
+  if (from && cur && s.runs.some((r) => r.agentId === from)) return { kind: "keep", cur, p: null };
+  const p = parsePrompt(prompt, root, s.selo);
+  // A prompt that answers the run (a commit's yes, an answer, a word after an Esc) keeps it.
+  if (p.lane === "free" && cur && ["awaiting-commit", "awaiting-answer", "working"].includes(cur.phase)) return { kind: "keep", cur, p };
+  return { kind: "open", cur, p };
+}
+
+// A run's usage set, the session's totals moved by the difference: a run dropped past MAX_RUNS keeps its share.
+const setUsage = (s, run, usage) => {
+  s.usage = addUsage(subUsage(s.usage, run.usage), usage);
+  run.usage = usage;
+};
+
+// A usage read before the lock lands only on the run it was read for: a main run by its id and transcriptFrom, a subagent run by its agent.
+const applyRead = (s, read) => {
+  if (!read) return;
+  const run = read.runId === null
+    ? s.runs.find((r) => r.agentId === read.agentId)
+    : s.runs.find((r) => r.id === read.runId && (r.agentId ?? null) === read.agentId && (r.transcriptFrom ?? null) === read.from);
+  if (run) setUsage(s, run, read.usage);
+};
+
+const sizeOf = (path) => {
+  try {
+    return path ? statSync(path).size : 0;
+  } catch {
+    return 0;
+  }
+};
+
+// Before the lock (§5.3 of the 2.2 proposal): the slice of the run this hook reads, and the transcript's size
+// at a prompt. `s` is the session file as read without the lock. Returns the `ctx` of applyHook.
+// A main run's usage on its slice [transcriptFrom, to). A run written by 1.0.0 has no transcriptFrom: it gets
+// no usage, never the whole transcript. An empty slice (the transcript replaced) changes nothing.
+const mainRead = (path, run, to, settled) => {
+  if (!run || run.transcriptFrom == null || !path) return null;
+  try {
+    const { text, partial } = readSlice(path, run.transcriptFrom, to);
+    if (!text) return null;
+    return { runId: run.id, agentId: null, from: run.transcriptFrom, usage: readUsage(text, { prompts: true, settled, partial }) };
+  } catch {
+    return null; // the next read catches up
+  }
+};
+
+export function readFor(s, e, root) {
+  const event = e.hook_event_name;
+  const path = e.transcript_path ?? s.transcriptPath;
+  if (event === "UserPromptSubmit") {
+    const size = sizeOf(path);
+    const act = promptAction(s, e.prompt, root);
+    return { size, opens: act.kind === "open", read: act.kind === "open" ? mainRead(path, act.cur, size, true) : null };
+  }
+  if (event === "Stop") return { read: mainRead(path, mainRun(s), null, false) };
+  if (event === "SessionEnd") return { read: mainRead(path, mainRun(s), null, true) };
+  if (event === "SubagentStop" && e.agent_id && e.agent_transcript_path) {
+    const { text, partial } = readSlice(e.agent_transcript_path, 0, null);
+    if (!text) return {};
+    // Matched by its agent alone: its run may not be in the file read without the lock yet.
+    return { read: { runId: null, agentId: e.agent_id, from: null, usage: readUsage(text, { prompts: false, settled: true, partial }) } };
+  }
+  return {};
+}
 
 // The assistant messages of a transcript, newest first, read from its tail.
 function* assistantTail(path) {
@@ -379,8 +466,9 @@ const resumeOf = (run, root) => {
   return existsSync(join(root, file)) ? blueprintOf(file, readFileSync(join(root, file), "utf8")).next?.prompt ?? null : null;
 };
 
-// One hook: `s` is the session (mutated), `e` the hook's input. Returns true when the project needs a rescan.
-export function applyHook(s, e, root) {
+// One hook: `s` is the session (mutated), `e` the hook's input, `ctx` what readFor read before the lock
+// (`size`: the transcript's size at a prompt; `read`: a run's usage). Returns true when the project needs a rescan.
+export function applyHook(s, e, root, ctx = {}) {
   const event = e.hook_event_name;
   const agentId = e.agent_id ?? null;
   if (e.permission_mode) s.permissionMode = e.permission_mode;
@@ -401,20 +489,20 @@ export function applyHook(s, e, root) {
   }
   if (event === "UserPromptSubmit") {
     s.ask = null;
-    const p = parsePrompt(e.prompt, root, s.selo);
-    const cur = mainRun(s);
-    // A subagent's hand-back comes as a prompt: it continues the main run, it asks nothing.
-    const from = /^\s*<agent-message from="([^"]+)"/.exec(e.prompt ?? "")?.[1];
-    if (from && cur && s.runs.some((r) => r.agentId === from)) {
-      Object.assign(cur, { phase: "working", pendingCommit: null, question: null, error: null });
-      touch(cur);
+    const { kind, cur, p } = promptAction(s, e.prompt, root);
+    if (kind === "keep") {
+      if (cur) {
+        Object.assign(cur, { phase: "working", pendingCommit: null, question: null, error: null });
+        touch(cur);
+      }
       return false;
     }
-    // A prompt that answers the run (a commit's yes, an answer, a word after an Esc) keeps it.
-    if (p.lane === "free" && cur && ["awaiting-commit", "awaiting-answer", "working"].includes(cur.phase)) {
-      Object.assign(cur, { phase: "working", pendingCommit: null, question: null, error: null });
-      touch(cur);
-    } else openRun(s, p);
+    // The previous main run is settled on its slice up to now, then the new one starts where it ends.
+    // When the read before the lock failed or kept the run (a prompt between the two), both are done here: rare.
+    const path = e.transcript_path ?? s.transcriptPath;
+    const size = ctx.size ?? sizeOf(path);
+    applyRead(s, ctx.opens ? ctx.read : mainRead(path, cur, size, true));
+    openRun(s, { ...p, transcriptFrom: size });
     return false;
   }
   // SubagentStart carries no prompt: the Agent call's task waits here for the subagent of its type.
@@ -515,6 +603,7 @@ export function applyHook(s, e, root) {
   if (event === "SubagentStop") {
     const run = agentId && s.runs.find((r) => r.agentId === agentId);
     if (run) Object.assign(run, classifyEnd(e.last_assistant_message ?? lastAssistantText(e.agent_transcript_path)), { updatedAt: t });
+    applyRead(s, ctx.read);
     return false;
   }
   if (event === "Stop") {
@@ -523,6 +612,8 @@ export function applyHook(s, e, root) {
       Object.assign(cur, classifyEnd(e.last_assistant_message ?? lastAssistantText(e.transcript_path), s.ask), { updatedAt: t });
       cur.resumePrompt = resumeOf(cur, root);
     }
+    // Read at Stop, the run may lack its last message: settled at the next run's prompt or at SessionEnd.
+    applyRead(s, ctx.read);
     s.ask = null;
     s.model = lastModel(e.transcript_path) ?? s.model;
     s.backgroundTasks =(e.background_tasks ?? []).map((b) => ({ id: String(b.id ?? ""), type: String(b.type ?? ""), status: String(b.status ?? ""), description: String(b.description ?? "") }));
@@ -539,6 +630,7 @@ export function applyHook(s, e, root) {
   }
   if (event === "SessionEnd") {
     s.status = "ended";
+    applyRead(s, ctx.read);
     for (const r of s.runs) if (r.phase === "working") Object.assign(r, { phase: "stopped", updatedAt: t });
     s.close = closeOf(s);
     return false;
@@ -560,15 +652,26 @@ const moveStep = (s, project) => {
   if (p.agentId && main?.lane === "autopilot") Object.assign(main, { step, blueprint: main.blueprint ?? run.blueprint });
 };
 
-export async function handle(e, { dir = opsDir() } = {}) {
+// `deadline`: when the lock must have been taken; a hook stops itself at 4.5 s.
+export async function handle(e, { dir = opsDir(), deadline = Date.now() + 4000 } = {}) {
   if (!e.cwd || !e.session_id) return;
   const { root, selo } = rootOf(e.cwd);
   const file = join(dir, "sessions", `${e.session_id}.json`);
+  // The transcript is read before the lock (each write is an atomic rename): a slow read never makes a
+  // concurrent hook of the session wait for the lock and lose its write. Under it, only JSON is read and written.
+  let ctx = {};
+  try {
+    ctx = readFor({ ...newSession(e.session_id, root), ...(readJson(file) ?? {}), selo }, e, root);
+  } catch {
+    // no usage this time: the next Stop or the settling read catches up
+  }
+  // The read ate the hook's time: nothing is written rather than a write cut by the 4.5 s exit.
+  if (Date.now() >= deadline) return;
   await withLock(
     join(dir, "locks", String(e.session_id)),
     () => {
       const s = { ...newSession(e.session_id, root), ...(readJson(file) ?? {}), selo };
-      const rescan = applyHook(s, e, root);
+      const rescan = applyHook(s, e, root, ctx);
       const project = rescan ? scanProject(root, { dir, selo }) : null;
       moveStep(s, project);
       s.writtenAt = now();
@@ -581,11 +684,12 @@ export async function handle(e, { dir = opsDir() } = {}) {
         writeJson(join(dir, "projects", `${rootKey(root)}.json`), project);
       }
     },
-    { timeoutMs: 2000, staleMs: 10000 },
+    { timeoutMs: Math.min(2000, deadline - Date.now()), staleMs: 10000 },
   );
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const started = Date.now();
   const [mode, ...args] = process.argv.slice(2);
   if (mode === "scan") {
     try {
@@ -604,7 +708,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const cmd = String(e.tool_input?.command ?? "");
       // Most Bash calls are neither a commit nor a mark: they leave before any git or file work.
       if (e.hook_event_name === "PostToolUse" && /^(Bash|PowerShell)$/.test(e.tool_name) && !isCommit(cmd) && !/ops\.mjs["']?\s+mark\b/.test(cmd)) process.exit(0);
-      await handle(e);
+      await handle(e, { deadline: started + 4000 });
     } catch {
       // fail silent
     }

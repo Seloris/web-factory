@@ -51,7 +51,17 @@ models:
   reviewer: fable
 ```
 
-The plugin's agents carry no `model` in their frontmatter: the skill that spawns one passes the role's model. A session's own model is picked by the person when creating the session.
+The plugin's agents carry no `model` in their frontmatter: the skill that spawns one passes the role's model. The plugin's `PreToolUse` hook on `Agent|Task` (`scripts/agent-model.mjs`) is the guard, not the source: it rewrites the call's `model` to its role's when they differ, every other field kept, and prints nothing when the model is already right, outside a selo project, or on a manifest that fails to parse:
+
+| `subagent_type` | Role | When |
+|---|---|---|
+| `selo:reviewer`, `reviewer` | `reviewer` | always |
+| `selo:runner`, `runner` | `runner` | always |
+| `Explore` | `explorer` | only when the call names no `model` |
+| `Plan` | `planner` | only when the call names no `model` |
+| any other | — | untouched: its frontmatter, or `CLAUDE_CODE_SUBAGENT_MODEL` |
+
+The lead's transcript keeps the call as written; the subagent's own transcript shows the model it ran on. A session's own model is picked by the person when creating the session.
 
 ## Component block: ` ```component `
 

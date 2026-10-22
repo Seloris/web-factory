@@ -2,6 +2,17 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-22 — selo-ops 2.2.0: what each run consumed, and no empty run on a background subagent's end
+
+Selo Ops showed what a session does, not what it costs nor on which models it ran (`docs/revamp-2.2.0/proposal.md`). The version jumps from 1.0.0 to 2.2.0 to align with `selo`, released with it. Forward-only: `schemaVersion` stays 1, a 1.0.0 reader ignores the new fields.
+
+- **Run usage.** Each run gets `usage`: API calls (deduplicated by message id), tokens per kind (`input`, `cacheRead`, `cacheWrite`, `output`), per model (`byModel`, most tokens first: a subagent run's real model is its first row), tools called by name (the advisor as `advisor`), skills loaded and how (`tool`, `command`, `preloaded`), and for a main run one row per prompt the person typed (the latest 50). Read from the transcript by `scripts/usage.mjs`, ported from the session-debug mod's aggregate, raw counts only. Null until the run's first `Stop` (main run) or `SubagentStop` (subagent run).
+- **Settling.** A main run read at `Stop` may miss its last message (`settled: false`); it is read again when the next main run opens and at `SessionEnd` (`settled: true`). A turn stopped by Esc fires no `Stop`: the same read catches it. Each main run keeps `transcriptFrom`, the transcript's size at its prompt, and reads its own slice only; a run of 1.0.0 has none and gets no usage.
+- **Session totals.** `usage` of the session sums every run's, subagents included, moved by the difference at each read; a run dropped past the 100 kept still counts.
+- **Cost.** The slice is read before the session's lock, then applied under it only to the run it was read for (same id and `transcriptFrom`): a concurrent hook never waits on a read. Only `"type":"assistant"` and `"type":"user"` lines are parsed; a slice over 32 MB is read from its last 32 MB, flagged `partial: true`. A hook whose read used up its time writes nothing; a read that failed before the lock is done under it, so a new run always gets its `transcriptFrom`.
+- **What is no prompt, no skill.** An Esc marker (`[Request interrupted by user…`), a subagent's hand-back and a built-in or local command (`/compact`, `/model`, `/clear`: after a `<local-command-caveat>` row or before a `<local-command-stdout>` row) are not prompts; such a command is no skill either. A row written twice (same `uuid`) is read once.
+- **Fix: a background subagent's end opens no run.** Its result comes back as a prompt holding nothing but `<task-notification>` blocks: 1.0.0 opened an empty `free` run (`request: ""`, shown as « Demande non lisible dans l'export ») and the person's run lost its place as `current`. It now keeps the main run, as a subagent's `<agent-message>` hand-back does. A hand-back is now recognised after the harness's blocks and its `Another Claude session sent a message:` preamble too: 1.0.0 matched it only at the start of the prompt, and opened a run after a `Stop`. Sessions written by 1.0.0 keep their empty runs.
+
 ## 2026-10-22 — selo-ops 1.0.0: the ops export in its own plugin, every session exported
 
 The export left `selo` (2.1.0) for this plugin, enabled once at user scope, so that every Claude Code session reaches Selo Ops, in a selo project or not (`docs/revamp-2.0.0/ops-plugin.md`).

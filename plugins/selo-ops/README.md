@@ -12,7 +12,7 @@ Then a new session. A selo project must be on `selo` 2.1.0 or later first: an ol
 
 ## What it writes
 
-- `sessions/{sessionId}.json`: one per session, its runs (lane, step, phase at the end of each turn, proposed commit, recap, commits), the files it left uncommitted, and whether it can be closed. `selo: false` outside a selo project.
+- `sessions/{sessionId}.json`: one per session, its runs (lane, step, phase at the end of each turn, proposed commit, recap, commits, and since 2.2.0 what each consumed: tokens per kind, per model and per prompt, tools, skills), the session's token totals, the files it left uncommitted, and whether it can be closed. `selo: false` outside a selo project.
 - `projects/{rootKey}.json`: one per root (a worktree is a root): git counts, and in a selo project its manifest, pages, domains and blueprints.
 
 `node {plugin}/scripts/ops.mjs scan {root}` rescans a root with no session open.
@@ -22,6 +22,7 @@ Then a new session. A selo project must be on `selo` 2.1.0 or later first: an ol
 ```
 hooks/hooks.json    every hook runs scripts/ops.mjs hook: silent, exit 0, gives up after 4.5 s
 scripts/ops.mjs     the export
+scripts/usage.mjs   a run's usage, read from its slice of the transcript
 scripts/manifest.mjs, spec-check.mjs, commit-hook.mjs, slots.mjs
                     byte-identical copies of the selo plugin's: selo is the source
 tests/              node --test; shared.test.mjs fails when a copy differs from its source
