@@ -164,9 +164,9 @@ The ops hook and the model hook are two plugins on one `PreToolUse`: whether the
 
 ### 6.4 Spike (done, §11)
 
-The hooks reference documents `updatedInput` for `PreToolUse` and lists `model` among the Agent tool's fields, but says nothing about the Agent tool in particular, nor whether `updatedInput` applies without `permissionDecision`. The spike of §11 settled both, headless: the rewrite applies to the Agent tool, `updatedInput` alone.
+The hooks reference documents `updatedInput` for `PreToolUse` and lists `model` among the Agent tool's fields, but says nothing about the Agent tool in particular, nor whether `updatedInput` applies without `permissionDecision`. The spike of §11 settled both, headless then in the desktop app: the rewrite applies to the Agent tool, `updatedInput` alone.
 
-Still to check, before the release: the same in the desktop app, which runs its sessions through the SDK. A session there on a folder with the throwaway hook, `Explore` asked on one model, the subagent's `.meta.json` read. If the desktop app ignores the rewrite, §6 is dropped; both plugins still go to 2.2.0, selo with no change but its version and a `CHANGELOG.md` line saying so, to keep them aligned.
+The desktop app, which runs its sessions through the SDK, applies it too (§11, desktop run): §6 ships.
 
 ### 6.5 Tests
 
@@ -176,7 +176,7 @@ Still to check, before the release: the same in the desktop app, which runs its 
 
 One commit, two versions, as `ops-plugin.md` §5. The two plugins are aligned on 2.2.0: `selo-ops` goes from 1.0.0 to 2.2.0, the same as `selo` (settled 2026-10-22). `selo-ops` skips 1.x; the project header's `selo` field (the writer's version, `ops-export.md` §6) reads `2.2.0`.
 
-0. The desktop check of §6.4.
+0. The desktop check of §6.4: done (§11), §6 ships.
 1. `selo-ops` 2.2.0: `scripts/usage.mjs`, `ops.mjs`, tests, `CHANGELOG.md` (the usage, and the fix of §5.5); `docs/revamp-2.0.0/ops-export.md` §3 and §5.1 get the fields of §4 and the hooks of §5.1, the `<task-notification>` case of §5.5 included.
 2. `selo` 2.2.0: `hooks/hooks.json`, `scripts/agent-model.mjs`, tests, `docs/manifest.md`, `reference/rules.md`, `CHANGELOG.md`. `manifest.mjs` unchanged: `selo-ops`' copy stays identical (`tests/shared.test.mjs`).
 3. `node --test "plugins/*/tests/*.test.mjs"`, `claude plugin validate plugins/selo`, `plugins/selo-ops`, `.`.
@@ -204,7 +204,7 @@ A blueprint in its own repository, once 2.2.0 is out: the session detail shows t
 
 ## 11. Spike (2026-10-22)
 
-Run headless (`claude -p`, Claude Code 2.1.303, lead on Haiku) in a throwaway folder, with a `PreToolUse` hook on `Agent|Task` that sets `model: "sonnet"` and a `UserPromptSubmit` hook that logs the transcript's state; `SELO_OPS_DIR` pointed away from `~/.claude/selo`, so the runs never reached Selo Ops. The call asked for `Explore` on `haiku`. Two runs: the hook's output without `permissionDecision`, then with `"allow"`. The desktop app is not tested yet (§6.4).
+Run headless (`claude -p`, Claude Code 2.1.303, lead on Haiku) in a throwaway folder, with a `PreToolUse` hook on `Agent|Task` that sets `model: "sonnet"` and a `UserPromptSubmit` hook that logs the transcript's state; `SELO_OPS_DIR` pointed away from `~/.claude/selo`, so the runs never reached Selo Ops. The call asked for `Explore` on `haiku`. Two runs: the hook's output without `permissionDecision`, then with `"allow"`. Then a desktop run (§6.4): a session of the Claude desktop app (Code tab) on a throwaway folder, lead on Haiku, the same hook (`updatedInput` alone) in the folder's `.claude/settings.json`, `Explore` asked on `haiku`.
 
 - **The rewrite works, without `permissionDecision`.** In both runs the subagent ran on `claude-sonnet-5-5` (its transcript's assistant rows), and its `.meta.json` says `"model": "sonnet"`. §6.1's output, `updatedInput` alone, is the one to ship; no permission prompt is skipped.
 - **The lead's transcript keeps the call as the model wrote it.** The `tool_use` row of the Agent call still holds `"model": "haiku"`: a reader of the lead's transcript sees the asked model, not the one used. The real one is in the subagent's `.meta.json` (`model`) and in its assistant rows (§6.3 holds).
@@ -212,3 +212,4 @@ Run headless (`claude -p`, Claude Code 2.1.303, lead on Haiku) in a throwaway fo
 - **`UserPromptSubmit` input** carries `prompt_id`, beside `session_id`, `transcript_path`, `cwd`, `permission_mode`, `prompt`.
 - **Assistant rows carry more than `message.model`**: `requestedModel`, `advisorModel`, `effort` and `perTurnEffort`. Not exported by this proposal; noted for a later field. A model named in an `attachment` row (the session's context) is no call: §3 reads `message.model` of `assistant` rows only.
 - **Side finding, a bug of 1.0.0.** In the second run the model sent the subagent to the background; its end came back as a `<task-notification>` prompt, and the spike's session file shows a third run with `request: ""`. Fixed in 2.2.0 (§5.5).
+- **Desktop run: the rewrite applies too.** The subagent's `.meta.json` says `"model": "sonnet"` and its assistant rows ran on `claude-sonnet-5-5`; the lead's `tool_use` row still holds `"model": "haiku"`, as headless. The lead sent the subagent to the background although asked not to: the rewrite holds for a background call. The subagent's transcript also names `claude-opus-5-5` (the session's model) in an `attachment` row, an `api-request-shape` row and each assistant row's `advisorModel`: none is a call, which confirms §3 (`message.model` of `assistant` rows only). A `SELO_OPS_DIR` set in the folder's `settings.json` `env` reaches the hooks.
