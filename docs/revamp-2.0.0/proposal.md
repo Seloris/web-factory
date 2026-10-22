@@ -298,6 +298,13 @@ Round 6 (2026-10-22, before the implementation):
 - The `proto/blueprint-v2` branch? → **Kept apart, not merged.** On `feat/revamp` the sample stays in 1.0.0 shape: it is the real case for `setup update` (step 3), and the branch holds the expected result (`pages/home.md`, `domain/todo.md`).
 - Versioning during the revamp? → **One bump to 2.0.0**, with its `CHANGELOG.md` entry, in one commit before the branch is merged, as for 1.0.0. No intermediate version on the branch; no project installs it before.
 
+Round 7 (2026-10-22, review of the implementation against this document):
+
+- `build` and a legacy plan (§7 step 5)? → **`build` never builds a legacy plan.** An unfinished plan is rewritten as a blueprint by `setup update` (recommended), or left legacy for the person to finish by hand. One format for `build` to read.
+- The front's port (§4.8)? → **Read from `PORT` in `vite.config.ts`**, with `strictPort`, not `--port $PORT` on the command line: `cmd.exe` does not expand `$PORT`.
+- Setup's page stubs (§4.4 point 3)? → **A second commit on the same yes** (`docs(app): bootstrap specs`), beside `tools(tooling): selo setup`: the tooling and the specs stay apart in history.
+- The sample after the real run of `setup update`? → **Kept in its 1.0 shape** on `feat/revamp`, the test case of the migration; the migrated result stays on branch `claude/upgrade-test-sample-2ad02e`.
+
 ## 9. Risks
 
 - **Opus as implementer costs more per stage.** Offset: no 174-line plan to write and re-read. Measured in the prototype: a two-component page (≈ 520 lines of code, 192 of tests) built and reviewed in 12 min for $5.30, opus throughout, with the advisor called once before the code; `add-due-date` was not measured, so the comparison stays open.
