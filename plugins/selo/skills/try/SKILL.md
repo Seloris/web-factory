@@ -23,7 +23,7 @@ The component's `logins` file (default `.claude/local/test-logins.md`, git-ignor
 
 ## Procedure
 
-1. **Scenarios.** From the request, the plan or the spec ids given, list the scenarios to run (profile, steps, expected result), in `language.chat`, and run them without waiting unless the request is ambiguous.
+1. **Scenarios.** From the request, the blueprint's `browser:` line or the spec ids given, list the scenarios to run (profile, steps, expected result), in `language.chat`, and run them without waiting unless the request is ambiguous.
 2. **Demo or dev servers.** The servers needed are the tested component's and those of the components it `needs`, transitively, in `stages` order; a needed component that runs no server (a `lib`, or nothing to run in its `CLAUDE.md`) is skipped.
    - **The demo**, when the tested component has `commands.demo` and `demoUrl`: every needed component runs its `demo` (seeded data, its own ports), never its dev server. The person's dev servers are never touched.
    - **Else the dev servers**: a needed component's `serveUrl` that already answers is used as it is and never stopped; one that does not answer is started from its `commands.serve`, else the start its `CLAUDE.md` "Local run" documents (with the steps it says come first, e.g. its migrate command; suggest adding `commands.demo` in the report). When neither says how, give what is known and ask the person to start it.
@@ -34,4 +34,4 @@ The component's `logins` file (default `.claude/local/test-logins.md`, git-ignor
 6. **Database check**, when the scenario says what a UI action saved and the component's `CLAUDE.md` gives a read-only query command for the database the run uses. Never write to the database.
 7. **Stop** every server this skill started, once the scenarios are done, pass or fail (the background command stopped, its port free again), then delete the lock. A dev server that already answered at step 2 is never stopped.
 8. **Report**: demo or dev servers, those started and stopped, the foreign uncommitted files a demo served, then per scenario: passed / failed, what was seen, the screenshot, the console errors if any. A failure gets the likely cause from the code when it is clear, as uncertain otherwise. Do not fix anything in this skill: the calling skill (`fastlane`) does, or the next prompt is `/selo:fastlane fix {failure}`.
-9. When called from `build` or `fastlane` and every scenario passed, tell it so it ticks `Browser test` (the blueprint's Progress, the plan's Validation). Called from `build` on a blueprint with a `## Mockup`: take a screenshot of the page and say how it differs from the mockup.
+9. When called from `build` or `fastlane` and every scenario passed, tell it so it ticks `Browser test` (the blueprint's Progress; the fastlane says it in its report). Called from `build` on a blueprint with a `## Mockup`: take a screenshot of the page and say how it differs from the mockup.

@@ -49,7 +49,7 @@ test/
   {feature}/                one test file per router (route tests) and per service when its rules need it
 ```
 
-The layers are the plan's sections, in this order: `db` (tables, migration), `services` (repository and service, with their tests), `routes` (contracts, router, route tests).
+The layers, in the order a stage implements them: `db` (tables, migration), `services` (repository and service, with their tests), `routes` (contracts, router, route tests).
 
 ## Package scripts
 

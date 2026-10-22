@@ -59,7 +59,7 @@ The plugin's agents carry no `model` in their frontmatter: the skill that spawns
 kind: api                      # api | front | db | worker | lib
 stack: react-express           # free text; matches a stacks/{stack}/ pack when one exists
 skin: modern                   # a front's look: one of the plugin's skins/ (optional; an unknown name is an error)
-layers: [db, services, routes] # the plan's sections for this component
+layers: [db, services, routes] # the order a stage implements this component in
 commands:
   build: npm run build
   test: npm test                             # the fast suite, run in full at the end of a stage

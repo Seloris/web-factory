@@ -13,7 +13,7 @@ The commands are those of the manifest (`node ${CLAUDE_PLUGIN_ROOT}/scripts/mani
 |---|---|---|
 | End of the api stage | the api component's `handoff` | the handoff file (e.g. `openapi.json`) |
 | Start of the front stage | the front component's `prepare` | the generated types (`src/api/schema.d.ts`) |
-| Outside a plan, both at once | `handoff` then `prepare` | both |
+| Outside a build, both at once | `handoff` then `prepare` | both |
 
 The export imports the routers' zod contracts through the OpenAPI registry and writes the document; it opens no database and listens on no port, so the API may keep running.
 
