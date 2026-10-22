@@ -73,8 +73,8 @@ A page stub gets its spec from the code that exists (its **bootstrap**): `/selo:
 
 Every change of behaviour updates its page or domain spec, never later than the commit that ships it:
 
-- **Fastlane:** the delta in the same commit as the code. A delta that restates the request is applied without a question; a page with no spec gets one from the template, FRs only for what this change touches; a behaviour the person did not ask for is asked once, grouped, before the commit (under autopilot: applied and listed first under Business decisions).
-- **Blueprint:** the delta lives in the blueprint's `## Spec delta` while it is built; `build` merges it into the specs at the end (**Blueprints**).
+- **Fastlane:** the delta in the same commit as the code. A delta that restates the request is applied without a question; a page with no spec file gets one from the template, FRs only for what this change touches; a page stub is bootstrapped first (**A spec written from code**), in its own commit, then gets the delta; a behaviour the person did not ask for is asked once, grouped, before the commit (under autopilot: applied and listed first under Business decisions).
+- **Blueprint:** a page stub it touches is bootstrapped before the delta is drafted (its `+` ids and "before" texts come from that spec); the delta lives in the blueprint's `## Spec delta` while it is built; `build` merges it into the specs at the end (**Blueprints**).
 - A refactor, a look, a fix restoring the specified behaviour, tooling: no spec change.
 
 Every commit that touches code carries a `Spec:` line in its body, one group per file, ` · ` between them:
@@ -133,7 +133,7 @@ The session runs in its own worktree, on its own branch. Commits go on that bran
 
 1. **Sync.** Bring the branch up to date with `baseBranch`: the desktop app's `sync_with_base_branch` when the session has it, else `git merge {baseBranch}`. A git conflict stops and asks.
 2. **Merge the spec delta** (a blueprint; a fastlane has none): **Blueprints** steps 1 to 3, against the specs as `baseBranch` has them now, then the full suites of the touched components again (through `runner`).
-3. **Show the landing:** the branch and its commits; the decisions taken during the build first, then the Business decisions; the spec delta with its final ids; the exact message of the one commit in a code block: subject `{type}({name}): {summary}`, body the stages, the Business decisions, the final `Spec:` line. One yes.
+3. **Show the landing:** the branch and its commits; the decisions taken during the build first, then the Business decisions; the spec delta with its final ids; the exact message of the one commit in a code block: subject `{type}({name}): {summary}`, body the stages, the Business decisions, the final `Spec:` line. A bootstrap commit of the work (`docs({page}): bootstrap spec`) is folded into it: the body names it and its ids join the `Spec:` line. One yes.
 4. **Squash**, on the yes, from the checkout that holds `baseBranch` (`git worktree list --porcelain`: the worktree whose `branch` is `refs/heads/{baseBranch}`; a base branch cannot be checked out twice). `{files}` = `git diff --name-only --no-renames {baseBranch}...{branch}` (a moved file names both paths). First `git -C {main} status --porcelain -- {files}`: a dirty file there stops the landing before anything is written, and names the file. A `merge --squash` refused because the main checkout has staged changes stops too, and says so. Then `git -C {main} merge --squash {branch}` and `git -C {main} commit --only -m "{subject}" -m "{body}" -- {files}`: `--only` leaves out what other sessions staged there.
 
 No skill removes a worktree or its branch: the person or the desktop app does (after a squash, `git branch -d` refuses the branch; `-D` removes it).

@@ -1,6 +1,6 @@
 ---
 name: fastlane
-description: "Implement a development request directly (feature, change, bug fix) on one page or one component, no blueprint: each component touched in the manifest's order, layer by layer, test-first, verified by build, full test and lint through runner; the page or domain spec delta in the same commit; one review, the full suites and the browser test at the end; one commit per component. Stops and proposes a blueprint when the change needs a new page, entity or business rule. — no browser skips the browser test; — autonomous under autopilot."
+description: "Implement a development request directly (feature, change, bug fix) on one page or one component, no blueprint: each component touched in the manifest's order, layer by layer, test-first, verified by build, full test and lint through runner; the page or domain spec delta in the same commit (a page stub's spec written from the code first, in its own commit); one review, the full suites and the browser test at the end; one commit per component. Stops and proposes a blueprint when the change needs a new page, entity or business rule. — no browser skips the browser test; — autonomous under autopilot."
 ---
 
 # Fastlane
@@ -25,7 +25,7 @@ A change that turns out to need a new page, entity or business rule stops before
 
 1. **Resume.** `git status`, `git log`. Uncommitted changes of this request after an interrupted session are part of the work; files you cannot attribute belong to another session.
 2. **Explore** the page's code and follow its patterns, the component's `CLAUDE.md` and `.claude/rules/`. Before writing, list every place the change must reach: callers, tests, fakers and seeders, persistence configuration, contracts and mappers, translation keys, exports, generated clients. Keep the list of files this work writes: the commits name them.
-3. **Spec.** Edit the page or domain spec yourself, as the rules' **The spec follows the code** says; each commit's `Spec:` line names each file (`Spec: home +FR-18 · todo ~BR-06`).
+3. **Spec.** A page the request touches that is still a page stub (`Status: to bootstrap`) is bootstrapped first, as the rules' **A spec written from code** say: its spec of what the page does today, from the code read at step 2 (an `Explore` subagent for a large page), shown with its commit message in a code block, committed alone on the person's yes (`docs({page}): bootstrap spec`, its `Spec:` line with every new id), before any code; a reading the person corrects is fixed with targeted edits before that yes. Then edit the page or domain spec yourself, as the rules' **The spec follows the code** says; each commit's `Spec:` line names each file (`Spec: home +FR-18 · todo ~BR-06`).
 4. **Prepare.** Run the component's `commands.prepare` when it has one (e.g. regenerate a client from the handoff file), without starting a server.
 5. **Implement layer by layer**, in the component's `layers` order, writing or updating the tests before the code: the tests the change needs, following the component's testing conventions. A bug fix gets a test that reproduces it. A component whose `CLAUDE.md` says it has no unit tests gets none. While iterating, run only the relevant tests (the `test` command narrowed as the component's `CLAUDE.md` shows), never the full suite. Build after each layer.
 6. **Verify the stage**, through `runner`, reading its errors with `file:line`:
@@ -46,7 +46,7 @@ A change that turns out to need a new page, entity or business rule stops before
 
 The prompt ends with ` — autonomous` (sent by `autopilot`). As the rules' **Autonomous mode** says, plus:
 
-- No approach to validate.
+- No approach to validate. A page stub's bootstrap is committed without a question and listed in the report.
 - An ambiguity or an unasked spec delta is settled without asking and recorded in the commit body and the report (Business decisions or Technical defaults). One with no defensible answer stops the work, nothing committed.
 - Review findings not fixed are listed as open, never asked. Integration tests are never run.
 - In a worktree the fastlane stops ready to land: synced, the landing's recap and message in the report, no squash (the person gives that yes).

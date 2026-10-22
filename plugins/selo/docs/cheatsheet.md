@@ -47,7 +47,7 @@ flowchart TD
 /selo:fastlane Show the due date in red once it has passed
 ```
 
-The page's code is read, then each component touched: tests first, build + full test + lint, the page or domain spec delta. On the last one: the review of the whole work, the full suites, the browser test. Then one commit per component, each with its `Spec:` line.
+The page's code is read, then each component touched: tests first, build + full test + lint, the page or domain spec delta. On the last one: the review of the whole work, the full suites, the browser test. Then one commit per component, each with its `Spec:` line. A page still a stub (`Status: to bootstrap`) first gets the spec of what it does today, on your yes, in its own commit (`docs({page}): bootstrap spec`); a blueprint does the same before its delta.
 
 ## Blueprint lane
 
