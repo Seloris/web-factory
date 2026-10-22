@@ -15,7 +15,8 @@ import { fileURLToPath } from "node:url";
 import { currentSlot } from "./slots.mjs";
 
 export const PRESETS = {
-  standard: { planner: "opus", implementer: "sonnet", reviewer: "opus", runner: "haiku", explorer: "haiku" },
+  standard: { planner: "opus", implementer: "opus", reviewer: "opus", runner: "haiku", explorer: "haiku" },
+  lean: { planner: "opus", implementer: "sonnet", reviewer: "opus", runner: "haiku", explorer: "haiku" },
 };
 export const ROLES = Object.keys(PRESETS.standard);
 export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests", "serve", "demo"];

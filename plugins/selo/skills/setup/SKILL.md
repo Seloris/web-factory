@@ -33,7 +33,7 @@ In the `grill` format (the session's question tool, 1 to 4 questions per call, t
 1. **Name** (recommended: the repository folder name) and a one-line description.
 2. **Base branch** (recommended: the current one if it is `main`, `master` or `develop`, else `main`).
 3. **Languages**: chat (recommended: the one they are writing in) and repository (recommended: `en`); the application's own UI language.
-4. **Models**, one per role, each `opus`, `sonnet`, `haiku` or `fable`: planner (spec, plan), implementer (code), reviewer, runner (mechanical work), explorer (searches); recommended: the `standard` preset (opus, sonnet, opus, haiku, haiku), shown as the five answers so the person changes a role by name (`planner fable`). Every recommendation accepted writes `models: standard`; otherwise a map with `preset: standard` and the changed roles only.
+4. **Models**, one per role, each `opus`, `sonnet`, `haiku` or `fable`: planner (spec, plan), implementer (code), reviewer, runner (mechanical work), explorer (searches); recommended: the `standard` preset (opus, opus, opus, haiku, haiku; `lean` keeps sonnet as implementer), shown as the five answers so the person changes a role by name (`planner fable`). Every recommendation accepted writes `models: standard`; otherwise a map with `preset: standard` and the changed roles only.
 5. **Components**: the list, from what you found (recommended: one per detected root, named `api`, `web`, `db`, `worker`… by kind), with their order of implementation (which needs which).
 6. **Sign-in**: whether the application has accounts to sign in with (recommended: from the description). It decides the `logins` file and the packs' authentication placeholders.
 

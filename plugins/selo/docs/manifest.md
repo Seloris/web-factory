@@ -34,15 +34,15 @@ A key the parser does not know (at the top level, in a component, its `commands`
 
 ### Models
 
-One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). The one preset, `standard`, is the recommended set; `setup` asks for each role with it as the answer, and writes the map only for the roles the person changed:
+One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). Two presets: `standard`, the recommended set, and `lean`, sonnet as implementer for the person who wants it (a more detailed blueprint under autopilot only); `setup` asks for each role with it as the answer, and writes the map only for the roles the person changed:
 
-| Role | `standard` |
-|---|---|
-| planner | opus |
-| implementer | sonnet |
-| reviewer | opus |
-| runner | haiku |
-| explorer | haiku |
+| Role | `standard` | `lean` |
+|---|---|---|
+| planner | opus | opus |
+| implementer | opus | sonnet |
+| reviewer | opus | opus |
+| runner | haiku | haiku |
+| explorer | haiku | haiku |
 
 ```yaml
 models:

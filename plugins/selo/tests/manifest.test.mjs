@@ -64,7 +64,9 @@ test("resolveModels: presets and overrides", () => {
   assert.equal(resolveModels({ preset: "standard", planner: "fable" }).planner, "fable");
   const custom = resolveModels({ preset: "standard", reviewer: "fable" });
   assert.equal(custom.reviewer, "fable");
-  assert.equal(custom.implementer, "sonnet");
+  assert.equal(custom.implementer, "opus");
+  assert.equal(resolveModels("lean").implementer, "sonnet");
+  assert.equal(resolveModels({ preset: "lean", runner: "sonnet" }).planner, "opus");
   assert.throws(() => resolveModels("gold"));
 });
 
