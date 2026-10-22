@@ -326,9 +326,10 @@ export const isTaskNotification = (prompt) =>
 
 // The agent a hand-back comes from, when the prompt holds nothing but `<agent-message from="…">` blocks,
 // after the harness's blocks, the "Another Claude session sent a message:" preamble and the harness's trailing
-// paragraph (only its own line: any text after it is the person's); else null.
+// paragraph (only its own line: any text after it is the person's); else null. Read on the raw prompt:
+// stripWrappers would drop a leading `<agent-message>` block whole, as the hook gets it (no preamble).
 export function handBackFrom(prompt) {
-  const text = stripWrappers(prompt);
+  const text = String(prompt ?? "");
   const from = /<agent-message from="([^"]+)"/.exec(text)?.[1];
   if (!from) return null;
   const rest = text

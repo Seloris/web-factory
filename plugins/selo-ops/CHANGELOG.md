@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-23 — selo-ops 2.2.3: no empty run on a hand-back as the hook gets it
+
+The UserPromptSubmit hook gets a hand-back as the queued block alone (`<agent-message from="…">…</agent-message>`, no `Another Claude session sent a message:` preamble), not as the transcript shows it. `handBackFrom` stripped the prompt's leading wrapper tags first, and so dropped that block whole: no `from`, no hand-back. After the run's Stop (`turn-ended`), the prompt then opened an empty `free` run that became `current` (`request: ""`, « Demande non lisible dans l'export »), in session 7ef9eb1e of an autopilot waiting on a background Explore agent. 2.2.2's test passed a working run, kept by the answer rule. `handBackFrom` now finds the block on the raw prompt and strips the wrappers only from what is left. Sessions written by 2.2.2 and earlier keep their empty runs.
+
 ## 2026-10-23 — selo-ops 2.2.2: no empty run on a hand-back with the harness's trailing paragraph
 
 Claude Code now follows a subagent's `<agent-message>` hand-back with a paragraph of its own (`That "other Claude session" is an agent working inside this same session…`). 2.2.1 read it as the person's text and opened an empty `free` run (`request: ""`, shown as « Demande non lisible dans l'export ») at each hand-back of a runner or a reviewer. `handBackFrom` now drops that paragraph too, only its own line: any text after it still makes the prompt the person's. Sessions written by 2.2.1 and earlier keep their empty runs.
