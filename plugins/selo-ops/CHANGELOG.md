@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-23 — selo-ops 2.2.2: no empty run on a hand-back with the harness's trailing paragraph
+
+Claude Code now follows a subagent's `<agent-message>` hand-back with a paragraph of its own (`That "other Claude session" is an agent working inside this same session…`). 2.2.1 read it as the person's text and opened an empty `free` run (`request: ""`, shown as « Demande non lisible dans l'export ») at each hand-back of a runner or a reviewer. `handBackFrom` now drops that paragraph too, only its own line: any text after it still makes the prompt the person's. Sessions written by 2.2.1 and earlier keep their empty runs.
+
 ## 2026-10-23 — selo-ops 2.2.1: the session file says which version wrote it
 
 A session file carried no version: a reader could not tell a file of 1.0.0 from one of 2.2.0. Its new field `writtenBy` is the version of `selo-ops` that wrote it, set at every write (null if `plugin.json` is unreadable). Forward-only: `schemaVersion` stays 1. The project file already has it, as `selo`.

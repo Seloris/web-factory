@@ -325,12 +325,16 @@ export const isTaskNotification = (prompt) =>
   /<task-notification>/.test(prompt ?? "") && !stripWrappers(String(prompt).replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")).trim();
 
 // The agent a hand-back comes from, when the prompt holds nothing but `<agent-message from="…">` blocks,
-// after the harness's blocks and the "Another Claude session sent a message:" preamble; else null.
+// after the harness's blocks, the "Another Claude session sent a message:" preamble and the harness's trailing
+// paragraph (only its own line: any text after it is the person's); else null.
 export function handBackFrom(prompt) {
   const text = stripWrappers(prompt);
   const from = /<agent-message from="([^"]+)"/.exec(text)?.[1];
   if (!from) return null;
-  const rest = text.replace(/<agent-message\b[\s\S]*?(?:<\/agent-message>|$)/g, "").replace(/Another Claude session sent a message:/g, "");
+  const rest = text
+    .replace(/<agent-message\b[\s\S]*?(?:<\/agent-message>|$)/g, "")
+    .replace(/Another Claude session sent a message:/g, "")
+    .replace(/^That "other Claude session" is an agent working inside this same session\b.*$/gm, "");
   return stripWrappers(rest).trim() ? null : from;
 }
 
