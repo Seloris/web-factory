@@ -185,8 +185,6 @@ A commit that needs the person's yes shows its exact message (subject and body) 
 
 ## End of turn
 
-End each workflow step with the next prompt(s), one code block each, real paths filled in, e.g. `/selo:build .planning/blueprints/2026-10-21-due-date.md`.
-
 When the job committed, end with the done footer, the very last lines:
 
 ```markdown
@@ -194,14 +192,16 @@ When the job committed, end with the done footer, the very last lines:
 ## ✅ JOB DONE
 > {one line in language.chat, at most 120 characters: what the whole job achieved}
 `{short hash}` {subject} · branch `{branch}` · not pushed
+Next: {one line in language.chat: what the step does, and where to run it} · `{prompt}`
 ```
 
 - **The recap line** says what the whole job achieved, from its prompt to this footer, not only the last turn: a build stopped on a question (a semantic conflict, a landing) and resumed on the answer spans several turns. Never the commit subject again.
 - **One line per commit.** In the worktree variant, before the landing: `` `{short hash}` {subject} · branch `{branch}` · not merged ``; after it, the squashed commit: `` `{short hash}` {subject} · merged into `{baseBranch}` · not pushed ``.
-- A free request answered without a commit ends with the recap line alone, so "done, nothing to commit" never looks like "stopped halfway".
+- **The next steps.** A workflow step ends with its next prompt(s) here, one `Next:` line each, after the commit lines, the most likely first: the summary in language.chat, then the prompt in backticks, real paths filled in (``Next: Build the 2 stages, best in a new session · `/selo:build .planning/blueprints/2026-10-21-due-date.md` ``). `Next:` stays in English, whatever language.chat is. The next prompts appear only there, never again in code blocks above the footer. No `Next:` line when the skill gives none (autonomous mode, a blueprint done).
+- A free request answered without a commit ends with the recap line alone, and its `Next:` lines when it has some, so "done, nothing to commit" never looks like "stopped halfway".
 - No footer when the turn stops on a question, or on a failure before any commit; a stop after commits still ends with the footer.
 
-Selo Ops reads these shapes from the turn's last message (the ops export of the `selo-ops` plugin): the footer as the last lines flags the job done; a commit message in a code block as the last text, its first line `{type}({scope}): …`, flags a commit waiting for its yes; a last line ending with `?`, or the question of a next-step box, flags a question. A turn that ends on none of them shows as ended without its footer.
+Selo Ops reads these shapes from the turn's last message (the ops export of the `selo-ops` plugin): the footer as the last lines flags the job done, and its `Next:` lines are the run's next steps (summary and prompt); a commit message in a code block as the last text, its first line `{type}({scope}): …`, flags a commit waiting for its yes; a last line ending with `?`, or the question of a next-step box, flags a question. A turn that ends on none of them shows as ended without its footer.
 
 ## Marks
 

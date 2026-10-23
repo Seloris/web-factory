@@ -229,6 +229,8 @@ type Run = {
   question: string | null
   /** The done footer: its recap line and its commits. */
   recap: { text: string | null; commits: { sha: string; subject: string }[] } | null
+  /** The next steps the done footer proposes, its `Next:` lines in order: a summary in the chat language, and the prompt to run. [] outside `job-done`; missing on a run written before selo-ops 2.3.0. Unlike `resumePrompt`, it is what the turn said, in any project, selo or not. Added by selo-ops 2.3.0. */
+  next: { text: string; prompt: string }[]
   /** Every commit the run made, oldest first, with its `Spec:` line (`pending (…)` during a build). */
   commits: { sha: string; subject: string; spec: string | null; at: string }[]
   /** The prompt that resumes the run where its blueprint's Progress is; null when nothing resumes it. */
@@ -291,7 +293,7 @@ A prompt that answers the current run (its phase is `awaiting-commit` or `awaiti
 
 From `last_assistant_message`, in this order:
 
-1. Ends with the done footer (`## ✅ JOB DONE`, a `> ` line, zero or more commit lines) → `job-done`, `recap` filled. A free request answered without a commit ends with the footer and its recap line alone (proposal §3 Q4): it is `job-done` too, with no commits. The recap line covers the whole run, every turn since its prompt (a build resumed after a commit's yes included), not only the last turn: `recap.text` is the run's recap as written, never rebuilt from earlier turns.
+1. Ends with the done footer (`## ✅ JOB DONE`, a `> ` line, zero or more commit lines, zero or more `` Next: {summary} · `{prompt}` `` lines) → `job-done`, `recap` and `next` filled. A free request answered without a commit ends with the footer and its recap line alone (proposal §3 Q4): it is `job-done` too, with no commits. The recap line covers the whole run, every turn since its prompt (a build resumed after a commit's yes included), not only the last turn: `recap.text` is the run's recap as written, never rebuilt from earlier turns.
 2. The last fenced code block is the last text and its first line matches `{type}({scope}): ` → `awaiting-commit`, `pendingCommit` = the block.
 3. A `wrap_up` call of this turn carried an `ask`, or the last non-empty line ends with `?` → `awaiting-answer`, `question` = the `ask`, else that line.
 4. Otherwise `turn-ended`: the turn ended without the footer, a rule the workflow broke, shown as such.
@@ -384,6 +386,7 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
     "pendingCommit": { "subject": "feat(due-date): web — due dates and late todos in the list", "body": "Spec: pending (.planning/blueprints/2026-10-21-due-date.md)" },
     "question": null,
     "recap": null,
+    "next": [],
     "commits": [{ "sha": "f677536", "subject": "feat(due-date): api — optional due date on a todo", "spec": "pending (.planning/blueprints/2026-10-21-due-date.md)", "at": "2026-10-21T13:51:40.000Z" }],
     "resumePrompt": "/selo:build .planning/blueprints/2026-10-21-due-date.md",
     "since": "2026-10-21T13:40:02.000Z",
@@ -429,3 +432,7 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 23. **Usage in the export** → Each run carries `usage`, the session its totals (§5.6), read from the transcript by the plugin: the raw counts only, no weighted estimate. `prompts` capped at 50 per main run, the latest kept; read cap 32 MB, flagged `partial`. Per-call durations and the plan windows are out.
 24. **A `<task-notification>` prompt** → Keeps the main run (§3), as a hand-back does: no settling, no new run.
 25. **Edge rows** → A `<synthetic>` assistant row is no call. A call with no `message.model` counts in the totals, not in `byModel`. `byModel` is sorted by the sum of the four token kinds, then by name. A skill's `name` has no leading slash; `how` tells the sources apart, one row per (name, how). A prompt row with no timestamp has `at: null`.
+
+2026-10-23, selo-ops 2.3.0:
+
+26. **The next steps in the export** → The rules put a step's next prompts in the done footer, one `` Next: {summary} · `{prompt}` `` line each, instead of code blocks above it; `classifyEnd` reads them into the run's `next`. A `Next:` line without its prompt in backticks is no footer line: the turn reads as `turn-ended`. `resumePrompt` stays: computed from the blueprint, it holds even when a footer forgot its `Next:` line.

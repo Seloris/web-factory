@@ -65,13 +65,24 @@ test("classifyEnd reads the end of a turn (§5.3)", () => {
   assert.deepEqual(done.recap, { text: "Due dates on todos", commits: [{ sha: "f677536", subject: "feat(due-date): api — optional due date" }] });
   assert.deepEqual(classifyEnd("Answer.\n---\n## ✅ JOB DONE\n> Nothing to commit").recap, { text: "Nothing to commit", commits: [] });
   assert.equal(classifyEnd("## ✅ JOB DONE\n> x\nAnd one more thing?").phase, "awaiting-answer");
+  assert.deepEqual(done.next, []);
+
+  const next = classifyEnd("## ✅ JOB DONE\n> Blueprint committed\n`b47cb5a5` docs(nc): blueprint · branch `feat/x` · not pushed\nNext: Build the 2 stages · api, then web, best in a new session · `/selo:build .planning/blueprints/nc.md`\nNext: Review it first · `/selo:review .planning/blueprints/nc.md`");
+  assert.equal(next.phase, "job-done");
+  assert.equal(next.recap.commits.length, 1);
+  assert.deepEqual(next.next, [
+    { text: "Build the 2 stages · api, then web, best in a new session", prompt: "/selo:build .planning/blueprints/nc.md" },
+    { text: "Review it first", prompt: "/selo:review .planning/blueprints/nc.md" },
+  ]);
+  // A Next line without its prompt is no footer line.
+  assert.equal(classifyEnd("## ✅ JOB DONE\n> x\nNext: build it").phase, "turn-ended");
 
   const commit = classifyEnd("Commit?\n\n```\nfeat(due-date): web — due dates\n\nSpec: pending (x.md)\n```");
   assert.equal(commit.phase, "awaiting-commit");
   assert.deepEqual(commit.pendingCommit, { subject: "feat(due-date): web — due dates", body: "Spec: pending (x.md)" });
   assert.equal(classifyEnd("```js\nconst a = 1\n```").phase, "turn-ended");
 
-  assert.deepEqual(classifyEnd("Which one, A or B ?"), { phase: "awaiting-answer", question: "Which one, A or B ?", pendingCommit: null, recap: null });
+  assert.deepEqual(classifyEnd("Which one, A or B ?"), { phase: "awaiting-answer", question: "Which one, A or B ?", pendingCommit: null, recap: null, next: [] });
   assert.equal(classifyEnd("Done here.", "Commit now?").question, "Commit now?");
   assert.equal(classifyEnd("Done here.").phase, "turn-ended");
   assert.equal(classifyEnd(null).phase, "turn-ended");

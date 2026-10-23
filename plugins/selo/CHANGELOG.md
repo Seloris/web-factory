@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-23 — selo 2.3.0: the next steps in the done footer
+
+A step ended with its next prompts in code blocks, in no fixed shape: Selo Ops could not read them, and the `/build` proposed after a blueprint (session db28073d) was lost from the export. The rules' **End of turn** now puts them in the done footer, after the commit lines, one line each: `` Next: {summary in language.chat} · `{prompt}` ``, the most likely first; `Next:` stays in English, and the prompts are no longer repeated in code blocks above. `selo-ops` 2.3.0 exports them as the run's `next`. The `blueprint` and `setup` skills, which named the code blocks, and the cheatsheet follow.
+
 ## 2026-10-22 — selo 2.2.0: selo's subagents on their role's model, enforced by a hook
 
 A skill passed the role's model when it spawned `reviewer` or `runner`; a skill that forgot, a call that named another model, or an `Explore` spawned with no model ran off the manifest, silently. The proposal is `docs/revamp-2.2.0/proposal.md` §6; its spike showed the rewrite applies to the Agent tool, headless and in the desktop app, with `updatedInput` alone.

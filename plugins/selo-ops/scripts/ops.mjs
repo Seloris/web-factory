@@ -268,6 +268,8 @@ export function parsePrompt(prompt, root, selo = true) {
 }
 
 const COMMIT_SUBJECT = /^[a-z]+\([^)]+\)!?: /;
+// A next step of the done footer: Next: {summary} · `{prompt}`. The last ` · ` splits them.
+const NEXT_LINE = /^Next:\s*(.+)\s+·\s+`([^`]+)`$/;
 
 // §5.3: where the run stands at the end of a turn, from its last message and the turn's wrap_up ask.
 export function classifyEnd(message, ask = null) {
@@ -276,20 +278,21 @@ export function classifyEnd(message, ask = null) {
   const at = lines.findLastIndex((l) => /^##\s*✅\s*JOB DONE\s*$/.test(l.trim()));
   if (at >= 0) {
     const tail = lines.slice(at + 1).map((l) => l.trim()).filter(Boolean);
-    if (tail.every((l) => l.startsWith(">") || /^`[0-9a-f]{4,40}`/.test(l))) {
+    if (tail.every((l) => l.startsWith(">") || /^`[0-9a-f]{4,40}`/.test(l) || NEXT_LINE.test(l))) {
       const recap = tail.find((l) => l.startsWith(">"))?.replace(/^>\s*/, "") ?? null;
       const commits = tail.map((l) => /^`([0-9a-f]{4,40})`\s+(.*)$/.exec(l)).filter(Boolean).map((c) => ({ sha: c[1], subject: c[2].split(" · ")[0].trim() }));
-      return { phase: "job-done", recap: { text: recap, commits }, pendingCommit: null, question: null };
+      const next = tail.map((l) => NEXT_LINE.exec(l)).filter(Boolean).map((n) => ({ text: n[1].trim(), prompt: n[2] }));
+      return { phase: "job-done", recap: { text: recap, commits }, next, pendingCommit: null, question: null };
     }
   }
   if (lines.at(-1)?.trim() === "```") {
     const open = lines.slice(0, -1).findLastIndex((l) => l.trim().startsWith("```"));
     const block = open >= 0 ? lines.slice(open + 1, -1) : [];
-    if (COMMIT_SUBJECT.test(block[0] ?? "")) return { phase: "awaiting-commit", pendingCommit: { subject: block[0].trim(), body: block.slice(1).join("\n").trim() }, question: null, recap: null };
+    if (COMMIT_SUBJECT.test(block[0] ?? "")) return { phase: "awaiting-commit", pendingCommit: { subject: block[0].trim(), body: block.slice(1).join("\n").trim() }, question: null, recap: null, next: [] };
   }
   const last = lines.map((l) => l.trim()).filter(Boolean).at(-1) ?? "";
-  if (ask || last.endsWith("?")) return { phase: "awaiting-answer", question: String(ask || last).slice(0, 200), pendingCommit: null, recap: null };
-  return { phase: "turn-ended", pendingCommit: null, question: null, recap: null };
+  if (ask || last.endsWith("?")) return { phase: "awaiting-answer", question: String(ask || last).slice(0, 200), pendingCommit: null, recap: null, next: [] };
+  return { phase: "turn-ended", pendingCommit: null, question: null, recap: null, next: [] };
 }
 
 // §5.5: can the person close the session. A plain root has no done footer: an ended turn does not block there.
@@ -312,7 +315,7 @@ export const newSession = (id, root) => ({
 
 const openRun = (s, fields, agentId = null) => {
   const since = now();
-  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, commits: [], resumePrompt: null, usage: null, transcriptFrom: null, since, updatedAt: since, ...fields };
+  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, next: [], commits: [], resumePrompt: null, usage: null, transcriptFrom: null, since, updatedAt: since, ...fields };
   s.runs = [run, ...s.runs].slice(0, MAX_RUNS);
   return run;
 };

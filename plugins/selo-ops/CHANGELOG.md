@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-23 — selo-ops 2.3.0: the next steps a turn proposes, in the export
+
+A step's next prompts lived in code blocks above the done footer: the export did not keep them, and `resumePrompt` only covers a selo blueprint. In session db28073d (a project with no `selo.yaml`), the `/build` of the blueprint just committed was lost: `resumePrompt: null`. selo 2.3.0 moves them into the footer, one `` Next: {summary} · `{prompt}` `` line each; `classifyEnd` now reads them into the run's new field `next`, `[{ text, prompt }]`, in order (`[]` outside `job-done`). A `Next:` line without its prompt in backticks is no footer line. `resumePrompt` is unchanged. Forward-only: `schemaVersion` stays 1, a run written before has no `next`.
+
 ## 2026-10-23 — selo-ops 2.2.3: no empty run on a hand-back as the hook gets it
 
 The UserPromptSubmit hook gets a hand-back as the queued block alone (`<agent-message from="…">…</agent-message>`, no `Another Claude session sent a message:` preamble), not as the transcript shows it. `handBackFrom` stripped the prompt's leading wrapper tags first, and so dropped that block whole: no `from`, no hand-back. After the run's Stop (`turn-ended`), the prompt then opened an empty `free` run that became `current` (`request: ""`, « Demande non lisible dans l'export »), in session 7ef9eb1e of an autopilot waiting on a background Explore agent. 2.2.2's test passed a working run, kept by the answer rule. `handBackFrom` now finds the block on the raw prompt and strips the wrappers only from what is left. Sessions written by 2.2.2 and earlier keep their empty runs.

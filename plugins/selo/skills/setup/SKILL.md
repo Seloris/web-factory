@@ -91,22 +91,12 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` and show the resolved mani
 
 ### 5. Commit
 
-Propose one commit of the files written, the copied skeletons and their lock files included (never the installed dependencies: the pack's `gitignore` covers them), with its message in a code block (`tools(tooling): selo setup`, and a body listing the files and ending with `Spec: none (tooling)`), and make it on the person's yes. The route scan's page stubs, when there are any, are a second commit made on the same yes, shown beside the first in its own code block: `docs(app): bootstrap specs`, the body listing each stub with its route and ending with `Spec: none (page stubs, to bootstrap)`. Never push. Then the next prompts:
+Propose one commit of the files written, the copied skeletons and their lock files included (never the installed dependencies: the pack's `gitignore` covers them), with its message in a code block (`tools(tooling): selo setup`, and a body listing the files and ending with `Spec: none (tooling)`), and make it on the person's yes. The route scan's page stubs, when there are any, are a second commit made on the same yes, shown beside the first in its own code block: `docs(app): bootstrap specs`, the body listing each stub with its route and ending with `Spec: none (page stubs, to bootstrap)`. Never push. Then the next prompts, `Next:` lines of the done footer:
 
-```
-/selo:run
-```
-(the app on this worktree's slot, its URLs; outside a session `node selo-run.mjs`, or the pack's shortcut.)
-```
-/selo:blueprint {first page or feature}
-```
-```
-/selo:setup specs
-```
-(only when page stubs were written: their FRs from the code, all at once.)
-```
-/selo:fastlane {a small change to try the loop}
-```
+- `/selo:run`: the app on this worktree's slot, its URLs (outside a session `node selo-run.mjs`, or the pack's shortcut).
+- `/selo:blueprint {first page or feature}`.
+- `/selo:setup specs`: only when page stubs were written, their FRs from the code, all at once.
+- `/selo:fastlane {a small change to try the loop}`.
 
 And, when a component's stack has no pack, say in one line that its `CLAUDE.md` Conventions section is the place to grow its rules, and that a pack can be made from it later (`${CLAUDE_PLUGIN_ROOT}/stacks/README.md`).
 
