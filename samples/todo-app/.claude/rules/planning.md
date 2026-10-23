@@ -1,5 +1,5 @@
 ---
-description: "Feature planning under .planning/: folder layout, dev-plan folder and plan.md structure (one section per component, sub-divided by its layers), Progress and Validation checklists, plan header, reserved slugs, images, ideas and technical debt. Use when writing a spec or a plan."
+description: "Planning under .planning/: page specs, domain sheets, blueprints and their spec delta, images, ideas and technical debt. Use when writing or editing a spec or a blueprint."
 paths:
   - "**/.planning/**"
 ---
@@ -8,143 +8,42 @@ paths:
 
 ```
 .planning/
-  features/{slug}/
-    00_spec.md                  how this area of the application behaves today, present tense
-    assets/                     area-wide images (mockups, screenshots)
-    dev-plans/{YYYYMMDD}-{HHmmss}-{type}-{name}/
-      plan.md                   the whole plan
-      assets/                   plan-specific images (wireframes, reference designs)
+  pages/
+    {page}.md               one per route of the front: what the person sees and can do there
+  domain/
+    {name}.md               an entity or a policy used by several pages, or with no page: glossary, BRs
+    app.md                  the shell: layout, navigation, sign-in, errors, i18n
+  blueprints/
+    {YYYY-MM-DD}-{name}.md  a piece of work in flight, or done (never edited after `Spec merged`)
+    assets/                 images a blueprint cites (mockups, screenshots)
   ideas.md
   technical-debt.md
 ```
 
-`{slug}` is an **area** of the application (a screen, a route, a domain): a new request enriches its area's spec and adds a plan folder under it; a new area only for its own screen, route or domain. An area folder holds only `00_spec.md`, `assets/` and `dev-plans/`; `tooling` and `shared` have no spec. Related areas share a tag in the spec header.
+The selo plugin's rules (`reference/rules.md`) hold the full conventions; the skills read them. In short:
 
-## Spec: `00_spec.md`
+## Page specs and domain sheets
 
-Written only through the `write-spec` skill, which holds the spec template and editing rules. Never edit it by hand from a plan or an implementation.
+- **A page spec** is one route of a front: a business slug chosen at creation (`home`, `todo-detail`), its route in the header (`Route: /todos/:id`), FRs grouped by zone of the page in the order the person meets them. With two fronts or more, pages go under `pages/{component}/`.
+- **A domain sheet** holds what is true whatever the page: the entity's glossary, its BRs, a rule with no page as an FR. A page cites its ids (`` `todo` BR-01 ``), never restates them.
+- **Which file:** the person sees it on one page → that page; it holds on several pages, or on none → the domain sheet.
+- **A page stub** (`Status: to bootstrap` under its `Route:` line, nothing else) is a page whose code exists and whose spec is not written yet. The first change to it, or `/selo:setup specs {page}`, writes the spec of what it does today first (observed behaviour only, a doubt as a `Q-NN`), committed alone: `docs({page}): bootstrap spec`.
+- Present tense, each fact once, no history, no status (a stub's aside), no date, never how (endpoints, tables, components). `FR`, `BR`, `US`, `Q` ids are per file, append-only, never reused; a dropped one goes on the file's `Retired:` line. A doubt is a `Q-NN` under `## Open questions`.
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/spec-check.mjs {slug}` (the selo plugin's script) checks a file's ids and gives the next free ones.
 
-## Dev-plan folder
+## Blueprints
 
-`{YYYYMMDD}-{HHmmss}-{type}-{name}/`
+One screen, written by `/selo:blueprint`, approved once: the `## Spec delta` (`{slug} + FR-NN — …`, `{slug} ~ FR-NN — « before » → « after »`, `{slug} - FR-NN — « before »`), the Business decisions and Technical defaults, the Stages with their commit subjects, the Tests, the Progress. No pseudo-code, no file-level detail. `/selo:build` runs it and merges the delta into the specs at the end; the specs are untouched until then. A blueprint is never edited after `Spec merged`; a new iteration is a new blueprint.
 
-- Timestamp: run `node ${CLAUDE_PLUGIN_ROOT}/scripts/timestamp.mjs` (the selo-flow plugin's script) and use its output as-is. Never write it by hand.
-- `{type}`: `init`, `add`, `fix`, `refactor`, `remove` or `migrate`. `{name}`: kebab-case description.
-- A new iteration is a new folder; never edit a past plan. The plan being implemented is not past: `implement` ticks its Progress and records its Deviations. Ticking a plan's Validation after its implementation is allowed: it is how the review and the tests are recorded.
-- A plan folder that has never been committed (its `plan.md` is untracked) is a draft `write-plan` is still iterating on with the person: it is not approved, and `implement` never starts from it. A committed plan with uncommitted Progress ticks is not a draft.
-- Suggested commit type: `init` / `add` → `feat`, `fix` → `fix`, `refactor` / `remove` / `migrate` → `refactor`.
-
-## `plan.md`
-
-One file, with only the sections the plan needs:
-
-```markdown
-# {Title}
-
-Feature: `{slug}` · Components: `api`, `web` · Spec: US-03, FR-02, BR-05
-
-## Business decisions
-## Technical defaults
-## Context
-## {Component 1}
-### {Layer 1 of component 1}
-### {Layer 2 of component 1}
-## {Component 2}
-### {Layer …}
-## Conventions
-## Tests
-## Deviations
-## Progress
-## Validation
-```
-
-| Section | Content |
-|---|---|
-| Header line | The area's slug, the components touched (manifest names, in stage order), the spec ids covered (`Spec:`, read by `spec-check --plan`). |
-| Context | Why this iteration and what it changes. Optional: a Mermaid `flowchart TD` when the interactions are non-trivial. |
-| Business decisions | First, at most five: a rule, a label, a scope, a new area, what the person would want to check, `- {question} → {answer} ({reason})`, whether the person answered it or it was taken autonomously. |
-| Technical defaults | The other decisions, one line each, same shape. |
-| One section per component touched | Named after the component, in stage order, with one `###` subsection per layer of that component's `layers` that the plan touches, in the component's order. Each subsection says what to create or change, precisely enough to implement without guessing: entities, use cases, contracts (routes, request and response fields, authorization), persistence, state and actions, pages and components. Reference the previous component's handoff instead of duplicating its contract. |
-| Conventions | Changes to `CLAUDE.md` files, `.claude/` (rules, settings) or the selo-flow plugin: file, change, rationale. Required whenever the plan introduces or changes a convention. |
-| Tests | **Mandatory.** Per component: the unit tests to write, following that component's testing conventions, or "none" with the reason; integration tests only when the person asks for them. The implementation writes exactly these tests. |
-| Deviations | Written by `implement`, not at planning time: each departure from the plan the person accepted during implementation: `- {what the plan said} → {what was done} ({reason})`. Absent when there is none. |
-| Progress | The implementation checklist (below). |
-| Validation | The checks run once the implementation is done (below). |
-
-- Omit the sections of untouched components and layers.
-- Paths are rooted at the component's `path`.
-- When a plan touches several components, `implement` runs it in one session per component, in stage order: a stage with a `handoff` ends by running it and committing its file; the next stage starts with its `prepare`.
-
-### Progress checklist
-
-One checkbox per implementation step, grouped by stage. `implement` ticks each step when it is done and commits the whole stage, ticks included, in one commit at the end of the stage, so a new session knows where to resume.
-
-Each stage starts with its commit subject, the one `implement` uses for the stage's commit, so the person reads it with the plan.
-
-```markdown
-## Progress
-
-### Stage 1 — api
-Commit: `feat({slug}): api — {summary}`
-- [ ] Domain: {short step}
-- [ ] Application: {short step}
-- [ ] Api: {short step}
-- [ ] Handoff: `api/openapi.json` exported
-
-### Stage 2 — web
-Commit: `feat({slug}): web — {summary}`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: {short step}
-- [ ] pages: {short step}
-- [ ] ui: {short step}
-```
-
-Only the components and layers the plan touches. The Handoff step exists only when the component declares a `handoff`, the Prepare step only when it declares `commands.prepare`. A single-component plan has a single stage.
-
-### Validation checklist
-
-The checks made once every stage is done, one checkbox each, in a section of their own after Progress (never under it: a step under Progress belongs to a stage). Write only the items that apply:
-
-```markdown
-## Validation
-
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `{components}` green on the plan's final code
-- [ ] Browser test: the change tested on `web`'s demo (`test-in-browser` skill)
-```
-
-- **Review:** always. The review of the plan's last stage covers the whole plan (from the commit that added `plan.md` to `HEAD`, plus the uncommitted changes) and ticks it once no finding is left, fixed or left open with the person's agreement. The reviews of the earlier stages do not tick it. When the last stage leaves it unticked (findings left open), `/selo-flow:review {plan folder}` ticks it once they are settled.
-- **Tests:** whenever a touched component declares `commands.test`, listing those components. Each stage runs its own component's full suite already; this item records one run of every listed suite, in full, on the plan's final code. Ticked when all of them passed; a code change after the tick re-runs every listed suite, or unticks it.
-- **Browser test:** only when a touched component declares a `url`; run by default when it also has `commands.demo`. Ticked when every scenario passed.
-- **Integration tests:** only when the person asked for integration tests and the Tests section names them, `- [ ] Integration tests: {names} green`. Ticked when the person asked for the run and every test passed.
-
-The checklist is the only record of these checks: an item absent or unticked means the check was not done. Review is never skipped; the other items are optional: each stays `[ ]` (not run), is ticked (run and green) or is marked `[-]` with the reason when the person declined it, e.g. `- [-] Browser test: not run (declined by the person)`, so the plan says it was not run and why. The tick or the mark goes in the commit of the fixes it led to, or in a commit of the plan alone (`chore({slug}): validation — {item}`), proposed to the person first.
-
-The plan is **done** once every stage of Progress and `Review` are ticked; the optional items do not hold it back.
-
-## Plan header
-
-Infer the header instead of asking for it, and state it at the top of the plan proposal so the person can correct it:
-
-- **Area slug:** list `.planning/features/` and reuse the area the change belongs to first; a new one is a Business decision.
-- **Components:** the manifest components the plan touches, in stage order (none for `tooling` unless it touches a component).
-
-## Reserved slugs
-
-| Slug | For | `plan.md` sections |
-|---|---|---|
-| `tooling` | `CLAUDE.md` files, `.claude/`, the selo-flow plugin, CI/CD, build config, non-plan docs | Free-form sections instead of the component sections |
-| `shared` | Cross-feature refactors, multi-feature migrations, global auth or middleware | Standard component sections |
-
-Neither has a `00_spec.md`.
+A blueprint whose first lines say `Legacy:` is a 1.0 plan moved by `/selo:setup update`: history, never built.
 
 ## Images
 
-Save an image the person shares at the moment it is shared: in the plan's `assets/` by default, in the feature's `assets/` when it outlives the iteration. Name it in kebab-case after its content and reference it from `plan.md` or the spec: `![what it shows](./assets/{name}.png)`.
+Save an image the person shares at the moment it is shared, in `.planning/blueprints/assets/`, named in kebab-case after its content, and cite it from the blueprint: `![what it shows](./assets/{name}.png)`.
 
 ## Ideas: `.planning/ideas.md`
 
-The person's ideas, not yet specified, grouped by scope: one section per component, feature or `app`, a new scope's section added at the bottom; in a section, new items appended at the bottom, no priorities or metadata:
+The person's ideas, not yet specified, grouped by scope: one section per component, page or `app`, a new scope's section added at the bottom; in a section, new items appended at the bottom, no priorities or metadata:
 
 ```
 ## <scope>
@@ -162,4 +61,4 @@ A flat list, no sections, priorities or metadata, new items appended at the bott
 - **<Short title> (<scope>):** <One sentence stating what is wrong or missing, not how to fix it>. See [<File>](<relative-path>).
 ```
 
-Title: 3–6 words, sentence case. Scope: component, layer or feature names. Link only the most relevant file(s).
+Title: 3–6 words, sentence case. Scope: component, layer, page or domain names. Link only the most relevant file(s).

@@ -10,7 +10,9 @@ commands:
   lint: npx eslint {files}
   handoff: npx tsx scripts/export-openapi.ts openapi.json
   serve: npm run db:migrate && npm run dev
-serve_url: http://localhost:3000
+  demo: npm run demo
+port: 3000
+demo_port: 3101
 ```
 
 All commands run from this component's path. The `test` command runs every test, route tests included: they use an in-memory PGlite database and touch no external system. Narrow it while iterating with `npx vitest run {file or folder}` or `-t "{test name}"`.
@@ -27,6 +29,8 @@ src/
   db/
     schema.ts               re-exports every feature's tables (the Drizzle schema entry point)
     client.ts               opens the database: PGlite locally and in tests, node-postgres in deployment
+  demo.ts                   the demo: in-memory PGlite, migrated and seeded at each start, on its own port
+  seed/demo.ts              seedDemo(db, clock): the rows the browser tests need, through the repositories
   features/{feature}/
     {feature}.schema.ts     zod contracts of the routes (params, query, body, responses), registered for OpenAPI
     {feature}.table.ts      Drizzle tables and relations of the feature
@@ -45,7 +49,7 @@ test/
   {feature}/                one test file per router (route tests) and per service when its rules need it
 ```
 
-The layers are the plan's sections, in this order: `db` (tables, migration), `services` (repository and service, with their tests), `routes` (contracts, router, route tests).
+The layers, in the order a stage implements them: `db` (tables, migration), `services` (repository and service, with their tests), `routes` (contracts, router, route tests).
 
 ## Package scripts
 
@@ -60,7 +64,7 @@ The layers are the plan's sections, in this order: `db` (tables, migration), `se
 ## Conventions
 
 - **TypeScript strict**, ES modules, no `any` (use `unknown` and narrow); no default exports.
-- **Contracts first:** every route's params, query, body and response have a zod schema in `{feature}.schema.ts`; the TypeScript types come from `z.infer`, never declared a second time. Every schema is registered in the OpenAPI registry with the route, so the handoff document is complete.
+- **Contracts first:** every route's params, query, body and response have a zod schema in `{feature}.schema.ts`; the TypeScript types come from `z.infer`, never declared a second time. Every schema is registered in the OpenAPI registry with the route, so the handoff document is complete. A schema the front reads by name (an entity, `ProblemDetails`) becomes an OpenAPI component with `.meta({ id: "Order" })`: `src/shared/openapi.ts` does not call `extendZodWithOpenApi`, so `.openapi(...)` and `registry.register(...)` fail at start-up.
 - **Routes are thin:** guard, `validate(...)`, one service call, the status code and the response. No query, no business rule in a router.
 - **Services** take the repository and the `Clock` as parameters (`createTodoService({ todos, clock })`); no import of the database client in a service. Time always through `clock.now()`, never `new Date()` or `Date.now()` in services or repositories.
 - **Errors:** a service throws a typed `AppError` (`NotFoundError`, `ForbiddenError`, `ConflictError`, `BusinessRuleError` with a stable `code`); the error middleware turns it into a problem details response (`application/problem+json`, RFC 9457). Validation failures are `400`, missing entities `404`, scope violations `403`. Never `throw new Error(...)` for an expected case. Express 5 forwards rejected promises to the middleware: no `try`/`catch` in routers.
@@ -107,6 +111,7 @@ The `write-api-tests` skill reads this table.
 
 - Prerequisites: Node 22, `npm ci`. Nothing else: the database is PGlite, created in `.data/pglite` on first start.
 - First run and after every new migration: `npm run db:migrate`.
-- Run: `npm run dev` → http://localhost:3000. The `serve` command applies the pending migrations first: `test-in-browser` runs it only when the API does not answer, so PGlite's folder is free.
+- Run: `/selo:run api` (or `npm run dev`) → http://localhost:3000 on slot 0, the port + 10 per slot; the server reads `PORT`. The `serve` command applies the pending migrations first: a run starts it only when the API is not running, so PGlite's folder is free.
 - PGlite allows one process per data folder: stop the API before `npm run db:migrate` or `drizzle-kit studio`, and say so in the report.
 - Reset the local database: stop the API, delete `.data/pglite`, `npm run db:migrate`.
+- Demo: `npm run demo` → http://localhost:3101 (slot 0; `/selo:run api — demo` on this worktree's slot), an in-memory database migrated and seeded by `src/seed/demo.ts` at each start; it never touches `.data/pglite`. `try` starts and stops it. A feature that adds a screen adds its demo rows to `seedDemo`.

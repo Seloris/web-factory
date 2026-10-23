@@ -1,9 +1,14 @@
 {
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  },
   "permissions": {
     "allow": [
       "Bash(node *scripts/timestamp.mjs)",
       "Bash(node *scripts/manifest.mjs*)",
-      "Bash(node *scripts/spec-check.mjs*)"
+      "Bash(node *scripts/spec-check.mjs*)",
+      "Bash(node *scripts/run.mjs*)",
+      "Bash(node *scripts/ops.mjs* mark*)"
     ],
     "deny": [
       "Bash(git push:*)",
@@ -14,19 +19,15 @@
       "PowerShell(git -c * push*)"
     ]
   },
+  "enabledPlugins": {
+    "selo@selo": true
+  },
   "extraKnownMarketplaces": {
-    "selo-flow": {
+    "selo": {
       "source": {
         "source": "directory",
         "path": "C:/WS/webapp-factory"
       }
     }
-  },
-  "enabledPlugins": {
-    "selo-flow@selo-flow": true,
-    "selo-flow-board@selo-flow": true
-  },
-  "env": {
-    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
   }
 }

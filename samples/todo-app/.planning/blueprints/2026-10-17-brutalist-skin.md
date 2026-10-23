@@ -1,5 +1,7 @@
 # Brutalist skin on the web front: theme imports, shared/ui components, home restyled
 
+Legacy: 1.0 plan, moved from `.planning/features/shared/dev-plans/20261017-035326-refactor-brutalist-skin/` by setup update.
+
 Feature: `shared` (reserved slug, no spec) · Components: `web` · Spec: none (no business behaviour changes; the `home` spec ids stay as implemented)
 
 ## Context

@@ -1,4 +1,4 @@
-selo-flow: 1.0.0
+selo: 2.2.0
 name: todo-app
 base_branch: main
 language:
@@ -12,4 +12,3 @@ components:
   - name: web
     path: web
     needs: [api]
-    url: http://localhost:5173

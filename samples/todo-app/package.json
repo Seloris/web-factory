@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": {
+    "app": "node selo-run.mjs",
+    "app:demo": "node selo-run.mjs --demo"
+  }
+}

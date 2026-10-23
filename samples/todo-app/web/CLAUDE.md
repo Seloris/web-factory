@@ -10,9 +10,12 @@ commands:
   lint: npx eslint {files}
   prepare: npx openapi-typescript ../api/openapi.json --output src/api/schema.d.ts
   serve: npm run dev
+  demo: npm run demo
+port: 5173
+demo_port: 5181
 ```
 
-All commands run from this component's path. The front has no unit tests: never create a `*.test.tsx`. Lint only the files a stage changed, never the whole app.
+All commands run from this component's path. The front has no unit tests of its components: never create a `*.test.tsx`. A pure `.ts` module (no React, no DOM: a formatter, a reducer, a date rule) may get a Vitest `*.test.ts` beside it, once the front declares `test: npx vitest run`. Lint only the files a stage changed, never the whole app.
 
 ## Structure
 
@@ -28,8 +31,11 @@ src/
     pages/                  routed pages (`{Name}Page.tsx`)
     ui/                     presentational components (props in, callbacks out), forms (`{Name}Form.tsx`)
   shared/
-    ui/                     shared components: one per element of the skin's recipes (`Panel`, `PageTitle`, `Field`, `TextInput`, `SearchInput`, `Select`, `Button`, `Switch`, `Checkbox`, `List`, `Badge`, `EmptyState`, `LoadingState`, `ErrorMessage`, `ConfirmDialog`, `icons.tsx`)
-      theme/                skin.css (the skin's tokens, copied by init: never edited), base.css (the page), overrides.css (this application's values)
+    ui/                     shared components, one {Name}.tsx and its {Name}.module.css per element of the skin's recipes; labels are props, no className prop, no feature word
+                            Panel, PageTitle, Field (label, error, the control as a render prop), TextInput, SearchInput, Select,
+                            Button (variant: primary, danger, quiet, ghost), Switch, Checkbox, List (List, ListItem with isDone, ListItemText),
+                            Badge, EmptyState, LoadingState, ErrorMessage (role="alert"), ConfirmDialog (a native <dialog>), icons.tsx (SearchIcon, TrashIcon)
+      theme/                skin.css (the skin's tokens, copied by setup: never edited), base.css (the page), overrides.css (this application's values)
     lib/                    utils, i18n
 ```
 
@@ -38,7 +44,7 @@ src/
 | Script | Does |
 |---|---|
 | `build` | `tsc -b && vite build`: type-checks, then bundles |
-| `dev` | `vite`, with the `/api` proxy to http://localhost:3000 |
+| `dev` | `vite` on `PORT` (else 5173), with the `/api` proxy to `API_URL` (else http://localhost:3000) |
 
 ## Conventions
 
@@ -55,7 +61,7 @@ src/
 
 ## Design
 
-The skin named in the `component` block above: its tokens in `src/shared/ui/theme/skin.css`, imported first by `main.tsx`, then `base.css` and `overrides.css`. The UI follows the selo-flow plugin's design rules (`reference/ui-design.md`), its element recipes (`skins/recipes.css`) and the skin's `SKIN.md`, read in place; this section wins over them. Features compose the `shared/ui` components and style only their own layout.
+The skin named in the `component` block above: its tokens in `src/shared/ui/theme/skin.css`, imported first by `main.tsx`, then `base.css` and `overrides.css`. The UI follows the selo plugin's design rules (`reference/ui-design.md`), its element recipes (`skins/recipes.css`) and the skin's `SKIN.md`, read in place; this section wins over them. Features compose the `shared/ui` components and style only their own layout.
 
 - Variables this application changes: in `src/shared/ui/theme/overrides.css`, never in `skin.css`.
 - Rules this application adds or replaces: here, one line each.
@@ -64,10 +70,11 @@ The skin named in the `component` block above: its tokens in `src/shared/ui/them
 
 ## Testing
 
-None on the front. The `test-in-browser` skill checks a change in the real app on http://localhost:5173; there are no test accounts, nothing to sign in with.
+None on the front. The `try` skill checks a change in the real app on http://localhost:5173; there are no test accounts, nothing to sign in with.
 
 ## Local run
 
 - Prerequisites: Node 22, `npm ci`.
-- Run: `npm run dev` → http://localhost:5173; the API must be running on http://localhost:3000 (`test-in-browser` starts both when they do not answer).
+- Run: `/selo:run` starts the API, then the front, on this worktree's slot (http://localhost:5173 on slot 0, the port + 10 per slot); `npm run app` at the root does the same outside a session. `npm run dev` alone serves http://localhost:5173 and expects the API on http://localhost:3000.
+- Demo: `npm run demo` → http://localhost:5181 (slot 0; `/selo:run — demo` on this worktree's slot), proxied to the API's demo on port 3101, with `--force` (no stale Vite cache). `try` starts both demos and stops them after the test.
 - `prepare` regenerates `src/api/schema.d.ts` from the API's committed handoff file; run it at the start of every front stage.
