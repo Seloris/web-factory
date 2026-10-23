@@ -36,15 +36,19 @@ test("rootKey names a root as ~/.claude/projects does", () => {
 });
 
 test("parsePrompt opens the run of §5.2", () => {
-  assert.deepEqual(parsePrompt("/selo:fastlane add a filter"), { lane: "fastlane", request: "add a filter", blueprint: null, step: "fastlane", lastStep: null });
+  assert.deepEqual(parsePrompt("/selo:fastlane add a filter"), { lane: "fastlane", flow: "fastlane", skill: "fastlane", request: "add a filter", blueprint: null, step: null, lastStep: null });
   assert.equal(parsePrompt("/selo:blueprint due dates").blueprint, null);
   assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md — stage 2").step, "stage:2");
   assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md — stage 2").lastStep, "stage:2");
   assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md").blueprint, "x");
-  assert.equal(parsePrompt("/selo:autopilot due dates").step, "blueprint");
+  assert.equal(parsePrompt("/selo:autopilot due dates").step, null);
+  assert.deepEqual(["flow", "skill"].map((k) => parsePrompt("/selo:build .planning/blueprints/x.md")[k]), ["blueprint", "build"]);
   assert.equal(parsePrompt("/selo:review .planning/blueprints/x.md").step, "review");
-  assert.equal(parsePrompt("/selo:try").lane, "try");
-  assert.equal(parsePrompt("/selo:run all").lane, "free");
+  assert.equal(parsePrompt("/selo:review").step, null);
+  assert.deepEqual(["lane", "flow", "skill", "step"].map((k) => parsePrompt("/selo:try")[k]), ["try", "free", "try", null]);
+  // `/selo:run` is a tool skill now; `lane` keeps the 2.4.0 reading, `free`.
+  assert.deepEqual(["lane", "flow", "skill"].map((k) => parsePrompt("/selo:run all")[k]), ["free", "free", "run"]);
+  assert.equal(parsePrompt("/selo:nope x").skill, null);
   assert.equal(parsePrompt("what does this do?").lane, "free");
   assert.equal(parsePrompt("x".repeat(300)).request.length, 200);
 });
@@ -540,4 +544,114 @@ test("a prompt whose read before the lock failed still gets its transcriptFrom, 
   assert.equal(s.runs[0].transcriptFrom, readFileSync(transcript).length);
   assert.deepEqual([s.runs[1].usage.calls, s.runs[1].usage.settled], [1, true]);
   assert.equal(s.usage.calls, 1);
+});
+
+// ---------- flow, skill, trail (selo-ops 2.5.0) ----------
+
+const commandRows = (name, args, base) =>
+  row({ type: "user", message: { role: "user", content: `<command-message>${name}</command-message>\n<command-name>/${name}</command-name>\n<command-args>${args}</command-args>` } }) +
+  row({ type: "user", isMeta: true, message: { role: "user", content: [{ type: "text", text: `Base directory for this skill: ${base}\n\n# Skill` }] } });
+const SELO_BASE = "C:\\Users\\x\\.claude\\plugins\\cache\\selo\\selo\\2.3.0\\skills\\fastlane";
+
+test("a short /fastlane is retagged from the transcript at the run's first tool", () => {
+  const { dir } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const transcript = join(ops, "t.jsonl");
+  writeFileSync(transcript, promptRow("before") + callRow("m0", 1));
+  const base = { session_id: "f1", cwd: dir, transcript_path: transcript };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "f1.json"), "utf8"));
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/fastlane add a filter" });
+  assert.deepEqual([session().current.flow, session().current.skill, session().current.lane], ["free", null, "free"], "the hook gets the raw prompt");
+  writeFileSync(transcript, readFileSync(transcript, "utf8") + commandRows("fastlane", "add a filter", SELO_BASE));
+  hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: "x" } });
+  const s = session();
+  assert.deepEqual([s.current.flow, s.current.skill, s.current.lane, s.current.request, s.current.step], ["fastlane", "fastlane", "fastlane", "add a filter", null]);
+  assert.equal(s.current.commandRead, true);
+  assert.deepEqual(s.current.trail.map((x) => x.skill), ["fastlane"]);
+});
+
+test("a short command is read at Stop when the run called no tool; a project's own /fastlane stays free", () => {
+  const { dir } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const transcript = join(ops, "t.jsonl");
+  const base = { session_id: "f2", cwd: dir, transcript_path: transcript };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "f2.json"), "utf8"));
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/grill due dates" });
+  writeFileSync(transcript, commandRows("grill", "due dates", SELO_BASE.replace("fastlane", "grill")) + callRow("m1", 1));
+  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Who sees the due date?" });
+  let s = session();
+  assert.deepEqual([s.current.flow, s.current.skill, s.current.phase], ["free", "grill", "awaiting-answer"]);
+  assert.deepEqual(s.current.trail.map((x) => [x.skill, x.phase]), [["grill", "awaiting-answer"]]);
+
+  // Not the selo plugin's skill: the project's own .claude/skills/fastlane.
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/fastlane x" });
+  assert.equal(session().runs.length, 2, "a short command opens a run, it answers nothing");
+  writeFileSync(transcript, readFileSync(transcript, "utf8") + commandRows("fastlane", "x", "C:\\WS\\p\\.claude\\skills\\fastlane"));
+  hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Read", tool_input: {} });
+  s = session();
+  assert.deepEqual([s.current.flow, s.current.skill, s.current.commandRead], ["free", null, true]);
+});
+
+const stub = (id, fields = {}) => ({ ...newSession(id, "C:/p"), runs: [{ id: `${id}:1`, agentId: null, lane: "free", flow: "free", skill: null, step: null, substep: null, sheets: [], commits: [], trail: [], trailCut: false, ...fields, phase: "working" }] });
+
+test("the Skill tool names a selo skill by its short or full name", () => {
+  for (const skill of ["fastlane", "selo:fastlane"]) {
+    const s = stub("f3");
+    applyHook(s, { hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: { skill, args: "add a filter" } }, "C:/p");
+    assert.deepEqual([s.runs[0].flow, s.runs[0].skill, s.runs[0].request], ["fastlane", "fastlane", "add a filter"], skill);
+  }
+  const other = stub("f3");
+  applyHook(other, { hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: { skill: "ponytail:review" } }, "C:/p");
+  assert.equal(other.runs[0].skill, null, "another plugin's skill");
+});
+
+test("an autopilot takes its subagents' skills, its flow fixed", () => {
+  const s = stub("f4", parsePrompt("/selo:autopilot due dates"));
+  const skill = (agent, name, args) => applyHook(s, { hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: agent, tool_input: { skill: name, args } }, "C:/p");
+  const main = () => s.runs.find((r) => !r.agentId);
+  applyHook(s, { hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "general-purpose" }, "C:/p");
+  skill("a1", "selo:blueprint", "due dates — autonomous");
+  assert.deepEqual([main().flow, main().skill, main().step], ["autopilot", "blueprint", null]);
+  applyHook(s, { hook_event_name: "SubagentStart", agent_id: "a2", agent_type: "general-purpose" }, "C:/p");
+  skill("a2", "selo:build", ".planning/blueprints/x.md — stage 1 — autonomous");
+  assert.deepEqual([main().flow, main().skill, main().step], ["autopilot", "build", "stage:1"]);
+  assert.deepEqual(main().trail.map((x) => x.skill), ["autopilot", "blueprint", "build"]);
+  const a2 = s.runs.find((r) => r.agentId === "a2");
+  assert.deepEqual([a2.flow, a2.skill], ["blueprint", "build"]);
+});
+
+test("a tool skill inside a fastlane replaces its skill until the next mark", () => {
+  const s = stub("f5", parsePrompt("/selo:fastlane add a filter"));
+  const run = s.runs[0];
+  applyHook(s, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "node ops.mjs mark try home" } }, "C:/p");
+  applyHook(s, { hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: { skill: "selo:try" } }, "C:/p");
+  assert.deepEqual([run.flow, run.skill, run.lane, run.request], ["fastlane", "try", "fastlane", "add a filter"]);
+  applyHook(s, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "node ops.mjs mark commit" } }, "C:/p");
+  assert.equal(run.skill, "fastlane");
+  assert.deepEqual(run.trail.map((x) => `${x.skill} ${x.substep}`), ["fastlane try", "try try", "fastlane commit"]);
+});
+
+test("the trail: one entry per change, phase changes included, deduplicated, capped", () => {
+  const s = stub("f6", parsePrompt("/selo:fastlane add a filter"));
+  const run = s.runs[0];
+  const stop = (msg) => applyHook(s, { hook_event_name: "Stop", last_assistant_message: msg }, "C:/p");
+  stop("Which one, A or B?");
+  applyHook(s, { hook_event_name: "UserPromptSubmit", prompt: "A" }, "C:/p");
+  applyHook(s, { hook_event_name: "PostToolUse", tool_name: "Write", tool_input: { file_path: "C:/p/a.ts" } }, "C:/p");
+  stop("## ✅ JOB DONE\n> done");
+  stop("## ✅ JOB DONE\n> done");
+  assert.deepEqual(run.trail.map((x) => x.phase), ["awaiting-answer", "working", "job-done"], "no entry when nothing changed");
+  const last = run.trail.at(-1);
+  assert.deepEqual([run.skill, run.step, run.substep, run.phase], [last.skill, last.step, last.substep, last.phase]);
+  assert.equal(run.trailCut, false);
+  for (let i = 0; i < 60; i++) applyHook(s, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: `node ops.mjs mark ${i % 2 ? "tests" : "code"}` } }, "C:/p");
+  assert.equal(run.trail.length, 50);
+  assert.equal(run.trailCut, true);
+  assert.equal(run.trail.at(-1).substep, "tests", "the newest kept");
+
+  // A run written before 2.5.0 gets no trail, and an autopilot's flow is read from its lane.
+  const old = stub("f7", { lane: "autopilot", flow: undefined, skill: undefined, trail: undefined, trailCut: undefined });
+  applyHook(old, { hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: ".planning/blueprints/x.md — stage 2" } }, "C:/p");
+  assert.equal(old.runs.find((r) => !r.agentId).trail, undefined);
+  assert.equal(old.runs.find((r) => !r.agentId).step, "stage:2");
 });

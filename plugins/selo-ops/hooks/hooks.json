@@ -24,7 +24,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Skill|Agent|Task",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",

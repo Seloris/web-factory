@@ -29,13 +29,14 @@ Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, w
 |---|---|---|
 | `SessionStart` | | Writes the session file (`status: live`, root, repo, `startedAt`, `transcriptPath`, `model` when the input has it), rescans the project. |
 | `UserPromptSubmit` | | A `/selo:{lane} …` prompt opens a run on its step (§5.2); any other prompt opens a `free` run, or keeps the current run when it answers its question (a commit's yes, an answer). A subagent's hand-back (nothing but `<agent-message from="{agent_id}">` blocks of a known subagent run, after the harness's blocks and the `Another Claude session sent a message:` preamble) keeps the main run too, and so does a prompt holding nothing but `<task-notification>` blocks (a background subagent's end; selo-ops 1.0.0 opened an empty `free` run there). Phase → `working`, `pendingCommit`, `question` and `error` cleared. Opening a main run first settles the previous one's `usage` on its slice up to the transcript's size now (§5.6), then sets the new run's `transcriptFrom` to that size (0 when the transcript does not exist yet). |
-| `PreToolUse` | `Skill` | Same as above for a brief-driven call: an autopilot's subagents run the skills through the Skill tool, never from a typed prompt. `agent_id` makes it a subagent run. |
+| `PreToolUse` | `Skill` | Same as above for a brief-driven call: an autopilot's subagents run the skills through the Skill tool, never from a typed prompt. `agent_id` makes it a subagent run. The skill is named `selo:{name}` or by its short `{name}` (selo-ops 2.5.0). |
+| `PreToolUse` | any other tool (selo-ops 2.5.0) | Only for a main run still `free`, with no `skill`, `working`, not read yet: reads the run's first transcript rows for a short command (decision 31) and retags the run. Any other call leaves after reading the session file, without the lock. |
 | `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. A `node {plugin}/scripts/ops.mjs mark …` command sets the run's `substep` and `sheets` (§5.4). |
 | `PostToolUse` | `Edit\|Write\|NotebookEdit` | Adds the path to the session's `touchedFiles`. A file under `.planning/blueprints/` names the run's `blueprint` (a draft has one before its commit); a file under `.planning/pages/` or `.planning/domain/` adds its sheet to `sheets`. |
 | `PostToolUse` | `mcp__ccd_turn__wrap_up` | Keeps the call's `ask` for this turn: in the desktop app the question sits in that box, not in the last line of text (§5.3). |
 | `PreToolUse` | `Agent\|Task` | Queues the call's task (`description`, else `prompt`) and its `prompt` (300 characters) in `pendingAgents`, under its `subagent_type`. |
 | `SubagentStart` / `SubagentStop` | | Opens the subagent's run, its `task` and `prompt` taken from the oldest queued call of its `agent_type` / closes it, from `last_assistant_message`; sets its `usage` from `agent_transcript_path` read whole, `settled: true` (§5.6); sets its `task` and `requestedModel` from the `description` and `model` of the meta file beside it (`agent-{id}.meta.json`), its `prompt` from the transcript's first user row: its own files, so a task swapped between two calls of one type is set right. |
-| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Sets `model` and `context` from the transcript's last assistant message (`context.baseline` from its first one, once). Sets the current main run's `usage` from its slice (`transcriptFrom` to the end), `settled: false` (§5.6). Rescans the project. |
+| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Sets `model` and `context` from the transcript's last assistant message (`context.baseline` from its first one, once). A main run still `free` that called no tool is first read for a short command, as at `PreToolUse` (selo-ops 2.5.0). Sets the current main run's `usage` from its slice (`transcriptFrom` to the end), `settled: false` (§5.6). Rescans the project. |
 | `StopFailure` | | An API error ended the turn: phase `stopped`, `error` set. |
 | `SessionEnd` | | `status: ended`; a run still `working` becomes `stopped`. Settles the current main run's `usage` (§5.6). |
 
@@ -205,7 +206,19 @@ type Run = {
   agentId: string | null
   /** The subagent's `agent_type`, from `SubagentStart`; kept when a skill names its lane. Null for the main loop. */
   agentType: string | null
+  /** Deprecated since selo-ops 2.5.0, kept one version for older readers: read `flow` and `skill`. The `/selo:{name}` that opened the run, `free` for none and for `/selo:run`. */
   lane: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
+  /**
+   * How the work is driven, set by the run's first lane skill (`fastlane`; `blueprint` and `build` → `blueprint`; `autopilot`), then fixed.
+   * A tool skill alone (`grill`, `review`, `try`, `run`, `setup`) and no skill leave `free`. Added by selo-ops 2.5.0.
+   */
+  flow: 'free' | 'fastlane' | 'blueprint' | 'autopilot'
+  /**
+   * The selo skill running now, null for none. From the `/selo:{name}` prompt, a short `/{name}` command (read from the transcript),
+   * or the Skill tool. An autopilot main run takes its subagents' skill (`autopilot` until its first one). A tool skill called during a lane
+   * replaces the lane's skill; the lane's comes back at the run's next mark or its done footer (no event says a skill ended). Added by selo-ops 2.5.0.
+   */
+  skill: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'grill' | 'review' | 'try' | 'run' | 'setup' | null
   /** The prompt's text after the command, shortened to 200 characters once the harness's leading blocks are gone (a `<pasted_content>` unwrapped, any other closed block such as `<artifact-view-context>` dropped); a subagent's `agent_type` until a skill names its lane. */
   request: string
   /** A subagent's title: its Agent call's `description` (else its `prompt`), 200 characters, then at `SubagentStop` the `description` of its meta file (set right if two calls of one type swapped); null for the main loop. */
@@ -219,10 +232,11 @@ type Run = {
   /** The sheets the run works on: from `ops.mjs mark`, the spec files it writes, then its commits' `Spec:` lines. A fastlane names its page before coding. */
   sheets: string[]
   /**
-   * `blueprint` (writing it), `stage:N`, `review`, `merge` (the delta merged into the sheets), `fastlane`, `try`, `grill`, `setup`, `free`.
-   * Frozen at the start; moved by a build's stage commits, or, for an autopilot, by each subagent it spawns.
+   * Where a blueprint's build stands: `stage:N`, `review`, `merge` (the delta merged into the sheets); null otherwise.
+   * Set at the start (a build, an autopilot on a file, a review of a blueprint); moved by a build's stage commits, or, for an autopilot, by each subagent it spawns.
+   * Before selo-ops 2.5.0 it also held the lane's name (`blueprint`, `fastlane`, `try`, `grill`, `setup`, `free`).
    */
-  step: string
+  step: string | null
   /** The last stage of a `— stage N` build; null when the build runs every stage. */
   lastStep: string | null
   /** Where the step stands, set by the skill through `ops.mjs mark` (§5.4); null before the first mark. */
@@ -252,6 +266,15 @@ type Run = {
   usage: RunUsage | null
   /** Main run: the transcript's size in bytes when the run opened, where its slice starts. Subagent run: null. Internal to the export; Selo Ops does not read it. Added by selo-ops 2.2.0. */
   transcriptFrom: number | null
+  /** True once the run's first rows were read for a short command. Internal to the export; absent until then. Added by selo-ops 2.5.0. */
+  commandRead?: boolean
+  /**
+   * The run's history, oldest first: one entry each time `skill`, `step`, `substep` or `phase` changes (none when all four equal the previous entry's);
+   * the flat fields always equal its last entry. `flow` is not in it. A short command's retag replaces the entries before it. Added by selo-ops 2.5.0.
+   */
+  trail: { at: string; skill: string | null; step: string | null; substep: string | null; phase: string }[]
+  /** True once `trail` went over its 50 entries and its oldest were dropped. Added by selo-ops 2.5.0. */
+  trailCut: boolean
   since: string
   updatedAt: string
 }
@@ -292,17 +315,19 @@ type CloseBlocker =
 
 ### 5.2 Which run a prompt opens
 
-| Prompt | lane | step | blueprint |
-|---|---|---|---|
-| `/selo:fastlane {request}` | `fastlane` | `fastlane` | null (the sheet comes with the commit) |
-| `/selo:blueprint {request}` | `blueprint` | `blueprint` | null until its file is committed |
-| `/selo:build {file} [— stage N]` | `build` | first unticked `stage:N` | the file |
-| `/selo:autopilot {request \| file}` | `autopilot` | `blueprint` or the first unticked stage | the file, or null |
-| `/selo:review [scope]` | `review` | `review` | the file when the scope is one |
-| `/selo:try`, `/selo:grill`, `/selo:setup` | same word | same word | null |
-| anything else | `free` | `free` | null |
+| Prompt | flow | skill | step | blueprint |
+|---|---|---|---|---|
+| `/selo:fastlane {request}` | `fastlane` | `fastlane` | null | null (the sheet comes with the commit) |
+| `/selo:blueprint {request}` | `blueprint` | `blueprint` | null | null until its file is committed |
+| `/selo:build {file} [— stage N]` | `blueprint` | `build` | first unticked `stage:N` | the file |
+| `/selo:autopilot {request \| file}` | `autopilot` | `autopilot` | null, or the first unticked stage | the file, or null |
+| `/selo:review [scope]` | `free` | `review` | `review` when the scope is a blueprint, else null | the file when the scope is one |
+| `/selo:try`, `/selo:grill`, `/selo:setup`, `/selo:run` | `free` | same word | null | null |
+| anything else | `free` | null | null | null |
 
-A prompt that answers the current run (its phase is `awaiting-commit` or `awaiting-answer`) keeps it and sets `working`; a run `job-done` or `turn-ended` is over: the next prompt opens a new run.
+The short `/{name}` comes to the hook raw: it opens a `free` run, retagged as its `/selo:{name}` form at the run's first tool call or its `Stop` (decision 31). The deprecated `lane` is the `/selo:` word, `free` for `/selo:run` and anything else.
+
+A prompt that answers the current run (its phase is `awaiting-commit` or `awaiting-answer`; neither a `/selo:` command nor a short `/{name}` of a selo skill) keeps it and sets `working`; a run `job-done` or `turn-ended` is over: the next prompt opens a new run.
 
 ### 5.3 Reading the end of a turn
 
@@ -350,7 +375,8 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 | « Répartition » | Selo Ops' own estimate from raw figures: base instructions from `context.baseline`, Claude's output from `usage.tokens.output`, the rest of the lead's input shared by `usage.sizes`, one bar per subagent type from its runs' `usage` (selo-ops 2.4.0) |
 | Column `Vous attend` | `phase` ∈ {`awaiting-commit`, `awaiting-answer`}, or Claude Code's `awaitingAnswer` |
 | Pill: which source | Claude Code's status while it says `running` or `awaitingAnswer` (a turn, a dialog); the plugin's `phase` once it says `idle` (only the plugin knows why the turn ended). No timestamp comparison: at a turn's end the pid file and the session file are written within milliseconds, in either order. A stale phase goes at the next prompt (`working`). |
-| Band `blueprint › étape`, stage segments | `current` of the session file + its blueprint in the project file |
+| Band `blueprint › étape`, stage segments | `current` of the session file (`blueprint`, `step`) + its blueprint in the project file |
+| How the run is driven, the skill running, its timeline (blueprint then build…) | `flow`, `skill` and `trail` of the run, read as is, no derivation (selo-ops 2.5.0); a run written before has `lane` only |
 | `Interrompue` | session file `live`, pid file gone, or `phase: stopped` |
 | `Tour interrompu` (Esc) | `phase: working` while Claude Code says `idle`: no `Stop` fired (§3) |
 | Badge `Tu peux fermer` / its blockers | `close` of the session file (§5.5) |
@@ -392,6 +418,8 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
     "id": "59ec7eff-18ab-44b0-829d-e33b4e8e040e:1792598402000",
     "agentId": null,
     "lane": "build",
+    "flow": "blueprint",
+    "skill": "build",
     "request": ".planning/blueprints/2026-10-21-due-date.md",
     "task": null,
     "blueprint": "2026-10-21-due-date",
@@ -408,6 +436,12 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
     "commits": [{ "sha": "f677536", "subject": "feat(due-date): api — optional due date on a todo", "spec": "pending (.planning/blueprints/2026-10-21-due-date.md)", "at": "2026-10-21T13:51:40.000Z" }],
     "resumePrompt": "/selo:build .planning/blueprints/2026-10-21-due-date.md",
     "since": "2026-10-21T13:40:02.000Z",
+    "trail": [
+      { "at": "2026-10-21T13:40:02.000Z", "skill": "build", "step": "stage:1", "substep": null, "phase": "working" },
+      { "at": "2026-10-21T13:51:40.000Z", "skill": "build", "step": "stage:2", "substep": "commit", "phase": "working" },
+      { "at": "2026-10-21T14:02:11.000Z", "skill": "build", "step": "stage:2", "substep": "commit", "phase": "awaiting-commit" }
+    ],
+    "trailCut": false,
     "updatedAt": "2026-10-21T14:02:11.000Z"
   },
   "runs": ["… the same run, then the earlier ones …"]
@@ -438,8 +472,8 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 14. **Time and silence** → Each hook exits 0 and prints nothing whatever happens (`UserPromptSubmit` and `SessionStart` output would reach the agent's context), stops itself at 4.5 s (the hook's timeout is 5 s), each git call at 2 s. A `PostToolUse` on a Bash command that is neither a commit nor a mark leaves before any git or file work; the Edit hook touches no git. The project is rescanned on `SessionStart`, `Stop` and a commit only.
 15. **Commit detection** → No reliance on an exit-code field of the tool's response: after a command that `isCommit` (the commit hook's test) recognizes, the commit is the sha of git's `[branch sha]` line in the tool's response, so another session's commit on a shared checkout is never taken for this one. No such line in a loud commit's output: it failed, nothing is added. A quiet commit (`-q`), or a response the hook did not get, falls back to `HEAD`. A sha already in a run of the session is never added twice.
 16. **The last message** → `last_assistant_message` of `Stop` / `SubagentStop` when the input has it, else the last assistant text read from the tail of `transcript_path` (`agent_transcript_path` for a subagent).
-17. **What answers a run** → A prompt that is not a `/selo:{lane}` command keeps the main run when its phase is `awaiting-commit`, `awaiting-answer` or `working` (a word typed after an Esc continues the same job); a `/selo:{lane}` prompt always opens a run. A `/selo:` command outside the lanes (`/selo:run`) is `free`.
-18. **A skill the main loop picks itself** → A `PreToolUse` on `Skill` without `agent_id`, naming a `selo:` lane, turns the current run into that lane when it is a `free` run still `working` (the model chose the skill from a free sentence). With `agent_id`, it sets the subagent's run, and an `autopilot` main run takes that run's step (and blueprint). A subagent's commits and marks are added to the autopilot run too: its footer lists the commits, its tile shows the page and the substep. A subagent run still `working` at a `Stop` with no background task running is `stopped`: a foreground subagent cannot outlive its turn, and one interrupted by Esc gets no `SubagentStop`.
+17. **What answers a run** (changed by 31: `/selo:run` is the `run` skill, and a short `/{name}` opens a run) → A prompt that is not a `/selo:{lane}` command keeps the main run when its phase is `awaiting-commit`, `awaiting-answer` or `working` (a word typed after an Esc continues the same job); a `/selo:{lane}` prompt always opens a run. A `/selo:` command outside the lanes (`/selo:run`) is `free`.
+18. **A skill the main loop picks itself** (changed by 31: `flow`, `skill`, and a skill named short) → A `PreToolUse` on `Skill` without `agent_id`, naming a `selo:` lane, turns the current run into that lane when it is a `free` run still `working` (the model chose the skill from a free sentence). With `agent_id`, it sets the subagent's run, and an `autopilot` main run takes that run's step (and blueprint). A subagent's commits and marks are added to the autopilot run too: its footer lists the commits, its tile shows the page and the substep. A subagent run still `working` at a `Stop` with no background task running is `stopped`: a foreground subagent cannot outlive its turn, and one interrupted by Esc gets no `SubagentStop`.
 19. **The wrap_up ask** → Kept in the session file's `ask` field from the `PostToolUse` to the turn's `Stop`, cleared by the next prompt; a reader ignores it.
 20. **Steps moved by a commit** → A commit whose subject is a stage line of the run's blueprint (or of any blueprint, which then names the run's) moves the run to the next stage, the last to `review`; `docs({name}): spec merged` moves it to `merge`. `resumePrompt` is the blueprint's `next.prompt` at each `Stop`.
 21. **Marks** → `reference/rules.md` **Marks** says when `fastlane` and `build` mark; `templates/settings.json` allows `node *scripts/ops.mjs* mark*` (the script's path may be quoted), so a mark prompts nobody; a project set up before must run `setup update`, which adds the missing allow, or an autopilot in `acceptEdits` stops at the first mark. A session keeps its 100 newest runs.
@@ -461,3 +495,4 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 28. **A subagent's title and prompt** → `task` stays the title, now from its meta file's `description` at `SubagentStop`; `prompt` (300 characters) and `requestedModel` are new. No separate `description` key: it would repeat `task`.
 29. **The lead's context** → `context`: the last call's input, cache read and cache write, its model, and the first call's four token kinds as `baseline` (kinds, not a sum, so Selo Ops weights a warm-cache first call right). No window size: nothing the plugin reads gives it.
 30. **The breakdown** → The export carries raw figures only (decision 23): `usage.sizes`, the characters each group added, on main runs and summed in the session, and `context.baseline`. The weighted estimate is Selo Ops' own. A session file written before keeps no `sizes` on its earlier runs.
+31. **Flow, skill and trail** (selo-ops 2.5.0) → `lane` mixed how the work is driven with the skill running, and `step` a skill's name with a build's position; a session started with the short `/fastlane …` was exported `free` (`parsePrompt` matched `/selo:` only, and a skill loaded as a command fires no Skill tool). The hook now computes everything and Selo Ops reads properties: `flow` (set by the run's first lane skill, then fixed), `skill` (the one running now), `step` (build positions only), `substep`, and `trail`, their dated history (50 entries, `trailCut`). One map, `SKILLS` in `ops.mjs`, says which skill is a lane and its flow. A short command is read from the run's first transcript rows at its first tool call (the `PreToolUse` matcher is now every tool; any other call leaves on the session file, without the lock) or at its `Stop`: `<command-name>/selo:{name}</command-name>`, or `/{name}` whose next row's `Base directory for this skill:` is the selo plugin's `…/selo/{version}/skills/{name}`, so a project's own `.claude/skills/fastlane` and another plugin's `/review` stay `free`. A tool skill has no end event: it replaces the lane's skill until the run's next mark or its done footer. `lane` stays one version for older readers.

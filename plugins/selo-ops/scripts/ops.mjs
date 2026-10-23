@@ -20,12 +20,24 @@ import { normRoot, withLock } from "./slots.mjs";
 import { addUsage, readSlice, readUsage, subUsage } from "./usage.mjs";
 
 export const SCHEMA = 1;
-export const LANES = ["fastlane", "blueprint", "build", "autopilot", "review", "try", "grill", "setup"];
+// The selo skills (since 2.5.0): a lane skill sets the run's `flow`, a tool skill only its `skill`.
+export const SKILLS = {
+  fastlane: { kind: "lane", flow: "fastlane" },
+  blueprint: { kind: "lane", flow: "blueprint" },
+  build: { kind: "lane", flow: "blueprint" },
+  autopilot: { kind: "lane", flow: "autopilot" },
+  grill: { kind: "tool" }, review: { kind: "tool" }, try: { kind: "tool" }, run: { kind: "tool" }, setup: { kind: "tool" },
+};
+const skillOf = (name) => (name && Object.hasOwn(SKILLS, name) ? SKILLS[name] : null);
+// A run written before 2.5.0 has no `flow`: its lane's.
+const flowOf = (run) => run?.flow ?? skillOf(run?.lane)?.flow ?? "free";
 export const SUBSTEPS = ["bootstrap", "tests", "code", "suites", "review", "try", "merge", "commit"];
 // shortcut: a session keeps its 100 newest runs; raise it if a dashboard needs the whole history.
 const MAX_RUNS = 100;
 // A subagent run keeps the start of its prompt only.
 const PROMPT_CAP = 300;
+// A run's trail keeps its newest entries.
+const TRAIL_MAX = 50;
 
 const VERSION = (() => {
   try {
@@ -257,15 +269,18 @@ export function stripWrappers(prompt) {
 export function parsePrompt(prompt, root, selo = true) {
   const clean = stripWrappers(prompt);
   const m = /^\s*\/selo:([\w-]+)\b\s*([\s\S]*)$/.exec(clean);
-  const lane = selo && m && LANES.includes(m[1]) ? m[1] : "free";
-  const rest = (m && lane !== "free" ? m[2] : clean).trim();
+  const skill = selo && m && skillOf(m[1]) ? m[1] : null;
+  // `lane`: the reading of selo-ops 2.4.0, kept one version for older readers (`/selo:run` was `free`).
+  const lane = skill && skill !== "run" ? skill : "free";
+  const rest = (skill ? m[2] : clean).trim();
   const file = /(\S*\.planning\/blueprints\/[^\s/]+\.md)/.exec(slash(rest))?.[1] ?? null;
   const text = file && root && existsSync(resolve(root, file)) ? readFileSync(resolve(root, file), "utf8") : null;
   const stage = /—\s*stage\s+(\d+)/.exec(rest)?.[1];
-  const run = { lane, request: rest.slice(0, 200), blueprint: file ? basename(file, ".md") : null, step: lane, lastStep: null };
-  if (lane === "build") Object.assign(run, { step: stage ? `stage:${stage}` : text ? stepOf(text) : "stage:1", lastStep: stage ? `stage:${stage}` : null });
-  else if (lane === "autopilot") run.step = file ? (text ? stepOf(text) : "stage:1") : "blueprint";
-  else if (lane !== "review") run.blueprint = null;
+  const run = { lane, flow: skillOf(skill)?.flow ?? "free", skill, request: rest.slice(0, 200), blueprint: file ? basename(file, ".md") : null, step: null, lastStep: null };
+  if (skill === "build") Object.assign(run, { step: stage ? `stage:${stage}` : text ? stepOf(text) : "stage:1", lastStep: stage ? `stage:${stage}` : null });
+  else if (skill === "autopilot") run.step = file ? (text ? stepOf(text) : "stage:1") : null;
+  else if (skill === "review") run.step = file ? "review" : null;
+  else run.blueprint = null;
   return run;
 }
 
@@ -317,13 +332,45 @@ export const newSession = (id, root) => ({
 
 const openRun = (s, fields, agentId = null) => {
   const since = now();
-  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, next: [], commits: [], resumePrompt: null, prompt: null, requestedModel: null, usage: null, transcriptFrom: null, since, updatedAt: since, ...fields };
+  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", flow: "free", skill: null, request: "", task: null, blueprint: null, sheets: [], step: null, lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, next: [], commits: [], resumePrompt: null, prompt: null, requestedModel: null, usage: null, transcriptFrom: null, trail: [], trailCut: false, since, updatedAt: since, ...fields };
   s.runs = [run, ...s.runs].slice(0, MAX_RUNS);
   return run;
 };
 const mainRun = (s) => s.runs.find((r) => !r.agentId) ?? null;
 const runOf = (s, agentId) => (agentId ? s.runs.find((r) => r.agentId === agentId) ?? openRun(s, {}, agentId) : mainRun(s));
 const addSheets = (run, sheets) => (run.sheets = [...new Set([...run.sheets, ...sheets.filter(Boolean)])]);
+
+// A selo skill on a run (`p` from parsePrompt): a run with no skill yet takes it whole, as its prompt would have;
+// later, `skill` is replaced, `flow` set by the first lane skill only, a build's step taken.
+const setSkill = (run, p) => {
+  if (!run.skill && flowOf(run) === "free") return Object.assign(run, p);
+  run.skill = p.skill;
+  if (flowOf(run) === "free") run.flow = p.flow;
+  if (p.step) run.step = p.step;
+  run.blueprint ??= p.blueprint;
+};
+// A tool skill has no end event: the run's lane skill comes back at its next mark or its done footer.
+// An autopilot main run keeps its subagent's skill.
+const laneBack = (run) => {
+  if (skillOf(run.skill)?.kind !== "tool" || (flowOf(run) === "autopilot" && !run.agentId)) return;
+  const lane = [...(run.trail ?? [])].reverse().find((x) => skillOf(x.skill)?.kind === "lane")?.skill ?? (skillOf(run.lane)?.kind === "lane" ? run.lane : null);
+  if (lane) run.skill = lane;
+};
+// The trail: one entry at each change of skill, step, substep or phase; the flat fields are its last entry.
+// A run written before 2.5.0 gets none: its history is unknown.
+export const syncTrail = (run, at = now()) => {
+  const trail = run.trail;
+  if (!Array.isArray(trail)) return;
+  const last = trail.at(-1);
+  const entry = { at, skill: run.skill ?? null, step: run.step ?? null, substep: run.substep ?? null, phase: run.phase };
+  run.trailCut ??= false;
+  if (last && ["skill", "step", "substep", "phase"].every((k) => last[k] === entry[k])) return;
+  trail.push(entry);
+  if (trail.length > TRAIL_MAX) {
+    trail.splice(0, trail.length - TRAIL_MAX);
+    run.trailCut = true;
+  }
+};
 
 // A background subagent's end comes back as a prompt holding nothing but `<task-notification>` blocks (§5.5 of the 2.2 proposal).
 export const isTaskNotification = (prompt) =>
@@ -353,8 +400,10 @@ export function promptAction(s, prompt, root) {
   const from = handBackFrom(prompt);
   if (from && cur && s.runs.some((r) => r.agentId === from)) return { kind: "keep", cur, p: null };
   const p = parsePrompt(prompt, root, s.selo);
+  // A short `/fastlane …` comes raw: it opens a run (retagged from the transcript), it answers nothing.
+  const short = s.selo && skillOf(/^\/([\w-]+)(?=\s|$)/.exec(stripWrappers(prompt))?.[1]);
   // A prompt that answers the run (a commit's yes, an answer, a word after an Esc) keeps it.
-  if (p.lane === "free" && cur && ["awaiting-commit", "awaiting-answer", "working"].includes(cur.phase)) return { kind: "keep", cur, p };
+  if (!p.skill && !short && cur && ["awaiting-commit", "awaiting-answer", "working"].includes(cur.phase)) return { kind: "keep", cur, p };
   return { kind: "open", cur, p };
 }
 
@@ -420,9 +469,65 @@ export function agentOf(path, text) {
   return { task: meta.description ? String(meta.description).slice(0, 200) : null, requestedModel: meta.model ? String(meta.model) : null, prompt };
 }
 
+const ROW = /"type"\s*:\s*"(?:assistant|user)"/;
+
+// The selo skill a run's prompt typed as a command, from the run's first user rows (before any assistant row):
+// `/selo:{name}`, or a short `/{name}` whose next row's skill base directory is the selo plugin's (not a project's
+// own `.claude/skills/{name}`, nor another plugin's). `seen`: the prompt's row is in the text.
+export function commandOf(text) {
+  let cmd = null;
+  let seen = false;
+  for (const line of text.split("\n")) {
+    if (!ROW.test(line)) continue;
+    let row;
+    try {
+      row = JSON.parse(line);
+    } catch {
+      continue; // a line cut by the read
+    }
+    if (row.type === "assistant") break;
+    if (row.type !== "user" || row.isSidechain) continue;
+    const c = row.message?.content;
+    const t = typeof c === "string" ? c : Array.isArray(c) ? c.filter((p) => p?.type === "text").map((p) => p.text ?? "").join("\n") : "";
+    if (cmd) {
+      const base = /^Base directory for this skill:\s*(.+)$/m.exec(t)?.[1].trim();
+      if (base) return { seen, cmd: /[\\/]selo(?:[\\/]\d[\w.-]*)?[\\/]skills[\\/]([\w-]+)[\\/]?$/.exec(base)?.[1] === cmd.name ? cmd : null };
+      continue;
+    }
+    if (!t.trim() || t.startsWith("<local-command-")) continue;
+    seen = true;
+    const name = /<command-name>\/?([^<]+)<\/command-name>/.exec(t)?.[1].trim();
+    if (!name) return { seen, cmd: null };
+    const args = /<command-args>([\s\S]*?)<\/command-args>/.exec(t)?.[1].trim() ?? "";
+    const short = name.replace(/^selo:/, "");
+    if (!skillOf(short)) return { seen, cmd: null };
+    if (name.startsWith("selo:")) return { seen, cmd: { name: short, args } };
+    cmd = { name: short, args };
+  }
+  return { seen, cmd: null };
+}
+
+// A main run opened by a raw prompt that may be a short command: read once, at its first tool hook or its Stop.
+const commandPending = (s, run) => s.selo !== false && run && !run.agentId && run.flow === "free" && !run.skill && run.phase === "working" && !run.commandRead && run.transcriptFrom != null;
+
+const commandRead = (path, run) => {
+  try {
+    const { text } = readSlice(path, run.transcriptFrom, run.transcriptFrom + 256 * 1024);
+    return { runId: run.id, ...commandOf(text) };
+  } catch {
+    return null;
+  }
+};
+
 export function readFor(s, e, root) {
-  const event = e.hook_event_name;
   const path = e.transcript_path ?? s.transcriptPath;
+  const main = mainRun(s);
+  const command = ["PreToolUse", "PostToolUse", "Stop"].includes(e.hook_event_name) && !e.agent_id && path && commandPending(s, main) ? commandRead(path, main) : null;
+  return { ...readEvent(s, e, root, path), command };
+}
+
+function readEvent(s, e, root, path) {
+  const event = e.hook_event_name;
   if (event === "UserPromptSubmit") {
     const size = sizeOf(path);
     const act = promptAction(s, e.prompt, root);
@@ -533,7 +638,20 @@ const resumeOf = (run, root) => {
 // One hook: `s` is the session (mutated), `e` the hook's input, `ctx` what readFor read before the lock
 // (`size`: the transcript's size at a prompt; `read`: a run's usage). Returns true when the project needs a rescan.
 export function applyHook(s, e, root, ctx = {}) {
+  const rescan = applyEvent(s, e, root, ctx);
+  for (const r of s.runs) syncTrail(r);
+  return rescan;
+}
+
+function applyEvent(s, e, root, ctx) {
   const event = e.hook_event_name;
+  // A short command read from the transcript retags its run as its `/selo:` form would have, before the event.
+  const main = mainRun(s);
+  if (ctx.command && main?.id === ctx.command.runId && commandPending(s, main)) {
+    // The run was that skill from its prompt: its free entries leave the trail.
+    if (ctx.command.cmd) Object.assign(main, parsePrompt(`/selo:${ctx.command.cmd.name} ${ctx.command.cmd.args}`, root), { trail: [] });
+    if (ctx.command.seen) main.commandRead = true;
+  }
   const agentId = e.agent_id ?? null;
   if (e.permission_mode) s.permissionMode = e.permission_mode;
   const effort = e.effort?.level ?? (typeof e.effort === "string" ? e.effort : null);
@@ -578,18 +696,21 @@ export function applyHook(s, e, root, ctx = {}) {
     return false;
   }
   if (event === "PreToolUse" && e.tool_name === "Skill") {
-    const name = String(e.tool_input?.skill ?? "");
-    if (!s.selo || !name.startsWith("selo:")) return false;
-    const p = parsePrompt(`/${name} ${e.tool_input?.args ?? ""}`, root);
-    if (p.lane === "free") return false;
-    const main = mainRun(s);
+    // `selo:fastlane`, or the short `fastlane` when it is a selo skill's name.
+    const name = String(e.tool_input?.skill ?? "").replace(/^selo:/, "");
+    if (!s.selo || !skillOf(name)) return false;
+    const p = parsePrompt(`/selo:${name} ${e.tool_input?.args ?? ""}`, root);
     if (agentId) {
       const run = runOf(s, agentId);
-      Object.assign(run, p);
+      setSkill(run, p);
       touch(run);
-      // An autopilot stands for its subagents: its step is the one of the subagent it spawned last.
-      if (main?.lane === "autopilot") Object.assign(main, { step: p.step, blueprint: main.blueprint ?? p.blueprint, updatedAt: t });
-    } else if (main && main.lane === "free" && main.phase === "working") Object.assign(main, p, { updatedAt: t });
+      // An autopilot stands for its subagents: its skill and step are the ones of the subagent it spawned last.
+      // A tool skill with no blueprint (a try) keeps the autopilot's step.
+      if (flowOf(main) === "autopilot") Object.assign(main, { skill: p.skill, step: p.step ?? (skillOf(p.skill).kind === "tool" ? main.step : null), blueprint: main.blueprint ?? p.blueprint, updatedAt: t });
+    } else if (main && main.phase === "working") {
+      setSkill(main, p);
+      touch(main);
+    }
     return false;
   }
   if (event === "PostToolUse") {
@@ -620,9 +741,11 @@ export function applyHook(s, e, root, ctx = {}) {
       if (!s.selo) return false;
       const run = runOf(s, agentId);
       if (!run) return false;
-      const main = mainRun(s);
+      laneBack(run);
       // An autopilot stands for its subagents: their marks are its marks too.
-      for (const r of agentId && main?.lane === "autopilot" ? [run, main] : [run]) {
+      const auto = agentId && flowOf(main) === "autopilot";
+      if (auto && run.skill) main.skill = run.skill;
+      for (const r of auto ? [run, main] : [run]) {
         if (SUBSTEPS.includes(mark[1])) r.substep = mark[1];
         addSheets(r, mark[2].trim().split(/\s+/).filter((w) => /^[\w/-]+$/.test(w)));
         touch(r);
@@ -649,8 +772,7 @@ export function applyHook(s, e, root, ctx = {}) {
     const spec = specLine && s.selo ? parseSpecLine(`Spec: ${specLine}`) : null;
     if (spec?.pending) run.blueprint ??= basename(spec.pending, ".md");
     addSheets(run, Object.keys(spec?.groups ?? {}));
-    const main = mainRun(s);
-    if (agentId && main?.lane === "autopilot") main.commits.push(commit);
+    if (agentId && flowOf(main) === "autopilot") main.commits.push(commit);
     s.pendingStep = { agentId, subject };
     touch(run);
     return true;
@@ -668,6 +790,7 @@ export function applyHook(s, e, root, ctx = {}) {
   if (event === "SubagentStop") {
     const run = agentId && s.runs.find((r) => r.agentId === agentId);
     if (run) Object.assign(run, classifyEnd(e.last_assistant_message ?? lastAssistantText(e.agent_transcript_path)), { updatedAt: t });
+    if (run?.phase === "job-done") laneBack(run);
     // Its own files are the truth: they fix a task swapped between two calls of one type.
     const a = ctx.agent;
     if (run && a) Object.assign(run, { task: a.task ?? run.task, prompt: a.prompt ?? run.prompt ?? null, requestedModel: a.requestedModel ?? run.requestedModel ?? null });
@@ -678,6 +801,7 @@ export function applyHook(s, e, root, ctx = {}) {
     const cur = mainRun(s);
     if (cur) {
       Object.assign(cur, classifyEnd(e.last_assistant_message ?? lastAssistantText(e.transcript_path), s.ask), { updatedAt: t });
+      if (cur.phase === "job-done") laneBack(cur);
       cur.resumePrompt = resumeOf(cur, root);
     }
     // Read at Stop, the run may lack its last message: settled at the next run's prompt or at SessionEnd.
@@ -715,11 +839,11 @@ const moveStep = (s, project) => {
   if (!p) return;
   const run = p.agentId ? s.runs.find((r) => r.agentId === p.agentId) : mainRun(s);
   const main = mainRun(s);
-  if (!run || !["build", "autopilot", "blueprint"].includes(run.lane)) return;
+  if (!run || !["blueprint", "autopilot"].includes(flowOf(run))) return;
   const step = stepAfter(run, p.subject, project);
   if (!step) return;
   run.step = step;
-  if (p.agentId && main?.lane === "autopilot") Object.assign(main, { step, blueprint: main.blueprint ?? run.blueprint });
+  if (p.agentId && flowOf(main) === "autopilot") Object.assign(main, { step, blueprint: main.blueprint ?? run.blueprint });
 };
 
 // `deadline`: when the lock must have been taken; a hook stops itself at 4.5 s.
@@ -744,6 +868,7 @@ export async function handle(e, { dir = opsDir(), deadline = Date.now() + 4000 }
       const rescan = applyHook(s, e, root, ctx);
       const project = rescan ? scanProject(root, { dir, selo }) : null;
       moveStep(s, project);
+      for (const r of s.runs) syncTrail(r);
       s.writtenAt = now();
       s.writtenBy = VERSION;
       s.current = mainRun(s);
@@ -779,6 +904,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const cmd = String(e.tool_input?.command ?? "");
       // Most Bash calls are neither a commit nor a mark: they leave before any git or file work.
       if (e.hook_event_name === "PostToolUse" && /^(Bash|PowerShell)$/.test(e.tool_name) && !isCommit(cmd) && !/ops\.mjs["']?\s+mark\b/.test(cmd)) process.exit(0);
+      // Any other tool's PreToolUse only reads a short command, once per run: checked on the file read without the lock.
+      if (e.hook_event_name === "PreToolUse" && !/^(Skill|Agent|Task)$/.test(e.tool_name)) {
+        const s = readJson(join(opsDir(), "sessions", `${e.session_id}.json`));
+        if (e.agent_id || !s?.runs || !commandPending(s, mainRun(s))) process.exit(0);
+      }
       await handle(e, { deadline: started + 4000 });
     } catch {
       // fail silent
