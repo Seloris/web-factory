@@ -33,9 +33,9 @@ Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, w
 | `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. A `node {plugin}/scripts/ops.mjs mark …` command sets the run's `substep` and `sheets` (§5.4). |
 | `PostToolUse` | `Edit\|Write\|NotebookEdit` | Adds the path to the session's `touchedFiles`. A file under `.planning/blueprints/` names the run's `blueprint` (a draft has one before its commit); a file under `.planning/pages/` or `.planning/domain/` adds its sheet to `sheets`. |
 | `PostToolUse` | `mcp__ccd_turn__wrap_up` | Keeps the call's `ask` for this turn: in the desktop app the question sits in that box, not in the last line of text (§5.3). |
-| `PreToolUse` | `Agent\|Task` | Queues the call's task (`description`, else `prompt`) in `pendingAgents`, under its `subagent_type`. |
-| `SubagentStart` / `SubagentStop` | | Opens the subagent's run, its `task` taken from the oldest queued call of its `agent_type` / closes it, from `last_assistant_message`; sets its `usage` from `agent_transcript_path` read whole, `settled: true` (§5.6). |
-| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Sets `model` from the transcript's last assistant message. Sets the current main run's `usage` from its slice (`transcriptFrom` to the end), `settled: false` (§5.6). Rescans the project. |
+| `PreToolUse` | `Agent\|Task` | Queues the call's task (`description`, else `prompt`) and its `prompt` (300 characters) in `pendingAgents`, under its `subagent_type`. |
+| `SubagentStart` / `SubagentStop` | | Opens the subagent's run, its `task` and `prompt` taken from the oldest queued call of its `agent_type` / closes it, from `last_assistant_message`; sets its `usage` from `agent_transcript_path` read whole, `settled: true` (§5.6); sets its `task` and `requestedModel` from the `description` and `model` of the meta file beside it (`agent-{id}.meta.json`), its `prompt` from the transcript's first user row: its own files, so a task swapped between two calls of one type is set right. |
+| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Sets `model` and `context` from the transcript's last assistant message (`context.baseline` from its first one, once). Sets the current main run's `usage` from its slice (`transcriptFrom` to the end), `settled: false` (§5.6). Rescans the project. |
 | `StopFailure` | | An API error ended the turn: phase `stopped`, `error` set. |
 | `SessionEnd` | | `status: ended`; a run still `working` becomes `stopped`. Settles the current main run's `usage` (§5.6). |
 
@@ -164,6 +164,15 @@ type SeloSession = {
   startedAt: string
   /** Every run's usage summed, the main loop's and the subagents', including runs dropped past the 100 kept (§5.6). Null before the first one. Added by selo-ops 2.2.0. */
   usage: Usage | null
+  /** The lead's context window as its last API call sent it, set at each `Stop`. Null before the first one, and in a session file older than selo-ops 2.4.0. The window's size is not exported: no hook input nor transcript row gives it. Added by selo-ops 2.4.0. */
+  context: {
+    /** input + cacheRead + cacheWrite of the main transcript's last assistant row with a usage (not `<synthetic>`, not a sidechain row). */
+    tokens: number
+    /** That call's model. */
+    model: string | null
+    /** The session's first call, its four token kinds: the base instructions (system prompt, tools, instruction files) plus the first prompt, re-read on every call. Kinds, not a sum: a first call that hits a warm cache weighs far less than one that writes it. Read before the lock, from the transcript's first 2 MB, until found; null when none is there yet. */
+    baseline: Tokens | null
+  } | null
   /** `live` from SessionStart to SessionEnd. Whether the process is alive is Claude Code's pid file. */
   status: 'live' | 'ended'
   /** From the hooks' input: where Selo Ops reads the transcript, without guessing its folder from the cwd. */
@@ -180,7 +189,7 @@ type SeloSession = {
   /** `background_tasks` of the last `Stop`: the shells and agents still running after the turn. */
   backgroundTasks: { id: string; type: string; status: string; description: string }[]
   /** Agent calls whose subagent has not started yet: SubagentStart carries no prompt. At most 10. */
-  pendingAgents: { type: string; task: string }[]
+  pendingAgents: { type: string; task: string; prompt: string | null }[]
   /** Can the person close the session? Computed at each `Stop` (§5.5). */
   close: { ok: boolean; blockers: CloseBlocker[] }
   /** Every run of the session, newest first: the main loop's and its subagents'. */
@@ -199,8 +208,12 @@ type Run = {
   lane: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
   /** The prompt's text after the command, shortened to 200 characters once the harness's leading blocks are gone (a `<pasted_content>` unwrapped, any other closed block such as `<artifact-view-context>` dropped); a subagent's `agent_type` until a skill names its lane. */
   request: string
-  /** A subagent's task: its Agent call's `description` (else its `prompt`), 200 characters; null for the main loop. Two calls of one type started together may swap. */
+  /** A subagent's title: its Agent call's `description` (else its `prompt`), 200 characters, then at `SubagentStop` the `description` of its meta file (set right if two calls of one type swapped); null for the main loop. */
   task: string | null
+  /** A subagent's prompt, its first 300 characters: its Agent call's `prompt`, then at `SubagentStop` its transcript's first user row. Null for the main loop, and on a run written before selo-ops 2.4.0. Added by selo-ops 2.4.0. */
+  prompt: string | null
+  /** The model a subagent was asked for, as its meta file says it (`haiku`, `opus`…; the real one is `usage.byModel`); null when none was asked, for the main loop, and before selo-ops 2.4.0. Added by selo-ops 2.4.0. */
+  requestedModel: string | null
   /** The blueprint the run works on (its `name`), once known: named by the command, written by the run (a draft), or found when a stage commit lands. */
   blueprint: string | null
   /** The sheets the run works on: from `ops.mjs mark`, the spec files it writes, then its commits' `Spec:` lines. A fastlane names its page before coding. */
@@ -251,6 +264,8 @@ type Usage = {
   tokens: Tokens
   /** One row per model the calls ran on (`message.model` of assistant rows), most tokens first. A subagent run's real model is its first row. */
   byModel: { model: string; calls: number; tokens: Tokens }[]
+  /** The breakdown's raw input (the kookiz-usage mod's « Répartition »): characters each group added to the main conversation, most first. `conversation`: the person's text, Claude's text and Claude's tool inputs; a tool group: the results of its tools — `shell` (Bash, PowerShell), `files` (Read, Write, Edit, Glob, Grep, NotebookEdit), `web` (WebSearch, WebFetch), `agents` (Agent, SendMessage), `skills` (Skill), `app` (an `mcp__ccd_…` tool), `mcp:{server}` (any other MCP server, named as in the tool name), `other` (any other tool, or a result whose call is outside the slice). Main runs only, and the session's sum of them: a subagent run has none (its share is its own `usage`). Absent before selo-ops 2.4.0. Characters, not tokens: Selo Ops shares the lead's input beyond `context.baseline` by them. Added by selo-ops 2.4.0. */
+  sizes?: Record<string, number>
 }
 
 type RunUsage = Usage & {
@@ -317,7 +332,7 @@ A session file is written by its own hooks only (§1.2): a file another session 
 
 ### 5.6 Usage (selo-ops 2.2.0)
 
-Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md` §3 to §5): an API call is an `assistant` row with `message.usage` and `message.id`, deduplicated by id; only `message.model` of assistant rows names a model (an `attachment` row naming one is no call); a tool call is a `tool_use` part, the advisor a `server_tool_use` part named `advisor`; a skill is a `Skill` call, a typed `<command-name>`, or a meta row holding `<skill-format>true</skill-format>` that no Skill call or command just announced (a preload); a built-in or local command (`/compact`, `/model`, `/clear`, a mod's command: its row comes after a meta `<local-command-caveat>` row, or is followed by a `<local-command-stdout>` row) is neither a skill nor a prompt; a prompt is a user row that is not meta, not a compaction summary, holds no `tool_result`, and is neither `<local-command-…>`, `<task-notification>`, an Esc marker (`[Request interrupted by user…`) nor a subagent's hand-back (`<agent-message from=…`). A row written twice (same `uuid`, a transcript replaying its history) is read once; a sidechain row is its subagent's.
+Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md` §3 to §5): an API call is an `assistant` row with `message.usage` and `message.id`, deduplicated by id; only `message.model` of assistant rows names a model (an `attachment` row naming one is no call); a tool call is a `tool_use` part, the advisor a `server_tool_use` part named `advisor`; a skill is a `Skill` call, a typed `<command-name>`, or a meta row holding `<skill-format>true</skill-format>` that no Skill call or command just announced (a preload); a built-in or local command (`/compact`, `/model`, `/clear`, a mod's command: its row comes after a meta `<local-command-caveat>` row, or is followed by a `<local-command-stdout>` row) is neither a skill nor a prompt; a prompt is a user row that is not meta, not a compaction summary, holds no `tool_result`, and is neither `<local-command-…>`, `<task-notification>`, an Esc marker (`[Request interrupted by user…`) nor a subagent's hand-back (`<agent-message from=…`). A row written twice (same `uuid`, a transcript replaying its history) is read once; in a main slice, a sidechain row is its subagent's and is skipped; a subagent's own transcript (`subagents/agent-{id}.jsonl`), where every row is a sidechain row, is read with them (selo-ops 2.3.0 skipped them there too: every subagent run read zero).
 
 - **A main run reads its slice**: from its `transcriptFrom` (the size at its `UserPromptSubmit`, which fires before the prompt's row is written) to the end at `Stop` (`settled: false`: the last message may be missing), to the next main run's `transcriptFrom` when that run opens, or to the end at `SessionEnd` (`settled: true`). An Esc'd turn is caught by the settling read. A subagent run reads its own transcript whole at `SubagentStop`.
 - **The session's totals** move by the difference: `usage += new − previous` for the run read. A run dropped past the 100 kept keeps its last contribution.
@@ -330,6 +345,9 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 | Alive, cwd, title, desktop link, origin | Claude Code's `~/.claude/sessions/{pid}.json` |
 | Current tool, subagents at work, last prompt, question asked by Claude Code | The transcript, as Companion reads it |
 | Tokens per run, per model, per prompt; tools, skills; a subagent's real model; session totals | `usage` of each run and of the session (§5.6, selo-ops 2.2.0); « — » for a session file of 1.0.0 |
+| A subagent's title, prompt, requested model | `task`, `prompt`, `requestedModel` of its run (selo-ops 2.4.0) |
+| Current context | `context.tokens` of the session file (selo-ops 2.4.0) |
+| « Répartition » | Selo Ops' own estimate from raw figures: base instructions from `context.baseline`, Claude's output from `usage.tokens.output`, the rest of the lead's input shared by `usage.sizes`, one bar per subagent type from its runs' `usage` (selo-ops 2.4.0) |
 | Column `Vous attend` | `phase` ∈ {`awaiting-commit`, `awaiting-answer`}, or Claude Code's `awaitingAnswer` |
 | Pill: which source | Claude Code's status while it says `running` or `awaitingAnswer` (a turn, a dialog); the plugin's `phase` once it says `idle` (only the plugin knows why the turn ended). No timestamp comparison: at a turn's end the pid file and the session file are written within milliseconds, in either order. A stale phase goes at the next prompt (`working`). |
 | Band `blueprint › étape`, stage segments | `current` of the session file + its blueprint in the project file |
@@ -436,3 +454,10 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 2026-10-23, selo-ops 2.3.0:
 
 26. **The next steps in the export** → The rules put a step's next prompts in the done footer, one `` Next: {summary} · `{prompt}` `` line each, instead of code blocks above it; `classifyEnd` reads them into the run's `next`. A `Next:` line without its prompt in backticks is no footer line: the turn reads as `turn-ended`. `resumePrompt` stays: computed from the blueprint, it holds even when a footer forgot its `Next:` line.
+
+2026-10-23, selo-ops 2.4.0:
+
+27. **A subagent run's usage** → Its own transcript is read with its sidechain rows: a main slice skips them, so 2.3.0 read every subagent as zero, and the session's `usage` counted the lead only. The session's `usage` stays every run summed, subagents included, as §5.1 says: no lead-only sibling (the lead is its main runs' `usage`).
+28. **A subagent's title and prompt** → `task` stays the title, now from its meta file's `description` at `SubagentStop`; `prompt` (300 characters) and `requestedModel` are new. No separate `description` key: it would repeat `task`.
+29. **The lead's context** → `context`: the last call's input, cache read and cache write, its model, and the first call's four token kinds as `baseline` (kinds, not a sum, so Selo Ops weights a warm-cache first call right). No window size: nothing the plugin reads gives it.
+30. **The breakdown** → The export carries raw figures only (decision 23): `usage.sizes`, the characters each group added, on main runs and summed in the session, and `context.baseline`. The weighted estimate is Selo Ops' own. A session file written before keeps no `sizes` on its earlier runs.

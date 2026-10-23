@@ -239,7 +239,7 @@ test("subagents: an autopilot stands for the runs it spawns", () => {
   hook(ops, { ...base, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "general-purpose" });
   assert.equal(session().runs[0].task, "Build stage 1", "the task of the call of its type");
   assert.equal(session().runs[0].agentType, "general-purpose");
-  assert.deepEqual(session().pendingAgents, [{ type: "reviewer", task: "Review the code" }]);
+  assert.deepEqual(session().pendingAgents, [{ type: "reviewer", task: "Review the code", prompt: "p" }]);
   hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: `${BP} — stage 1 — autonomous` } });
   let s = session();
   assert.equal(s.runs[0].agentId, "a1");
@@ -368,6 +368,8 @@ test("usage: read at Stop, settled at the next prompt, an Esc'd turn caught, a s
   assert.equal(s.current.usage.prompts.length, 1);
   assert.equal(s.current.usage.byModel[0].model, "claude-opus-5-5");
   assert.equal(s.usage.calls, 1);
+  assert.deepEqual(s.context, { tokens: 100, model: "claude-opus-5-5", baseline: { input: 100, cacheRead: 0, cacheWrite: 0, output: 1 } });
+  assert.ok(s.usage.sizes.conversation > 0, "the main runs' sizes summed in the session");
 
   // The turn's last message lands after the Stop: the next run's prompt settles the run on its whole slice.
   append(callRow("m2", 50));
@@ -391,23 +393,38 @@ test("usage: read at Stop, settled at the next prompt, an Esc'd turn caught, a s
   assert.equal(s.usage.calls, 3);
   assert.deepEqual(s.usage.byModel.map((m) => m.model), ["claude-opus-5-5", "claude-sonnet-5-5"]);
 
-  // A subagent's transcript is read whole at its SubagentStop.
+  // A subagent's transcript is read whole at its SubagentStop: every row is a sidechain row (2.3.0 read it as zero),
+  // its title and requested model are in the meta file beside it, its prompt is its first user row.
   const agentFile = join(ops, "agent-a1.jsonl");
-  writeFileSync(agentFile, promptRow("Review the work") + callRow("x1", 30, "claude-haiku-5-5") + callRow("x2", 30, "claude-haiku-5-5"));
+  const side = (text) => text.trim().split("\n").map((l) => row({ ...JSON.parse(l), isSidechain: true, agentId: "a1" })).join("");
+  const toolRow = row({ type: "assistant", message: { id: "x0", model: "claude-haiku-5-5", role: "assistant", usage: { input_tokens: 5, output_tokens: 1 }, content: [{ type: "tool_use", id: "t1", name: "Grep", input: {} }] } });
+  writeFileSync(agentFile, side(promptRow("Review the work in ".padEnd(400, "x")) + toolRow + callRow("x1", 30, "claude-haiku-5-5") + callRow("x2", 30, "claude-haiku-5-5")));
+  writeFileSync(join(ops, "agent-a1.meta.json"), JSON.stringify({ agentType: "reviewer", description: "reviewer · due dates", model: "haiku" }));
+  hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Agent", tool_input: { description: "Review", prompt: "Review the work", subagent_type: "reviewer" } });
   hook(ops, { ...base, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "reviewer" });
+  s = session();
+  assert.deepEqual([s.runs[0].task, s.runs[0].prompt, s.runs[0].requestedModel], ["Review", "Review the work", null], "while it runs: the Agent call's");
   hook(ops, { ...base, hook_event_name: "SubagentStop", agent_id: "a1", agent_transcript_path: agentFile, last_assistant_message: "No finding." });
   s = session();
   const sub = s.runs.find((r) => r.agentId === "a1");
   assert.equal(sub.transcriptFrom, null);
-  assert.deepEqual([sub.usage.calls, sub.usage.settled, sub.usage.prompts.length, sub.usage.byModel[0].model], [2, true, 0, "claude-haiku-5-5"]);
-  assert.equal(s.usage.calls, 5);
+  assert.deepEqual([sub.usage.calls, sub.usage.settled, sub.usage.prompts.length, sub.usage.byModel[0].model], [3, true, 0, "claude-haiku-5-5"]);
+  assert.deepEqual(sub.usage.tokens, { input: 65, cacheRead: 0, cacheWrite: 0, output: 3 });
+  assert.deepEqual(sub.usage.tools, [{ name: "Grep", count: 1 }]);
+  assert.equal(sub.usage.sizes, undefined);
+  assert.deepEqual([sub.task, sub.requestedModel, sub.prompt.length], ["reviewer · due dates", "haiku", 300]);
+  assert.ok(sub.prompt.startsWith("Review the work in x"));
+  assert.equal(s.usage.calls, 6, "the session's totals count the subagent's calls");
+  assert.deepEqual(s.usage.byModel.map((m) => m.model), ["claude-opus-5-5", "claude-haiku-5-5", "claude-sonnet-5-5"]);
 
   // SessionEnd settles the current main run.
   append(promptRow("/selo:review") + callRow("m4", 1));
+  hook(ops, { ...base, hook_event_name: "Stop", last_assistant_message: "Reviewed." });
+  assert.deepEqual(session().context, { tokens: 1, model: "claude-opus-5-5", baseline: { input: 100, cacheRead: 0, cacheWrite: 0, output: 1 } }, "the context is the last call's, the baseline the first's");
   hook(ops, { ...base, hook_event_name: "SessionEnd" });
   s = session();
   assert.deepEqual([s.current.usage.calls, s.current.usage.settled], [1, true]);
-  assert.equal(s.usage.calls, 6);
+  assert.equal(s.usage.calls, 7);
 });
 
 test("a <task-notification> prompt keeps the main run, its request and its phase (§5.5)", () => {

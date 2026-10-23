@@ -148,19 +148,55 @@ test("addUsage and subUsage: the Usage part, floored at 0, empty models dropped"
   const a = readUsage(jsonl(assistant("a", "x", usage(10, 10)), assistant("b", "y", usage(1, 1))));
   const b = readUsage(jsonl(assistant("c", "y", usage(5, 5))));
   const sum = addUsage(a, b);
-  assert.deepEqual(Object.keys(sum).sort(), ["byModel", "calls", "tokens"]);
+  assert.deepEqual(Object.keys(sum).sort(), ["byModel", "calls", "sizes", "tokens"]);
+  assert.deepEqual(sum.sizes, { conversation: 3 });
   assert.equal(sum.calls, 3);
   assert.deepEqual(sum.byModel.map((m) => [m.model, m.calls]), [["x", 1], ["y", 2]]);
   const back = subUsage(sum, a);
-  assert.deepEqual(back, { calls: 1, tokens: T(5, 0, 0, 5), byModel: [{ model: "y", calls: 1, tokens: T(5, 0, 0, 5) }] });
+  assert.deepEqual(back, { calls: 1, tokens: T(5, 0, 0, 5), byModel: [{ model: "y", calls: 1, tokens: T(5, 0, 0, 5) }], sizes: { conversation: 1 } });
   assert.equal(addUsage(null, null), null);
   assert.deepEqual(subUsage(b, null).calls, 1);
-  assert.deepEqual(subUsage(null, b), { calls: 0, tokens: T(0, 0, 0, 0), byModel: [] });
+  assert.deepEqual(subUsage(null, b), { calls: 0, tokens: T(0, 0, 0, 0), byModel: [], sizes: {} });
+  // A subagent's usage has no sizes: a total of subagent runs has none either.
+  const agent = readUsage(jsonl(assistant("d", "y", usage(1, 1))), { sidechain: true });
+  assert.equal(agent.sizes, undefined);
+  assert.equal(addUsage(agent, agent).sizes, undefined);
 });
 
 test("a sidechain row is the subagent's: not counted in the main slice", () => {
   const r = readUsage(jsonl(user("go"), assistant("a", "m", usage(1, 1)), { ...assistant("b", "m", usage(9, 9)), isSidechain: true }));
   assert.equal(r.calls, 1);
+});
+
+test("a subagent's own transcript: every row a sidechain row, all counted with sidechain", () => {
+  // As Claude Code writes subagents/agent-{id}.jsonl (session 0d213aa8, an Explore run on Haiku read as zero by 2.3.0).
+  const side = (r) => ({ ...r, isSidechain: true, agentId: "aecf2e98fd675b99a" });
+  const text = jsonl(
+    side(user("Read-only, quick. Check web/src/features/help/.")),
+    side(assistant("m1", "claude-haiku-5-5", usage(3, 40, 0, 9000), [{ type: "tool_use", id: "t1", name: "Glob", input: { pattern: "**/help/*" } }])),
+    side(user([{ type: "tool_result", tool_use_id: "t1", content: "help.tsx" }])),
+    side(assistant("m2", "claude-haiku-5-5", usage(2, 200, 9000, 300), [{ type: "text", text: "Report." }])),
+  );
+  assert.equal(readUsage(text, { prompts: false }).calls, 0, "read as a main slice, it is nothing");
+  const r = readUsage(text, { prompts: false, sidechain: true, settled: true });
+  assert.equal(r.calls, 2);
+  assert.deepEqual(r.tokens, T(5, 9000, 9300, 240));
+  assert.deepEqual(r.byModel, [{ model: "claude-haiku-5-5", calls: 2, tokens: T(5, 9000, 9300, 240) }]);
+  assert.deepEqual(r.tools, [{ name: "Glob", count: 1 }]);
+  assert.deepEqual(r.prompts, []);
+  assert.equal(r.sizes, undefined);
+});
+
+test("sizes: characters added per group of the breakdown", () => {
+  const r = readUsage(jsonl(
+    user("hello"),
+    assistant("a", "m", usage(1, 1), [{ type: "text", text: "Sure" }, { type: "tool_use", id: "t1", name: "Bash", input: "ls" }]),
+    user([{ type: "tool_result", tool_use_id: "t1", content: "a.txt b.txt" }]),
+    assistant("b", "m", usage(1, 1), [{ type: "tool_use", id: "t2", name: "mcp__ccd_turn__wrap_up", input: "x" }, { type: "tool_use", id: "t3", name: "mcp__terminal__read", input: "y" }]),
+    user([{ type: "tool_result", tool_use_id: "t2", content: "ok" }, { type: "tool_result", tool_use_id: "t3", content: "abc" }, { type: "tool_result", tool_use_id: "gone", content: "z" }]),
+  ));
+  assert.deepEqual(r.sizes, { conversation: 13, shell: 11, "mcp:terminal": 3, app: 2, other: 1 });
+  assert.deepEqual(Object.keys(r.sizes), ["conversation", "shell", "mcp:terminal", "app", "other"]);
 });
 
 test("no prompt: an Esc marker, a subagent's hand-back", () => {

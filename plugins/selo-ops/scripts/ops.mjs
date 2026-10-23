@@ -24,6 +24,8 @@ export const LANES = ["fastlane", "blueprint", "build", "autopilot", "review", "
 export const SUBSTEPS = ["bootstrap", "tests", "code", "suites", "review", "try", "merge", "commit"];
 // shortcut: a session keeps its 100 newest runs; raise it if a dashboard needs the whole history.
 const MAX_RUNS = 100;
+// A subagent run keeps the start of its prompt only.
+const PROMPT_CAP = 300;
 
 const VERSION = (() => {
   try {
@@ -310,12 +312,12 @@ export function closeOf(s) {
 
 export const newSession = (id, root) => ({
   schemaVersion: SCHEMA, writtenAt: now(), writtenBy: VERSION, sessionId: id, root: normRoot(root), rootKey: rootKey(root), selo: true, repo: null, startedAt: now(), status: "live",
-  transcriptPath: null, model: null, permissionMode: null, effort: null, pendingAgents: [], touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null, usage: null,
+  transcriptPath: null, model: null, permissionMode: null, effort: null, pendingAgents: [], touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null, usage: null, context: null,
 });
 
 const openRun = (s, fields, agentId = null) => {
   const since = now();
-  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, next: [], commits: [], resumePrompt: null, usage: null, transcriptFrom: null, since, updatedAt: since, ...fields };
+  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", request: "", task: null, blueprint: null, sheets: [], step: "free", lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, next: [], commits: [], resumePrompt: null, prompt: null, requestedModel: null, usage: null, transcriptFrom: null, since, updatedAt: since, ...fields };
   s.runs = [run, ...s.runs].slice(0, MAX_RUNS);
   return run;
 };
@@ -394,6 +396,30 @@ const mainRead = (path, run, to, settled) => {
   }
 };
 
+// A subagent's title and requested model from the meta file beside its transcript, its prompt from its first user row.
+export function agentOf(path, text) {
+  let meta = {};
+  try {
+    meta = JSON.parse(readFileSync(path.replace(/\.jsonl$/, ".meta.json"), "utf8"));
+  } catch {
+    // no meta file: the Agent call's description stays
+  }
+  let prompt = null;
+  for (const line of text.split("\n")) {
+    if (!line.includes('"user"')) continue;
+    try {
+      const row = JSON.parse(line);
+      if (row.type !== "user") continue;
+      const c = row.message?.content;
+      prompt = (typeof c === "string" ? c : Array.isArray(c) ? c.filter((p) => p?.type === "text").map((p) => p.text).join("\n") : "").slice(0, PROMPT_CAP) || null;
+      break;
+    } catch {
+      // a line being written
+    }
+  }
+  return { task: meta.description ? String(meta.description).slice(0, 200) : null, requestedModel: meta.model ? String(meta.model) : null, prompt };
+}
+
 export function readFor(s, e, root) {
   const event = e.hook_event_name;
   const path = e.transcript_path ?? s.transcriptPath;
@@ -402,13 +428,14 @@ export function readFor(s, e, root) {
     const act = promptAction(s, e.prompt, root);
     return { size, opens: act.kind === "open", read: act.kind === "open" ? mainRead(path, act.cur, size, true) : null };
   }
-  if (event === "Stop") return { read: mainRead(path, mainRun(s), null, false) };
+  // The baseline is read once, before the lock.
+  if (event === "Stop") return { read: mainRead(path, mainRun(s), null, false), baseline: s.context?.baseline ?? (path ? firstContext(path) : null) };
   if (event === "SessionEnd") return { read: mainRead(path, mainRun(s), null, true) };
   if (event === "SubagentStop" && e.agent_id && e.agent_transcript_path) {
     const { text, partial } = readSlice(e.agent_transcript_path, 0, null);
     if (!text) return {};
     // Matched by its agent alone: its run may not be in the file read without the lock yet.
-    return { read: { runId: null, agentId: e.agent_id, from: null, usage: readUsage(text, { prompts: false, settled: true, partial }) } };
+    return { read: { runId: null, agentId: e.agent_id, from: null, usage: readUsage(text, { prompts: false, sidechain: true, settled: true, partial }) }, agent: agentOf(e.agent_transcript_path, text) };
   }
   return {};
 }
@@ -431,7 +458,7 @@ function* assistantTail(path) {
     if (!line.includes('"assistant"')) continue;
     try {
       const e = JSON.parse(line);
-      if (e.type === "assistant" && e.message) yield e.message;
+      if (e.type === "assistant" && e.message && !e.isSidechain) yield e.message;
     } catch {
       // a line cut by the tail read
     }
@@ -450,6 +477,35 @@ export function lastAssistantText(path) {
 // The model of the last assistant message; no hook input carries it (SessionStart rarely does).
 export function lastModel(path) {
   for (const { model } of assistantTail(path)) if (model && model !== "<synthetic>") return model;
+  return null;
+}
+
+const contextOf = (u) => (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+
+// The lead's context now: what its last API call sent (input, cache read, cache write), and that call's model.
+export function lastContext(path) {
+  for (const { model, usage: u } of assistantTail(path)) {
+    if (!u || model === "<synthetic>") continue;
+    return { tokens: contextOf(u), model: model ?? null };
+  }
+  return null;
+}
+
+// The tokens of the session's first API call: the base instructions (system prompt, tools, instruction files)
+// and the first prompt, re-read on every later call. From the transcript's first 2 MB.
+export function firstContext(path) {
+  const { text } = readSlice(path, 0, 2 * 1024 * 1024);
+  for (const line of text.split("\n")) {
+    if (!line.includes('"assistant"')) continue;
+    try {
+      const row = JSON.parse(line);
+      const u = row.message?.usage;
+      if (row.type === "assistant" && !row.isSidechain && u && row.message.model !== "<synthetic>")
+        return { input: u.input_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheWrite: u.cache_creation_input_tokens ?? 0, output: u.output_tokens ?? 0 };
+    } catch {
+      // a line cut by the read
+    }
+  }
   return null;
 }
 
@@ -517,7 +573,8 @@ export function applyHook(s, e, root, ctx = {}) {
   if (event === "PreToolUse" && (e.tool_name === "Agent" || e.tool_name === "Task")) {
     const i = e.tool_input ?? {};
     const task = String(i.description || i.prompt || "").slice(0, 200);
-    s.pendingAgents = [...(s.pendingAgents ?? []), { type: String(i.subagent_type || "general-purpose"), task }].slice(-10);
+    const prompt = i.prompt ? String(i.prompt).slice(0, PROMPT_CAP) : null;
+    s.pendingAgents = [...(s.pendingAgents ?? []), { type: String(i.subagent_type || "general-purpose"), task, prompt }].slice(-10);
     return false;
   }
   if (event === "PreToolUse" && e.tool_name === "Skill") {
@@ -603,14 +660,17 @@ export function applyHook(s, e, root, ctx = {}) {
     // shortcut: two calls of one type started together may swap tasks; upgrade if a SubagentStart ever carries its prompt.
     const pending = s.pendingAgents ?? [];
     const i = pending.findIndex((p) => p.type === type);
-    const task = i >= 0 ? pending.splice(i, 1)[0].task : null;
+    const { task = null, prompt = null } = i >= 0 ? pending.splice(i, 1)[0] : {};
     s.pendingAgents = pending;
-    openRun(s, { agentType: type || null, request: type, task }, agentId);
+    openRun(s, { agentType: type || null, request: type, task, prompt }, agentId);
     return false;
   }
   if (event === "SubagentStop") {
     const run = agentId && s.runs.find((r) => r.agentId === agentId);
     if (run) Object.assign(run, classifyEnd(e.last_assistant_message ?? lastAssistantText(e.agent_transcript_path)), { updatedAt: t });
+    // Its own files are the truth: they fix a task swapped between two calls of one type.
+    const a = ctx.agent;
+    if (run && a) Object.assign(run, { task: a.task ?? run.task, prompt: a.prompt ?? run.prompt ?? null, requestedModel: a.requestedModel ?? run.requestedModel ?? null });
     applyRead(s, ctx.read);
     return false;
   }
@@ -624,6 +684,8 @@ export function applyHook(s, e, root, ctx = {}) {
     applyRead(s, ctx.read);
     s.ask = null;
     s.model = lastModel(e.transcript_path) ?? s.model;
+    const context = lastContext(e.transcript_path);
+    if (context) s.context = { ...context, baseline: s.context?.baseline ?? ctx.baseline ?? null };
     s.backgroundTasks =(e.background_tasks ?? []).map((b) => ({ id: String(b.id ?? ""), type: String(b.type ?? ""), status: String(b.status ?? ""), description: String(b.description ?? "") }));
     // A foreground subagent cannot outlive its turn: one with no SubagentStop (an Esc) is stopped.
     if (!s.backgroundTasks.some((b) => b.status === "running")) for (const r of s.runs) if (r.agentId && r.phase === "working") Object.assign(r, { phase: "stopped", updatedAt: t });

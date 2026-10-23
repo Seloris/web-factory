@@ -45,15 +45,36 @@ export function promptText(row) {
 
 const textsOf = (content) => (typeof content === "string" ? [content] : Array.isArray(content) ? content.filter((p) => p?.type === "text").map((p) => p.text ?? "") : []);
 const commandName = (text) => /<command-name>\/?([^<]+)<\/command-name>/.exec(text)?.[1]?.trim() ?? null;
+const sizeOf = (content) => (typeof content === "string" ? content.length : JSON.stringify(content ?? "").length);
+
+/** The group of the breakdown a tool's results count in (the kookiz-usage mod's toolGroup, keys in English). */
+export function toolGroup(name = "") {
+  if (name.startsWith("mcp__")) {
+    const server = name.slice(5).split("__")[0];
+    return server.startsWith("ccd_") ? "app" : `mcp:${server}`;
+  }
+  if (name === "WebSearch" || name === "WebFetch") return "web";
+  if (["Read", "Write", "Edit", "Glob", "Grep", "NotebookEdit"].includes(name)) return "files";
+  if (name === "Bash" || name === "PowerShell") return "shell";
+  if (name === "Agent" || name === "SendMessage") return "agents";
+  if (name === "Skill") return "skills";
+  return "other";
+}
 
 /**
  * The usage of a transcript's text (a run's slice, or a subagent's transcript whole).
  * `prompts`: false for a subagent run (its first user row is its task, not a prompt the person typed).
+ * `sidechain`: true for a subagent's own transcript, where every row is a sidechain row. It has no `sizes`.
  * A line that does not parse (cut by the read cap, or being written) is skipped.
  */
-export function readUsage(text, { prompts: withPrompts = true, settled = false, partial = false } = {}) {
+export function readUsage(text, { prompts: withPrompts = true, sidechain = false, settled = false, partial = false } = {}) {
   const calls = new Map(); // message.id → { model, tokens, prompt }
   const tools = new Map();
+  // The breakdown's raw input: characters each group added to the conversation (`conversation`: the person's
+  // and Claude's text and Claude's tool inputs; a tool group: its results).
+  const sizes = new Map();
+  const toolNames = new Map(); // tool_use id → name
+  const grow = (group, n) => n > 0 && sizes.set(group, (sizes.get(group) ?? 0) + n);
   const skills = new Map(); // `${how}\0${name}` → { name, how, count }
   const seenParts = new Set();
   const seenRows = new Set();
@@ -86,8 +107,8 @@ export function readUsage(text, { prompts: withPrompts = true, settled = false, 
     } catch {
       continue;
     }
-    // A sidechain row is a subagent's: counted from its own transcript, never twice.
-    if (row?.isSidechain) continue;
+    // In a main slice, a sidechain row is a subagent's: counted from its own transcript, never twice.
+    if (row?.isSidechain && !sidechain) continue;
     // A row written twice (a transcript replays its history after a compaction) is read once.
     if (row?.uuid) {
       if (seenRows.has(row.uuid)) continue;
@@ -106,9 +127,12 @@ export function readUsage(text, { prompts: withPrompts = true, settled = false, 
       for (const part of content) {
         if (part?.id && seenParts.has(part.id)) continue;
         if (part?.id) seenParts.add(part.id);
+        if (part?.type === "text") grow("conversation", part.text?.length ?? 0);
         if (part?.type === "server_tool_use" && part.name === "advisor") tools.set("advisor", (tools.get("advisor") ?? 0) + 1);
         else if (part?.type === "tool_use" && part.name) {
           tools.set(part.name, (tools.get(part.name) ?? 0) + 1);
+          toolNames.set(part.id, part.name);
+          grow("conversation", sizeOf(part.input));
           if (part.name === "Skill" && part.input?.skill) {
             const name = String(part.input.skill).replace(/^\//, "");
             addSkill(name, "tool");
@@ -147,6 +171,11 @@ export function readUsage(text, { prompts: withPrompts = true, settled = false, 
         else addSkill(name, "preloaded");
       }
       continue;
+    }
+    if (typeof message.content === "string") grow("conversation", message.content.length);
+    for (const part of content) {
+      if (part?.type === "tool_result") grow(toolGroup(toolNames.get(part.tool_use_id)), sizeOf(part.content));
+      else if (part?.type === "text") grow("conversation", part.text?.length ?? 0);
     }
     const names = content.some((p) => p?.type === "tool_result")
       ? []
@@ -187,10 +216,19 @@ export function readUsage(text, { prompts: withPrompts = true, settled = false, 
     tools: [...tools].map(([name, count]) => ({ name, count })).sort(byCount),
     skills: [...skills.values()].sort(byCount),
     prompts: prompts.slice(-MAX_PROMPTS),
+    ...(sidechain ? {} : { sizes: Object.fromEntries([...sizes].sort((a, b) => b[1] - a[1])) }),
     settled,
     partial,
   };
 }
+
+// a ± b per group, floored at 0, a group brought to nothing dropped; undefined when neither has sizes.
+const combineSizes = (a, b, sign) => {
+  if (!a && !b) return undefined;
+  const out = { ...a };
+  for (const [k, n] of Object.entries(b ?? {})) out[k] = Math.max(0, (out[k] ?? 0) + sign * n);
+  return Object.fromEntries(Object.entries(out).filter(([, n]) => n > 0).sort((x, y) => y[1] - x[1]));
+};
 
 // The `Usage` part of a usage (a session's totals): calls, tokens, byModel.
 const usageOf = (u) => ({ calls: u?.calls ?? 0, tokens: plus(zero(), u?.tokens), byModel: (u?.byModel ?? []).map((m) => ({ model: m.model, calls: m.calls ?? 0, tokens: plus(zero(), m.tokens) })) });
@@ -204,15 +242,17 @@ function combine(a, b, sign) {
     const cur = models.get(m.model) ?? { model: m.model, calls: 0, tokens: zero() };
     models.set(m.model, { model: m.model, calls: Math.max(0, cur.calls + sign * m.calls), tokens: plus(cur.tokens, m.tokens, sign) });
   }
+  const sizes = combineSizes(a?.sizes, b?.sizes, sign);
   return {
     calls: Math.max(0, x.calls + sign * y.calls),
     tokens: plus(x.tokens, y.tokens, sign),
     // A model a subtraction brought to nothing leaves the list.
     byModel: [...models.values()].filter((m) => m.calls > 0 || sum(m.tokens) > 0).sort(byTokens),
+    ...(sizes ? { sizes } : {}),
   };
 }
 
-/** a + b, as a `Usage` (a run's tools, skills and prompts are not summed). Null when both are null. */
+/** a + b, as a `Usage` with the main runs' `sizes` (a run's tools, skills and prompts are not summed). Null when both are null. */
 export const addUsage = (a, b) => combine(a, b, 1);
 /** a − b, floored at 0 per figure, as a `Usage`. A null `b` subtracts nothing. */
 export const subUsage = (a, b) => combine(a, b, -1);
