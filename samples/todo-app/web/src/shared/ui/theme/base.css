@@ -1,4 +1,4 @@
-/* The page under the skin: reads the skin's tokens only (the selo-flow plugin's skins/recipes.css, page section). */
+/* The page under the skin: reads the skin's tokens only (the selo plugin's skins/recipes.css, page section). */
 *, *::before, *::after { box-sizing: border-box; }
 body {
   margin: 0;
