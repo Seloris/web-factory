@@ -1,6 +1,6 @@
 {
   "name": "selo-ops",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "The ops export for Selo Ops: hooks only, no skill. Writes one JSON per session and per project root under ~/.claude/selo/, in a selo project or not. Enable it once, at user scope.",
   "author": {
     "name": "Daniel Djordjevic"

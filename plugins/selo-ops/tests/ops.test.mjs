@@ -36,7 +36,7 @@ test("rootKey names a root as ~/.claude/projects does", () => {
 });
 
 test("parsePrompt opens the run of §5.2", () => {
-  assert.deepEqual(parsePrompt("/selo:fastlane add a filter"), { lane: "fastlane", flow: "fastlane", skill: "fastlane", request: "add a filter", blueprint: null, step: null, lastStep: null });
+  assert.deepEqual(parsePrompt("/selo:fastlane add a filter"), { lane: "fastlane", flow: "fastlane", skill: "fastlane", mode: null, request: "add a filter", blueprint: null, step: null, lastStep: null });
   assert.equal(parsePrompt("/selo:blueprint due dates").blueprint, null);
   assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md — stage 2").step, "stage:2");
   assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md — stage 2").lastStep, "stage:2");
@@ -49,7 +49,10 @@ test("parsePrompt opens the run of §5.2", () => {
   // `/selo:run` is a tool skill now; `lane` keeps the 2.4.0 reading, `free`.
   assert.deepEqual(["lane", "flow", "skill"].map((k) => parsePrompt("/selo:run all")[k]), ["free", "free", "run"]);
   assert.deepEqual(["flow", "skill"].map((k) => parsePrompt("/selo:mockup due dates")[k]), ["free", "mockup"]);
-  assert.deepEqual(["flow", "skill"].map((k) => parsePrompt("/selo:fastlane due dates — iterate")[k]), ["fastlane", "fastlane"]);
+  assert.deepEqual(["flow", "skill", "mode"].map((k) => parsePrompt("/selo:fastlane due dates — iterate")[k]), ["fastlane", "fastlane", "iterate"]);
+  assert.equal(parsePrompt(`/selo:fastlane ${"x".repeat(300)} — iterate`).mode, "iterate");
+  assert.equal(parsePrompt("/selo:fastlane due dates").mode, null);
+  assert.equal(parsePrompt("/selo:blueprint due dates — iterate").mode, null);
   assert.equal(parsePrompt("/selo:nope x").skill, null);
   assert.equal(parsePrompt("what does this do?").lane, "free");
   assert.equal(parsePrompt("x".repeat(300)).request.length, 200);

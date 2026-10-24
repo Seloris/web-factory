@@ -276,7 +276,9 @@ export function parsePrompt(prompt, root, selo = true) {
   const file = /(\S*\.planning\/blueprints\/[^\s/]+\.md)/.exec(slash(rest))?.[1] ?? null;
   const text = file && root && existsSync(resolve(root, file)) ? readFileSync(resolve(root, file), "utf8") : null;
   const stage = /—\s*stage\s+(\d+)/.exec(rest)?.[1];
-  const run = { lane, flow: skillOf(skill)?.flow ?? "free", skill, request: rest.slice(0, 200), blueprint: file ? basename(file, ".md") : null, step: null, lastStep: null };
+  // `mode`: read from the whole text, before `request` is cut at 200 characters.
+  const mode = skill === "fastlane" && /—\s*iterate\b/.test(rest) ? "iterate" : null;
+  const run = { lane, flow: skillOf(skill)?.flow ?? "free", skill, mode, request: rest.slice(0, 200), blueprint: file ? basename(file, ".md") : null, step: null, lastStep: null };
   if (skill === "build") Object.assign(run, { step: stage ? `stage:${stage}` : text ? stepOf(text) : "stage:1", lastStep: stage ? `stage:${stage}` : null });
   else if (skill === "autopilot") run.step = file ? (text ? stepOf(text) : "stage:1") : null;
   else if (skill === "review") run.step = file ? "review" : null;
@@ -332,7 +334,7 @@ export const newSession = (id, root) => ({
 
 const openRun = (s, fields, agentId = null) => {
   const since = now();
-  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", flow: "free", skill: null, request: "", task: null, blueprint: null, sheets: [], step: null, lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, next: [], commits: [], resumePrompt: null, prompt: null, requestedModel: null, usage: null, transcriptFrom: null, trail: [], trailCut: false, since, updatedAt: since, ...fields };
+  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", flow: "free", skill: null, mode: null, request: "", task: null, blueprint: null, sheets: [], step: null, lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, next: [], commits: [], resumePrompt: null, prompt: null, requestedModel: null, usage: null, transcriptFrom: null, trail: [], trailCut: false, since, updatedAt: since, ...fields };
   s.runs = [run, ...s.runs].slice(0, MAX_RUNS);
   return run;
 };
@@ -348,6 +350,7 @@ const setSkill = (run, p) => {
   if (flowOf(run) === "free") run.flow = p.flow;
   if (p.step) run.step = p.step;
   run.blueprint ??= p.blueprint;
+  run.mode ??= p.mode;
 };
 // A tool skill has no end event: the run's lane skill comes back at its next mark or its done footer.
 // An autopilot main run keeps its subagent's skill.

@@ -210,7 +210,7 @@ type Run = {
   lane: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
   /**
    * How the work is driven, set by the run's first lane skill (`fastlane`; `blueprint` and `build` → `blueprint`; `autopilot`), then fixed.
-   * A tool skill alone (`grill`, `review`, `try`, `run`, `setup`) and no skill leave `free`. Added by selo-ops 2.5.0.
+   * A tool skill alone (`grill`, `mockup`, `review`, `try`, `run`, `setup`) and no skill leave `free`. Added by selo-ops 2.5.0.
    */
   flow: 'free' | 'fastlane' | 'blueprint' | 'autopilot'
   /**
@@ -218,7 +218,13 @@ type Run = {
    * or the Skill tool. An autopilot main run takes its subagents' skill (`autopilot` until its first one). A tool skill called during a lane
    * replaces the lane's skill; the lane's comes back at the run's next mark or its done footer (no event says a skill ended). Added by selo-ops 2.5.0.
    */
-  skill: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'grill' | 'review' | 'try' | 'run' | 'setup' | null
+  skill: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'grill' | 'mockup' | 'review' | 'try' | 'run' | 'setup' | null
+  /**
+   * How a fastlane runs: `iterate` when its prompt carries ` — iterate` (a loop of changes, no test, review or commit until the person validates;
+   * the fastlane's end follows, from its `tests` mark on), else null. Read from the whole prompt, before `request` is cut; set with the run's
+   * first fastlane, then fixed. Added by selo-ops 2.7.0.
+   */
+  mode: 'iterate' | null
   /** The prompt's text after the command, shortened to 200 characters once the harness's leading blocks are gone (a `<pasted_content>` unwrapped, any other closed block such as `<artifact-view-context>` dropped); a subagent's `agent_type` until a skill names its lane. */
   request: string
   /** A subagent's title: its Agent call's `description` (else its `prompt`), 200 characters, then at `SubagentStop` the `description` of its meta file (set right if two calls of one type swapped); null for the main loop. */
@@ -318,11 +324,12 @@ type CloseBlocker =
 | Prompt | flow | skill | step | blueprint |
 |---|---|---|---|---|
 | `/selo:fastlane {request}` | `fastlane` | `fastlane` | null | null (the sheet comes with the commit) |
+| `/selo:fastlane {request} — iterate` | `fastlane` | `fastlane` | null | null; `mode: "iterate"` |
 | `/selo:blueprint {request}` | `blueprint` | `blueprint` | null | null until its file is committed |
 | `/selo:build {file} [— stage N]` | `blueprint` | `build` | first unticked `stage:N` | the file |
 | `/selo:autopilot {request \| file}` | `autopilot` | `autopilot` | null, or the first unticked stage | the file, or null |
 | `/selo:review [scope]` | `free` | `review` | `review` when the scope is a blueprint, else null | the file when the scope is one |
-| `/selo:try`, `/selo:grill`, `/selo:setup`, `/selo:run` | `free` | same word | null | null |
+| `/selo:try`, `/selo:grill`, `/selo:mockup`, `/selo:setup`, `/selo:run` | `free` | same word | null | null |
 | anything else | `free` | null | null | null |
 
 The short `/{name}` comes to the hook raw: it opens a `free` run, retagged as its `/selo:{name}` form at the run's first tool call or its `Stop` (decision 31). The deprecated `lane` is the `/selo:` word, `free` for `/selo:run` and anything else.
@@ -496,3 +503,4 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 29. **The lead's context** → `context`: the last call's input, cache read and cache write, its model, and the first call's four token kinds as `baseline` (kinds, not a sum, so Selo Ops weights a warm-cache first call right). No window size: nothing the plugin reads gives it.
 30. **The breakdown** → The export carries raw figures only (decision 23): `usage.sizes`, the characters each group added, on main runs and summed in the session, and `context.baseline`. The weighted estimate is Selo Ops' own. A session file written before keeps no `sizes` on its earlier runs.
 31. **Flow, skill and trail** (selo-ops 2.5.0) → `lane` mixed how the work is driven with the skill running, and `step` a skill's name with a build's position; a session started with the short `/fastlane …` was exported `free` (`parsePrompt` matched `/selo:` only, and a skill loaded as a command fires no Skill tool). The hook now computes everything and Selo Ops reads properties: `flow` (set by the run's first lane skill, then fixed), `skill` (the one running now), `step` (build positions only), `substep`, and `trail`, their dated history (50 entries, `trailCut`). One map, `SKILLS` in `ops.mjs`, says which skill is a lane and its flow. A short command is read from the run's first transcript rows at its first tool call (the `PreToolUse` matcher is now every tool; any other call leaves on the session file, without the lock) or at its `Stop`: `<command-name>/selo:{name}</command-name>`, or `/{name}` whose next row's `Base directory for this skill:` is the selo plugin's `…/selo/{version}/skills/{name}`, so a project's own `.claude/skills/fastlane` and another plugin's `/review` stay `free`. A tool skill has no end event: it replaces the lane's skill until the run's next mark or its done footer. `lane` stays one version for older readers.
+32. **Mockup and iterate** (selo-ops 2.6.0 and 2.7.0) → selo 2.4.0 adds `/selo:mockup`, a tool skill (`SKILLS`), and the fastlane's ` — iterate`. Each turn of either loop ends on the bare question `Autre chose, ou on valide ?`, so the run reads `awaiting-answer` (§5.3); a validated mockup ends with a footer of `Next:` lines only. The iterate mode is a field, `mode`, not a flow: the run is a fastlane, and its end is the fastlane's. It is read from the whole prompt because `request` keeps 200 characters, which a long request's ` — iterate` falls past. Selo Ops tells the loop from the end by the substep: null or `code` in the loop, `tests` onward at the validation.

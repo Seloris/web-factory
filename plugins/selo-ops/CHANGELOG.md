@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-24 — selo-ops 2.7.0: a fastlane's iterate mode, as a field
+
+Selo Ops showed a `/selo:fastlane … — iterate` run as iterating only when `request` held ` — iterate`, and `request` is cut at 200 characters: a long request lost it and showed as a plain fastlane. A run now has `mode`: `iterate` when a fastlane's prompt carries ` — iterate`, read from the whole text before the cut, else null; set with the run's first fastlane (the prompt, the Skill tool, a short command), then fixed. `docs/revamp-2.0.0/ops-export.md` gets `mode`, the `mockup` skill in §5.1 and §5.2, and decision 32. Forward-only: `schemaVersion` stays 1; a run written before has no `mode`.
+
 ## 2026-10-24 — selo-ops 2.6.0: the mockup skill
 
 selo 2.4.0 adds `/selo:mockup`: `SKILLS` gets it as a tool skill (`skill: "mockup"`, `flow` stays `free`), so a session started with it is no longer read as a free prompt. `/selo:fastlane … — iterate` is a fastlane: `flow: "fastlane"`, nothing new to read.
