@@ -13,6 +13,7 @@ Sessions open at the project's root (or at a worktree of it) with the plugin loa
 | Ask a question, or fix a spec's wording | Just ask. No skill. |
 | See a change before it is coded | `/selo:mockup {request}`: a static mockup on the front's skin, iterated until you validate it; then `/selo:fastlane {request} — mockup {file}` (or `/selo:blueprint`) |
 | Change something on one page, fix a bug | `/selo:fastlane {request}` |
+| Have a free sentence routed to its lane | `routing: suggest` in `selo.yaml` (the lane proposed), or `routing: auto` (a fastlane-sized change run at once, a blueprint proposed); a new session after the change |
 | Try changes one by one on the running app, commit once at the end | `/selo:fastlane {request} — iterate`: no test, review or commit until « on valide » |
 | A new page, entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
 | Let it choose the lane and do everything, no click | `/selo:autopilot {request}` (or `{blueprint}` to resume); ` — fastlane`, ` — blueprint`, ` — until blueprint`, ` — no browser` |

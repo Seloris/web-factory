@@ -2,6 +2,14 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-24 — selo 2.5.0: a free request routed to its lane
+
+The person (2026-10-24): a free sentence asking for a small change should go to the fastlane on its own, or at least be offered the right lane, on a switch set once per project. The rules already said a free change request is a fastlane, but nothing read them on a free prompt: the session just did the change, off any lane.
+
+- **`routing` in `selo.yaml`:** `off` (default: nothing changes for an existing project), `suggest` or `auto`. Any other value is a warning and reads as `off`.
+- **The lane hook**, `scripts/lane-hint.mjs` on `UserPromptSubmit`: on a prompt that is not a slash command (leading harness blocks stripped, as selo-ops reads them), it adds a short note. `suggest`: name the lane and its exact prompt, wait for the yes. `auto`: a fastlane-sized change runs the `fastlane` skill at once; a blueprint is proposed, never started. A hook cannot start a skill, so the session does. The note tells the session to skip a continuation (a skill running, an iterate or mockup loop), an answer, a question: the hook cannot see the session's state, and a lane pushed on « on valide » would break a loop.
+- `manifest.mjs` returns `routing`; `selo-ops` 2.7.1 carries the copy. `reference/rules.md` (**Three lanes**), `docs/manifest.md` ("Routing", with the risk of `auto` on `baseBranch`: a fastlane commits there without a question), the cheatsheet and the README follow.
+
 ## 2026-10-24 — selo 2.4.2: the mockup skill, after its first run
 
 The first `/selo:mockup` (`samples/todo-app`, a list grouped by due date, brutalist skin) worked as written, with three gaps: the looks the application adds beyond `recipes.css` (a pinned row's border, a subtle button, a danger badge) had to be ported from the component's own styles without the skill saying so; the Artifact wants a `<title>`, the viewport meta and its own dark-theme selector, which the "self-contained" rule did not mention; and the desktop app's next-step box left open where the closing question goes. The skill now says each: copy those looks from the component's styles with their token names; the Artifact's frame may be added, never a restyle; the bare line stays in the text, a box may repeat it.

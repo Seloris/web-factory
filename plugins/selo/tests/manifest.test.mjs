@@ -219,3 +219,21 @@ test("readManifest: unknown roles and language keys are warned, so is a demo wit
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("readManifest: routing defaults to off; an unknown value is warned and read as off", () => {
+  const dir = mkdtempSync(join(tmpdir(), "selo-routing-"));
+  try {
+    mkdirSync(join(dir, "a"));
+    writeFileSync(join(dir, "a", "CLAUDE.md"), "```component\nkind: api\ncommands:\n  build: b\n```\n");
+    writeFileSync(join(dir, "selo.yaml"), "name: x\ncomponents:\n  - {name: a, path: a}\n");
+    assert.equal(readManifest(dir).routing, "off");
+    writeFileSync(join(dir, "selo.yaml"), "name: x\nrouting: auto\ncomponents:\n  - {name: a, path: a}\n");
+    assert.equal(readManifest(dir).routing, "auto");
+    writeFileSync(join(dir, "selo.yaml"), "name: x\nrouting: always\ncomponents:\n  - {name: a, path: a}\n");
+    const m = readManifest(dir);
+    assert.equal(m.routing, "off");
+    assert.deepEqual(m.warnings, ['selo.yaml: routing "always" is not one of off, suggest, auto (read as off)']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

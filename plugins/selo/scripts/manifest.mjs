@@ -21,7 +21,9 @@ export const PRESETS = {
 export const ROLES = Object.keys(PRESETS.standard);
 export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests", "serve", "demo"];
 // The keys the parser reads; any other is reported in `warnings`, never an error.
-export const MANIFEST_KEYS = ["selo", "name", "base_branch", "language", "models", "components"];
+export const MANIFEST_KEYS = ["selo", "name", "base_branch", "language", "models", "routing", "components"];
+// `routing`: what the lane hook does on a free request (scripts/lane-hint.mjs); `off` by default.
+export const ROUTING = ["off", "suggest", "auto"];
 export const COMPONENT_KEYS = ["name", "path", "handoff", "needs", "port", "demo_port", "url", "serve_url", "demo_url"];
 export const BLOCK_KEYS = ["kind", "stack", "skin", "layers", "commands", "logins", "port", "demo_port", "url", "serve_url", "demo_url"];
 
@@ -287,6 +289,8 @@ export const readManifest = (dir = process.cwd(), { slot = 0 } = {}) => {
     ...unknownKeys(spec.models, [...ROLES, "preset"], "selo.yaml, models"),
     ...unknownKeys(spec.language, ["chat", "repo"], "selo.yaml, language"),
   ];
+  const routing = spec.routing == null ? "off" : String(spec.routing);
+  if (!ROUTING.includes(routing)) warnings.push(`selo.yaml: routing "${routing}" is not one of ${ROUTING.join(", ")} (read as off)`);
   const components = spec.components.map((c, i) => {
     if (!c || !c.name || !c.path) throw new Error(`Manifest: component #${i + 1} needs \`name\` and \`path\``);
     return readComponent(root, c, warnings, slot);
@@ -302,6 +306,7 @@ export const readManifest = (dir = process.cwd(), { slot = 0 } = {}) => {
     baseBranch: spec.base_branch ? String(spec.base_branch) : "main",
     language: { chat: spec.language?.chat ?? "en", repo: spec.language?.repo ?? "en" },
     models: resolveModels(spec.models),
+    routing: ROUTING.includes(routing) ? routing : "off",
     components,
     warnings,
   };

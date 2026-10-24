@@ -24,6 +24,8 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the
 
 A fastlane that meets a new entity or business rule stops before its commit and proposes `/selo:blueprint {same request}`. A free sentence asking to change something is a fastlane.
 
+**Routing a free request.** With `routing: suggest` or `auto` in `selo.yaml`, the plugin's lane hook adds a note to every free prompt (not a slash command): a new request to change the application is placed in its lane first. `suggest`: name the lane and its exact prompt, say why in one line, wait for the yes. `auto`: a request that fits the fastlane runs it at once (the `fastlane` skill); one that needs a blueprint is proposed, never started. A prompt that continues work in progress (a skill running, an iterate or mockup loop), answers a question, or asks one gets no lane.
+
 Two ways for the person to see a change before it is final, never under autopilot:
 
 - **Mockup first:** `/selo:mockup {request}` draws it as a static HTML file on the front's skin (`.planning/mockups/`), iterated until the person validates it, uncommitted; then either lane takes ` — mockup {file}`, commits the file with its work and compares the page with it in its browser test.
