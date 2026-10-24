@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-24 — selo 2.4.1: setup update copies the skin's tokens again
+
+`samples/todo-app`, updated from 1.0 to 2.2.0, still had the 1.0 header in `web/src/shared/ui/theme/skin.css` (« the selo-flow plugin », `/selo-flow:init skin`): `setup update` rewrote the plugin's own files but not the skin's tokens, which are the plugin's copy too (never edited, overridden in `overrides.css`). Step 2 of its routine now copies each front's tokens file again from `skins/{skin}/tokens.css`, so a skin's new values reach the project with its header.
+
 ## 2026-10-24 — selo 2.4.0: mockup first, and the iterate mode of the fastlane
 
 Two ideas of the person (2026-10-24): see a change before it is coded, and try changes one by one on the running app without a commit at each one. Both need the person; neither runs under autopilot.
