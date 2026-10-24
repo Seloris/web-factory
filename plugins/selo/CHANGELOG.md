@@ -2,6 +2,10 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-24 — selo 2.4.2: the mockup skill, after its first run
+
+The first `/selo:mockup` (`samples/todo-app`, a list grouped by due date, brutalist skin) worked as written, with three gaps: the looks the application adds beyond `recipes.css` (a pinned row's border, a subtle button, a danger badge) had to be ported from the component's own styles without the skill saying so; the Artifact wants a `<title>`, the viewport meta and its own dark-theme selector, which the "self-contained" rule did not mention; and the desktop app's next-step box left open where the closing question goes. The skill now says each: copy those looks from the component's styles with their token names; the Artifact's frame may be added, never a restyle; the bare line stays in the text, a box may repeat it.
+
 ## 2026-10-24 — selo 2.4.1: setup update copies the skin's tokens again
 
 `samples/todo-app`, updated from 1.0 to 2.2.0, still had the 1.0 header in `web/src/shared/ui/theme/skin.css` (« the selo-flow plugin », `/selo-flow:init skin`): `setup update` rewrote the plugin's own files but not the skin's tokens, which are the plugin's copy too (never edited, overridden in `overrides.css`). Step 2 of its routine now copies each front's tokens file again from `skins/{skin}/tokens.css`, so a skin's new values reach the project with its header.
