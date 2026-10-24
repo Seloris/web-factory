@@ -11,7 +11,7 @@ Pages: `{page}`, `{new-page}` (new, `Route: {/path}`) · Domain: `{domain}` · C
 - {page} - Non-goal: « {text} »
 
 ## Mockup
-![{what it shows}](./assets/{name}.png)
+![{what it shows}](./assets/{name}.png) or [{what it shows}](../mockups/{file}.html)
 
 ## Business decisions
 - {question} → {answer} ({reason})

@@ -48,6 +48,8 @@ test("parsePrompt opens the run of §5.2", () => {
   assert.deepEqual(["lane", "flow", "skill", "step"].map((k) => parsePrompt("/selo:try")[k]), ["try", "free", "try", null]);
   // `/selo:run` is a tool skill now; `lane` keeps the 2.4.0 reading, `free`.
   assert.deepEqual(["lane", "flow", "skill"].map((k) => parsePrompt("/selo:run all")[k]), ["free", "free", "run"]);
+  assert.deepEqual(["flow", "skill"].map((k) => parsePrompt("/selo:mockup due dates")[k]), ["free", "mockup"]);
+  assert.deepEqual(["flow", "skill"].map((k) => parsePrompt("/selo:fastlane due dates — iterate")[k]), ["fastlane", "fastlane"]);
   assert.equal(parsePrompt("/selo:nope x").skill, null);
   assert.equal(parsePrompt("what does this do?").lane, "free");
   assert.equal(parsePrompt("x".repeat(300)).request.length, 200);

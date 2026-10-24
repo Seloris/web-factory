@@ -24,6 +24,11 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the
 
 A fastlane that meets a new entity or business rule stops before its commit and proposes `/selo:blueprint {same request}`. A free sentence asking to change something is a fastlane.
 
+Two ways for the person to see a change before it is final, never under autopilot:
+
+- **Mockup first:** `/selo:mockup {request}` draws it as a static HTML file on the front's skin (`.planning/mockups/`), iterated until the person validates it, uncommitted; then either lane takes ` — mockup {file}`, commits the file with its work and compares the page with it in its browser test.
+- **Iterate:** `/selo:fastlane {request} — iterate` runs the app and applies one change per turn, with no test, review or commit, until the person validates; then the fastlane's end runs once on the final state (the spec delta, the tests, the review, the suites, the browser test, the commits on one yes).
+
 Every lane ends the same way: one review of the whole work, the full suites of the touched components (through `runner`), the browser test of a touched front, the commit(s). The browser test runs on the front's demo when it has `commands.demo`, else on its dev server (`commands.serve`, or the "Local run" of its `CLAUDE.md`): it is never skipped for want of a demo. Only the person skips it: ` — no browser`.
 
 ## Running the app
@@ -48,6 +53,8 @@ One script starts a project's components: `node ${CLAUDE_PLUGIN_ROOT}/scripts/ru
   blueprints/
     2026-10-21-due-date.md  a piece of work in flight, or done (never edited after `Spec merged`)
     assets/
+  mockups/
+    2026-10-21-due-date.html  a static mockup on the front's skin, committed by the lane that builds it
   ideas.md
   technical-debt.md
 ```

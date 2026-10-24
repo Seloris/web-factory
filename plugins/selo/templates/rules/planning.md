@@ -16,6 +16,8 @@ paths:
   blueprints/
     {YYYY-MM-DD}-{name}.md  a piece of work in flight, or done (never edited after `Spec merged`)
     assets/                 images a blueprint cites (mockups, screenshots)
+  mockups/
+    {YYYY-MM-DD}-{name}.html  a static mockup on the front's skin (`/selo:mockup`), committed by the lane that builds it
   ideas.md
   technical-debt.md
 ```

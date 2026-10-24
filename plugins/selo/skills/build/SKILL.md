@@ -12,7 +12,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (**Blueprints** and **Wher
 `/selo:build .planning/blueprints/{file}`, optionally with ` — stage {N}`, ` — no browser`, ` — autonomous`, ` — review: {findings}` (from `autopilot`, step 9).
 
 - The blueprint must be committed (`git log -- {file}`): an untracked one is a draft, say so and stop. `Spec merged` ticked: the work is done, say so and stop. A `Legacy:` line under its title: a 1.0 plan moved by `setup update`, history, never built: say so and stop.
-- Read it whole, then the page and domain specs it names (the `BR` ids it cites are resolved there), then a `## Mockup` image if any.
+- Read it whole, then the page and domain specs it names (the `BR` ids it cites are resolved there), then a `## Mockup` image or HTML mockup if any.
 - A 1.0 project (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
 - Note the variant (**Where commits go**): on `baseBranch`, or on a worktree's branch.
 

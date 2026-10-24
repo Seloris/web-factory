@@ -11,7 +11,9 @@ Sessions open at the project's root (or at a worktree of it) with the plugin loa
 | Write the specs of existing pages from their code | `/selo:setup specs` (every page stub), `/selo:setup specs {page …}` (those): one yes, one commit |
 | Give a front a skin, or switch it | `/selo:setup skin {component} {skin}`, then a blueprint to apply it to existing screens |
 | Ask a question, or fix a spec's wording | Just ask. No skill. |
+| See a change before it is coded | `/selo:mockup {request}`: a static mockup on the front's skin, iterated until you validate it; then `/selo:fastlane {request} — mockup {file}` (or `/selo:blueprint`) |
 | Change something on one page, fix a bug | `/selo:fastlane {request}` |
+| Try changes one by one on the running app, commit once at the end | `/selo:fastlane {request} — iterate`: no test, review or commit until « on valide » |
 | A new page, entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
 | Let it choose the lane and do everything, no click | `/selo:autopilot {request}` (or `{blueprint}` to resume); ` — fastlane`, ` — blueprint`, ` — until blueprint`, ` — no browser` |
 | Review recent work, a range, files | `/selo:review` (or `/selo:review {range or files}`) |
@@ -49,6 +51,12 @@ flowchart TD
 ```
 
 The page's code is read, then each component touched: tests first, build + full test + lint, the page or domain spec delta. On the last one: the review of the whole work, the full suites, the browser test. Then one commit per component, each with its `Spec:` line. A page still a stub (`Status: to bootstrap`) first gets the spec of what it does today, on your yes, in its own commit (`docs({page}): bootstrap spec`); a blueprint does the same before its delta.
+
+## Mockup and iterate
+
+- `/selo:mockup {request}` → `.planning/mockups/{date}-{name}.html`, one self-contained file (the skin's tokens and recipes inlined), one plate per state and width, shown as an Artifact or in the browser pane. Each turn ends on `Autre chose, ou on valide ?`. Validated, it stays uncommitted: the lane given ` — mockup {file}` commits it with its work and its browser test compares the page with it.
+- `/selo:fastlane {request} — iterate`: on the base branch it asks first whether to move to a worktree. The app runs on the slot; each turn one change, built, no test, review or commit. « On valide »: the spec delta from the final state, the tests, the review, the full suites, the browser test, then the commits on one yes.
+- Neither runs under autopilot: both need you.
 
 ## Blueprint lane
 

@@ -26,7 +26,7 @@ export const SKILLS = {
   blueprint: { kind: "lane", flow: "blueprint" },
   build: { kind: "lane", flow: "blueprint" },
   autopilot: { kind: "lane", flow: "autopilot" },
-  grill: { kind: "tool" }, review: { kind: "tool" }, try: { kind: "tool" }, run: { kind: "tool" }, setup: { kind: "tool" },
+  grill: { kind: "tool" }, mockup: { kind: "tool" }, review: { kind: "tool" }, try: { kind: "tool" }, run: { kind: "tool" }, setup: { kind: "tool" },
 };
 const skillOf = (name) => (name && Object.hasOwn(SKILLS, name) ? SKILLS[name] : null);
 // A run written before 2.5.0 has no `flow`: its lane's.
