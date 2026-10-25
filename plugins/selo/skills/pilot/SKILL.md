@@ -1,36 +1,54 @@
 ---
-name: autopilot
-description: "Take a free request, or a committed blueprint, to finished work with no question asked. Reads the code, then picks the fastlane (one fastlane run) or the blueprint lane (blueprint, then build: stages, review, browser test, spec merged), each step a fresh subagent. — fastlane / — blueprint force the lane; — until blueprint stops once the blueprint is committed; — no browser skips the browser test. In a worktree, stops ready to land and asks the one yes of the landing."
+name: pilot
+description: "selo picks the lane of a free request (the fastlane, or the blueprint lane), or resumes a committed blueprint. Interactive by default: the lane said in one line, then run in this session with its own questions and yeses. — autonomous: no question, each step a fresh subagent (blueprint, then build: stages, review, browser test, spec merged); in a worktree, stops ready to land and asks the one yes of the landing. — fastlane / — blueprint force the lane; — until blueprint stops once the blueprint is committed; — no browser skips the browser test."
 ---
 
-# Autopilot
+# Pilot
 
-The session is the orchestrator: it runs the steps one after another, each as a fresh subagent, and reads only their reports. It never reads or writes the project's code, never asks the person (the landing of a worktree aside), and stops only on a real blocker.
+selo picks the lane; the person validates, or leaves. Two modes:
+
+- **Interactive** (no suffix): the lane is placed by this session, said in one line, then run here, as if the person had typed its prompt.
+- **Autonomous** (` — autonomous`): the session is the orchestrator: it runs the steps one after another, each as a fresh subagent, and reads only their reports. No question, the landing of a worktree aside.
 
 Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first, then the manifest: `models` (one per role), `stages`, `baseBranch`, each component's `url` and `commands.demo`.
 
 ## Input
 
-`/selo:autopilot {input}`:
+`/selo:pilot {input}`:
 
 - **A free request**: the lane is chosen first.
-- **A blueprint** `.planning/blueprints/{file}`: the blueprint lane from its build, resumed at Progress. An untracked one is a draft: committed as it stands (`docs({name}): blueprint — {summary}`), then built. `Spec merged` ticked: done, say so and stop. A `Legacy:` line: a 1.0 plan, never built: say so and stop.
+- **A blueprint** `.planning/blueprints/{file}`: the blueprint lane from its build, resumed at Progress. `Spec merged` ticked: done, say so and stop. A `Legacy:` line: a 1.0 plan, never built: say so and stop.
 - **A 1.0 project** (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
 
 Options, at the end of the prompt:
 
-- ` — fastlane` / ` — blueprint`: force the lane of a free request.
+- ` — autonomous`: the autonomous mode below. A person never types it (the rules' **Autonomous mode**): Selo Ops' new-session page does.
+- ` — fastlane` / ` — blueprint`: force the lane of a free request. On an interactive run it is the same as typing that lane's command.
 - ` — until blueprint`: stop once the blueprint is committed. Implies the blueprint lane.
 - ` — no browser`: passed on to every `fastlane` and `build` step. Otherwise the last stage runs the browser test, as the rules' **Three lanes** says.
 
-## Prerequisites
+## Interactive mode
+
+1. **Place the request**, as the rules' **Three lanes** says, from what this session reads itself (no `Explore` subagent: the lane reads the same files right after): the manifest, the page specs and domain sheets the request touches, any new page, entity or business rule it needs.
+   - **Fastlane** when it touches one page or one component **and** adds no page, entity or business rule.
+   - **Blueprint** otherwise.
+2. **Say the lane** in one line: the lane, its exact prompt (`/selo:fastlane {request}`, `/selo:blueprint {request}`, `/selo:build {blueprint}`), and why. Having typed `/selo:pilot` is the yes on the lane: no question.
+3. **Run the lane**: call its skill with the Skill tool (`selo:fastlane`, `selo:blueprint` or `selo:build`, the prompt of step 2 as its args, plus ` — no browser` when given), never by reading its `SKILL.md` alone: Selo Ops sees the lane through that call. Then follow it as if the person had typed that prompt: its questions, its yeses (the blueprint's one yes, the fastlane's commit yes on `baseBranch`), its landing in a worktree, its done footer and `Next:` lines.
+
+The blueprint lane stops at the blueprint's commit, as `/selo:blueprint` does: its footer gives `/selo:build {file}` as the next step; pilot does not chain the build. A fastlane that stops because the change needs a blueprint: say so in one line, then call `selo:blueprint` on the same request.
+
+## Autonomous mode
+
+The orchestrator never reads or writes the project's code, never asks the person (the landing of a worktree aside), and stops only on a real blocker. A blueprint given as input that is untracked is a draft: committed as it stands (`docs({name}): blueprint — {summary}`), then built.
+
+### Prerequisites
 
 - **Permissions.** The session runs in the `auto` or `acceptEdits` permission mode with a Bash allowlist covering `git`, `node ${CLAUDE_PLUGIN_ROOT}/scripts/*` and the components' commands (`build`, `test`, `lint`, `prepare`, `handoff`, `demo`, `serve`). Otherwise every subagent stops at its first prompt: say so and stop before the first step.
 - **A manifest** with every role's model and a `CLAUDE.md` per component (no `missingFile`).
 
 A dirty working tree is not a blocker (**Where commits go**).
 
-## Lane choice
+### Lane choice
 
 On a free request with no lane forced, spawn one `Explore` subagent (`models.explorer`, description `explorer · lane {short request}`), read-only: the pages, domain sheets and components touched, any new page, entity or business rule. Then, as the rules' **Three lanes** says:
 
@@ -39,7 +57,7 @@ On a free request with no lane forced, spawn one `Explore` subagent (`models.exp
 
 Its reason, in one line, opens the report.
 
-## Pipeline
+### Pipeline
 
 Every step is one call of the Agent tool: `subagent_type: general-purpose`, `run_in_background: false`, `model:` the role's model, a description starting with the role and the step (`planner · blueprint due-date`, `implementer · build due-date`). The prompt, in the caveman voice: read `${CLAUDE_PLUGIN_ROOT}/skills/{skill}/SKILL.md` and follow it as if the person had typed the prompt given, ending with ` — autonomous`; end with this report:
 
@@ -52,23 +70,23 @@ Every step is one call of the Agent tool: `subagent_type: general-purpose`, `run
 
 The orchestrator never opens the files a report names, the blueprint's Progress aside.
 
-### Fastlane
+#### Fastlane
 
 1. One subagent (`models.implementer`): `/selo:fastlane {request} — autonomous` (plus ` — no browser`). It codes, updates the spec, runs the full suites and the browser test, and commits.
 2. When it says it skipped the review (no Agent tool): spawn `reviewer` (`models.reviewer`) on the commits it made, and on findings one more subagent: `/selo:fastlane fix findings of the review of {commits}: {findings} — autonomous`, committed as `fix({page}): review — {summary}`.
 
 When it finds a new page, entity or business rule the lane choice missed, it stops before committing and says so: run the blueprint lane on the same request, and say it in the report's first line.
 
-### Blueprint lane
+#### Blueprint lane
 
 1. **Blueprint** (`models.planner`): `/selo:blueprint {request} — autonomous`. It runs `grill` in autonomous mode, skipped when the request already carries its decisions. Ends with the blueprint committed; its report gives the path and the stages. Stop here on ` — until blueprint`.
 2. **Build** (`models.implementer`): `/selo:build {blueprint} — autonomous` (plus ` — no browser`): every stage chained, one commit each. When it reports `review needed` (no Agent tool): spawn `reviewer` (`models.reviewer`) on the blueprint's work, as `review` scopes it, then run the build again with ` — review: {findings}` (` — review: none` for a clean review): it fixes, runs the full suites and the browser test, and merges the delta.
 
-## Worktree landing
+### Worktree landing
 
 On a branch other than `baseBranch`, the last step stops ready to land (synced; for a blueprint, the delta merged and the full suites run again). The orchestrator ends its turn with the landing of the rules' **Where commits go**, step 3: the branch and its commits, the decisions taken during the build first, the Business decisions, the final `Spec:` line, and the exact message of the one commit in a code block, as the last text of the turn. On the person's yes, it runs step 4 itself (the squash from the checkout that holds `baseBranch`), then the done footer.
 
-## Report
+### Report
 
 To the person, in `language.chat`, normal prose:
 
@@ -79,15 +97,15 @@ To the person, in `language.chat`, normal prose:
 5. The points left open.
 6. The landing question in a worktree; else the done footer, one line per commit of the run.
 
-After ` — until blueprint`, the next prompt: `/selo:autopilot {blueprint}`.
+After ` — until blueprint`, the next prompt: `/selo:pilot {blueprint} — autonomous`.
 
-## Stop
+### Stop
 
 The run stops only on a real blocker reported by a subagent: a suite still red after its fix attempt, a broken build, a question with no defensible answer, a merge `conflict` or `missing` line, a blueprint that contradicts its Progress, a file held by another session past the five-minute wait. No second subagent on the same step.
 
-On a stop: report the step and the error or open questions as given; revert nothing; say that `/selo:autopilot {blueprint}` resumes at Progress once the blueprint exists (a fastlane stop: the same request again). The done footer lists the commits made before the stop; none if nothing was committed.
+On a stop: report the step and the error or open questions as given; revert nothing; say that `/selo:pilot {blueprint} — autonomous` resumes at Progress once the blueprint exists (a fastlane stop: the same request again). The done footer lists the commits made before the stop; none if nothing was committed.
 
-## Rules
+### Rules
 
 - Never a question to the person, the landing's yes aside: every decision belongs to a subagent.
 - The hard rules hold through every subagent: never push, never run `integration_tests`.

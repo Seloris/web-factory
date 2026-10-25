@@ -1,6 +1,6 @@
 ---
 name: build
-description: "Build a committed blueprint (.planning/blueprints/{file}): every stage chained in this session by default, one per component in the manifest's order, test-first, verified through runner, one commit each with Spec: pending; the decisions it takes recorded under Decided during build; then one review, the full suites, the browser test (demo, else the dev server), and the spec delta merged with spec-check --merge. In a worktree, ends with the landing on the base branch: one squashed commit on the person's yes. — stage N runs one stage; — no browser skips the browser test; — autonomous under autopilot."
+description: "Build a committed blueprint (.planning/blueprints/{file}): every stage chained in this session by default, one per component in the manifest's order, test-first, verified through runner, one commit each with Spec: pending; the decisions it takes recorded under Decided during build; then one review, the full suites, the browser test (demo, else the dev server), and the spec delta merged with spec-check --merge. In a worktree, ends with the landing on the base branch: one squashed commit on the person's yes. — stage N runs one stage; — no browser skips the browser test; — autonomous from pilot."
 ---
 
 # Build a blueprint
@@ -9,7 +9,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (**Blueprints** and **Wher
 
 ## Input
 
-`/selo:build .planning/blueprints/{file}`, optionally with ` — stage {N}`, ` — no browser`, ` — autonomous`, ` — review: {findings}` (from `autopilot`, step 9).
+`/selo:build .planning/blueprints/{file}`, optionally with ` — stage {N}`, ` — no browser`, ` — autonomous`, ` — review: {findings}` (from `pilot`, step 9).
 
 - The blueprint must be committed (`git log -- {file}`): an untracked one is a draft, say so and stop. `Spec merged` ticked: the work is done, say so and stop. A `Legacy:` line under its title: a 1.0 plan moved by `setup update`, history, never built: say so and stop.
 - Read it whole, then the page and domain specs it names (the `BR` ids it cites are resolved there), then a `## Mockup` image or HTML mockup if any.
@@ -35,7 +35,7 @@ For each stage:
 
 ## End of the work (last stage)
 
-9. **Review.** Spawn the `reviewer` (`models.reviewer`) on the whole work, naming the blueprint: on `baseBranch`, the commits with the scope `({name})` from the one that added the blueprint, plus this work's uncommitted files; in a worktree, `{baseBranch}..HEAD` plus the uncommitted files. Fix the findings you agree with, re-run step 6 for each component changed, list the others with the reason. Fixes in a component already committed go in their own commit, `fix({name}): review — {summary}`, `Spec: pending (…)`. Tick `Review` once every finding is fixed or listed. Without the Agent tool (a subagent under `autopilot`): commit the last stage first, then take the findings the prompt gives (` — review: {findings}`, `none` for a clean review) instead of spawning; with none given, stop and report `review needed`: `autopilot` spawns the reviewer and runs this skill again with its findings.
+9. **Review.** Spawn the `reviewer` (`models.reviewer`) on the whole work, naming the blueprint: on `baseBranch`, the commits with the scope `({name})` from the one that added the blueprint, plus this work's uncommitted files; in a worktree, `{baseBranch}..HEAD` plus the uncommitted files. Fix the findings you agree with, re-run step 6 for each component changed, list the others with the reason. Fixes in a component already committed go in their own commit, `fix({name}): review — {summary}`, `Spec: pending (…)`. Tick `Review` once every finding is fixed or listed. Without the Agent tool (a subagent of `pilot — autonomous`): commit the last stage first, then take the findings the prompt gives (` — review: {findings}`, `none` for a clean review) instead of spawning; with none given, stop and report `review needed`: `pilot` spawns the reviewer and runs this skill again with its findings.
 10. **Full suites:** the full `test` of every touched component, through `runner`, after the fixes.
 11. **Browser test**, when a touched front has a `url`, unless ` — no browser`: follow `try` with the blueprint's `browser:` scenarios, on the front's demo when it has `commands.demo`, else on its dev server (`commands.serve`, or its `CLAUDE.md` "Local run"): never skipped for want of a demo. With a `## Mockup`, take a screenshot of the page and compare it in the report. Fix what it reveals, re-run step 6. Tick `Browser test` when every scenario passed; ` — no browser`: `- [-] Browser test: not run (no browser)`.
 12. **Integration tests** are never run unless the person asks, naming them, in this session: give the `integration_tests` command filtered on the work.
@@ -46,7 +46,7 @@ For each stage:
 
 ## Autonomous mode
 
-` — autonomous` (from `autopilot`), as the rules' **Autonomous mode** says, plus: every open point is settled and recorded (**Decided during build**); a review finding not fixed is listed as open; `Integration tests` is never run. A merge `conflict` or `missing` stops the step, the stage commits left as they are. In a worktree the build stops ready to land: sync and delta merged, the landing's recap and message in the report, no squash (the person gives that yes). The report lists the decisions taken during the build first; no next prompt.
+` — autonomous` (from `pilot`), as the rules' **Autonomous mode** says, plus: every open point is settled and recorded (**Decided during build**); a review finding not fixed is listed as open; `Integration tests` is never run. A merge `conflict` or `missing` stops the step, the stage commits left as they are. In a worktree the build stops ready to land: sync and delta merged, the landing's recap and message in the report, no squash (the person gives that yes). The report lists the decisions taken during the build first; no next prompt.
 
 ## Rules
 

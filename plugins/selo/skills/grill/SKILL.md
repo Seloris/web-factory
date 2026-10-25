@@ -1,6 +1,6 @@
 ---
 name: grill
-description: "Grill the person on a blueprint's request, a request or a project setup: at most two rounds of the session's question tool, the recommended answer first, the rest left as open questions, then hand the decisions to blueprint, fastlane or setup. Writes nothing itself. Run it on /grill, when blueprint starts (unless the request already carries its decisions), or when the person accepts the offer: setup and any agent facing an ambiguous request offer it, never start it on their own. With — autonomous (under autopilot), every question takes its recommended answer, and one with no recommendation stops the pipeline."
+description: "Grill the person on a blueprint's request, a request or a project setup: at most two rounds of the session's question tool, the recommended answer first, the rest left as open questions, then hand the decisions to blueprint, fastlane or setup. Writes nothing itself. Run it on /grill, when blueprint starts (unless the request already carries its decisions), or when the person accepts the offer: setup and any agent facing an ambiguous request offer it, never start it on their own. With — autonomous (from pilot), every question takes its recommended answer, and one with no recommendation stops the pipeline."
 ---
 
 # Grill me
@@ -41,6 +41,6 @@ When a skill called this one, return to it with the summary: no next prompts.
 
 ## Autonomous mode
 
-Called with ` — autonomous` (by `blueprint` running under `autopilot`): same rounds, same rigour, nobody to answer. Build every round as above and answer each question with its recommended answer, until the frontier is empty: no round limit, no question skipped. Hand the result off exactly as in interactive mode, plus the list of every question with the answer taken and its reason, which the caller records as Business decisions or Technical defaults.
+Called with ` — autonomous` (by `blueprint` running under `pilot — autonomous`): same rounds, same rigour, nobody to answer. Build every round as above and answer each question with its recommended answer, until the frontier is empty: no round limit, no question skipped. Hand the result off exactly as in interactive mode, plus the list of every question with the answer taken and its reason, which the caller records as Business decisions or Technical defaults.
 
 One question with `no recommendation possible` stops everything: write nothing, return the list of the open questions (every question of the frontier that was not answered) to the caller, which stops the pipeline with it.

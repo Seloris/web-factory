@@ -19,7 +19,6 @@ language:
   chat: fr                     # what agents speak to the user
   repo: en                     # everything written to the repository
 models: standard               # the preset, or a map with one model per role (below)
-routing: suggest               # off (default) | suggest | auto: the lane of a free request (below)
 components:                    # the order is the order of the stages; paths relative to this file
   - name: api
     path: src/api
@@ -35,7 +34,7 @@ A key the parser does not know (at the top level, in a component, its `commands`
 
 ### Models
 
-One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). Two presets: `standard`, the recommended set, and `lean`, sonnet as implementer for the person who wants it (a more detailed blueprint under autopilot only); `setup` asks for each role with it as the answer, and writes the map only for the roles the person changed:
+One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). Two presets: `standard`, the recommended set, and `lean`, sonnet as implementer for the person who wants it (a more detailed blueprint under `pilot — autonomous` only); `setup` asks for each role with it as the answer, and writes the map only for the roles the person changed:
 
 | Role | `standard` | `lean` |
 |---|---|---|
@@ -63,18 +62,6 @@ The plugin's agents carry no `model` in their frontmatter: the skill that spawns
 | any other | — | untouched: its frontmatter, or `CLAUDE_CODE_SUBAGENT_MODEL` |
 
 The lead's transcript keeps the call as written; the subagent's own transcript shows the model it ran on. A session's own model is picked by the person when creating the session.
-
-### Routing
-
-What the session does with a free request, a prompt that is not a slash command. The plugin's `UserPromptSubmit` hook (`scripts/lane-hint.mjs`) adds a short note to each such prompt, in a selo project whose `routing` is not `off`; the session judges the request with it (`reference/rules.md`, **Three lanes**):
-
-| `routing` | A change that fits the fastlane | A change that needs a blueprint | A question, a continuation, an answer |
-|---|---|---|---|
-| `off` (default) | no note | no note | no note |
-| `suggest` | proposed: `/selo:fastlane {request}`, one line why, wait for the yes | proposed: `/selo:blueprint {request}` | answered as asked |
-| `auto` | run at once: the session calls the `fastlane` skill | proposed, never started | answered as asked |
-
-A hook cannot start a skill: under `auto` the session calls it itself, and a misjudged request can still go the wrong way. On `baseBranch` a fastlane commits without a question (**Where commits go** of the rules): with `auto`, a free sentence can end in commits the person did not approve one by one. A value other than these three is a warning and reads as `off`. No note outside a selo project, on a manifest that fails to parse, or on a prompt holding only the harness's blocks (a hand-back, a notification).
 
 ## Component block: ` ```component `
 

@@ -8,6 +8,7 @@
       "Bash(node *scripts/manifest.mjs*)",
       "Bash(node *scripts/spec-check.mjs*)",
       "Bash(node *scripts/run.mjs*)",
+      "Bash(node *scripts/settings.mjs)",
       "Bash(node *scripts/ops.mjs* mark*)"
     ],
     "deny": [

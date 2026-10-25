@@ -25,12 +25,14 @@ export const SKILLS = {
   fastlane: { kind: "lane", flow: "fastlane" },
   blueprint: { kind: "lane", flow: "blueprint" },
   build: { kind: "lane", flow: "blueprint" },
-  autopilot: { kind: "lane", flow: "autopilot" },
+  pilot: { kind: "lane", flow: "pilot" },
   grill: { kind: "tool" }, mockup: { kind: "tool" }, review: { kind: "tool" }, try: { kind: "tool" }, run: { kind: "tool" }, setup: { kind: "tool" },
 };
 const skillOf = (name) => (name && Object.hasOwn(SKILLS, name) ? SKILLS[name] : null);
-// A run written before 2.5.0 has no `flow`: its lane's.
-const flowOf = (run) => run?.flow ?? skillOf(run?.lane)?.flow ?? "free";
+// A run written before 2.5.0 has no `flow`: its lane's (`autopilot`, before selo 2.6.0, still read).
+const flowOf = (run) => run?.flow ?? skillOf(run?.lane)?.flow ?? (run?.lane === "autopilot" ? "autopilot" : "free");
+// The orchestrator, which stands for the subagents it spawns: `pilot — autonomous`, or a run of the old `autopilot`.
+const orchestrates = (run) => flowOf(run) === "autopilot" || (flowOf(run) === "pilot" && run?.mode === "autonomous");
 export const SUBSTEPS = ["bootstrap", "tests", "code", "suites", "review", "try", "merge", "commit"];
 // shortcut: a session keeps its 100 newest runs; raise it if a dashboard needs the whole history.
 const MAX_RUNS = 100;
@@ -154,9 +156,9 @@ export function blueprintOf(file, text, { subjects = new Map(), draft = false } 
     : stages.length && stages.every((s) => s.done) ? "review"
     : stages.some((s) => s.done || s.sha) ? "building"
     : "ready";
-  const auto = `/selo:autopilot ${file}`;
-  const next = state === "ready" || state === "building" || state === "merging" ? { label: "build", prompt: `/selo:build ${file}`, autopilot: auto }
-    : state === "review" ? { label: "review", prompt: `/selo:review ${file}`, autopilot: auto }
+  const pilot = `/selo:pilot ${file} — autonomous`;
+  const next = state === "ready" || state === "building" || state === "merging" ? { label: "build", prompt: `/selo:build ${file}`, pilot }
+    : state === "review" ? { label: "review", prompt: `/selo:review ${file}`, pilot }
     : null;
   return {
     name,
@@ -276,11 +278,11 @@ export function parsePrompt(prompt, root, selo = true) {
   const file = /(\S*\.planning\/blueprints\/[^\s/]+\.md)/.exec(slash(rest))?.[1] ?? null;
   const text = file && root && existsSync(resolve(root, file)) ? readFileSync(resolve(root, file), "utf8") : null;
   const stage = /—\s*stage\s+(\d+)/.exec(rest)?.[1];
-  // `mode`: read from the whole text, before `request` is cut at 200 characters.
-  const mode = skill === "fastlane" && /—\s*iterate\b/.test(rest) ? "iterate" : null;
+  // `mode`: read from the whole text, before `request` is cut at 200 characters; the prompt's suffix, as it says it.
+  const mode = skill === "fastlane" && /—\s*iterate\b/.test(rest) ? "iterate" : skill && /—\s*autonomous\b/.test(rest) ? "autonomous" : null;
   const run = { lane, flow: skillOf(skill)?.flow ?? "free", skill, mode, request: rest.slice(0, 200), blueprint: file ? basename(file, ".md") : null, step: null, lastStep: null };
   if (skill === "build") Object.assign(run, { step: stage ? `stage:${stage}` : text ? stepOf(text) : "stage:1", lastStep: stage ? `stage:${stage}` : null });
-  else if (skill === "autopilot") run.step = file ? (text ? stepOf(text) : "stage:1") : null;
+  else if (skill === "pilot") run.step = file ? (text ? stepOf(text) : "stage:1") : null;
   else if (skill === "review") run.step = file ? "review" : null;
   else run.blueprint = null;
   return run;
@@ -353,9 +355,9 @@ const setSkill = (run, p) => {
   run.mode ??= p.mode;
 };
 // A tool skill has no end event: the run's lane skill comes back at its next mark or its done footer.
-// An autopilot main run keeps its subagent's skill.
+// An orchestrator's main run keeps its subagent's skill.
 const laneBack = (run) => {
-  if (skillOf(run.skill)?.kind !== "tool" || (flowOf(run) === "autopilot" && !run.agentId)) return;
+  if (skillOf(run.skill)?.kind !== "tool" || (orchestrates(run) && !run.agentId)) return;
   const lane = [...(run.trail ?? [])].reverse().find((x) => skillOf(x.skill)?.kind === "lane")?.skill ?? (skillOf(run.lane)?.kind === "lane" ? run.lane : null);
   if (lane) run.skill = lane;
 };
@@ -707,9 +709,9 @@ function applyEvent(s, e, root, ctx) {
       const run = runOf(s, agentId);
       setSkill(run, p);
       touch(run);
-      // An autopilot stands for its subagents: its skill and step are the ones of the subagent it spawned last.
-      // A tool skill with no blueprint (a try) keeps the autopilot's step.
-      if (flowOf(main) === "autopilot") Object.assign(main, { skill: p.skill, step: p.step ?? (skillOf(p.skill).kind === "tool" ? main.step : null), blueprint: main.blueprint ?? p.blueprint, updatedAt: t });
+      // An orchestrator stands for its subagents: its skill and step are the ones of the subagent it spawned last.
+      // A tool skill with no blueprint (a try) keeps the orchestrator's step.
+      if (orchestrates(main)) Object.assign(main, { skill: p.skill, step: p.step ?? (skillOf(p.skill).kind === "tool" ? main.step : null), blueprint: main.blueprint ?? p.blueprint, updatedAt: t });
     } else if (main && main.phase === "working") {
       setSkill(main, p);
       touch(main);
@@ -745,8 +747,8 @@ function applyEvent(s, e, root, ctx) {
       const run = runOf(s, agentId);
       if (!run) return false;
       laneBack(run);
-      // An autopilot stands for its subagents: their marks are its marks too.
-      const auto = agentId && flowOf(main) === "autopilot";
+      // An orchestrator stands for its subagents: their marks are its marks too.
+      const auto = agentId && orchestrates(main);
       if (auto && run.skill) main.skill = run.skill;
       for (const r of auto ? [run, main] : [run]) {
         if (SUBSTEPS.includes(mark[1])) r.substep = mark[1];
@@ -775,7 +777,7 @@ function applyEvent(s, e, root, ctx) {
     const spec = specLine && s.selo ? parseSpecLine(`Spec: ${specLine}`) : null;
     if (spec?.pending) run.blueprint ??= basename(spec.pending, ".md");
     addSheets(run, Object.keys(spec?.groups ?? {}));
-    if (agentId && flowOf(main) === "autopilot") main.commits.push(commit);
+    if (agentId && orchestrates(main)) main.commits.push(commit);
     s.pendingStep = { agentId, subject };
     touch(run);
     return true;
@@ -842,11 +844,11 @@ const moveStep = (s, project) => {
   if (!p) return;
   const run = p.agentId ? s.runs.find((r) => r.agentId === p.agentId) : mainRun(s);
   const main = mainRun(s);
-  if (!run || !["blueprint", "autopilot"].includes(flowOf(run))) return;
+  if (!run || !["blueprint", "pilot", "autopilot"].includes(flowOf(run))) return;
   const step = stepAfter(run, p.subject, project);
   if (!step) return;
   run.step = step;
-  if (p.agentId && flowOf(main) === "autopilot") Object.assign(main, { step, blueprint: main.blueprint ?? run.blueprint });
+  if (p.agentId && orchestrates(main)) Object.assign(main, { step, blueprint: main.blueprint ?? run.blueprint });
 };
 
 // `deadline`: when the lock must have been taken; a hook stops itself at 4.5 s.

@@ -2,6 +2,16 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-25 — selo 2.6.0: `/selo:pilot`, routing and commit as the person's settings
+
+The proposal is `docs/revamp-2.6.0/proposal.md` (session « Routing et autopilote », 2026-10-24; decided 2026-10-25). Two questions decide how a request runs: who picks the lane, who validates. `routing: auto` was an autopilot cut down to the fastlane, on a sentence nobody typed as a command, and on `baseBranch` it ended in commits with no yes; Selo Ops' new-session page needs one command per case, not a config value read at session start.
+
+- **`/selo:pilot {request | blueprint}` replaces `/selo:autopilot`.** Without a suffix, selo picks the lane: the session places the request itself (no `Explore` subagent: the lane reads the same files right after), says the lane and its prompt in one line, then calls the lane's skill through the Skill tool and follows it, with its own questions and yeses; typing `/selo:pilot` is the yes on the lane. The blueprint lane stops at the blueprint's commit, as `/selo:blueprint` does. With ` — autonomous` it is the old autopilot, step for step. The skill folder is renamed; no alias (no real project yet): `/selo:autopilot` is an unknown command.
+- **Routing is the person's setting**, not the project's: two people on one repository may type differently. `SELO_ROUTING=on` in the `env` block of `~/.claude/settings.json`: the lane hook's one note sends a new change request to `pilot`. No `suggest`: `pilot` says the lane before it starts, and the lane has its own yeses. The `routing` key of `selo.yaml` is removed: an unknown key again, warned. `selo-ops` carries the copy of `manifest.mjs`.
+- **A fastlane on `baseBranch` commits on one yes**, its messages in code blocks, as iterate and the blueprint already did (the person: every commit is validated). `SELO_COMMIT=auto`, the person's setting too, keeps 2.5.0's behaviour. Global, not per flow: the fastlane's is the only commit yes an interactive run asks on `baseBranch`. A worktree and autonomous mode are unchanged.
+- **`scripts/settings.mjs`**, new: prints `{ routing, commit }` from the environment, so the hook and the fastlane read one place; `templates/settings.json` allows it, so the fastlane's step 11 asks no permission (a departure from the proposal's « templates: nothing », which was about the settings' values).
+- `reference/rules.md` (**Three lanes**, **Routing a free request**, **Where commits go**, **Autonomous mode**), `docs/manifest.md` (its "Routing" section goes, with its warning), the cheatsheet ("Pilot", "Your settings": both switches together are the old `routing: auto`), the READMEs, `templates/CLAUDE.md` and the lane skills (« from `pilot` ») follow.
+
 ## 2026-10-24 — selo 2.5.0: a free request routed to its lane
 
 The person (2026-10-24): a free sentence asking for a small change should go to the fastlane on its own, or at least be offered the right lane, on a switch set once per project. The rules already said a free change request is a fastlane, but nothing read them on a free prompt: the session just did the change, off any lane.

@@ -11,7 +11,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first, then the manifest, then t
 
 ## Input
 
-`/selo:mockup {request}`, or `/selo:mockup revise {file}: {changes}` to resume one (go to step 5). Never under autopilot: it needs the person's eye.
+`/selo:mockup {request}`, or `/selo:mockup revise {file}: {changes}` to resume one (go to step 5). Never in autonomous mode: it needs the person's eye.
 
 ## Procedure
 

@@ -13,10 +13,11 @@ Sessions open at the project's root (or at a worktree of it) with the plugin loa
 | Ask a question, or fix a spec's wording | Just ask. No skill. |
 | See a change before it is coded | `/selo:mockup {request}`: a static mockup on the front's skin, iterated until you validate it; then `/selo:fastlane {request} — mockup {file}` (or `/selo:blueprint`) |
 | Change something on one page, fix a bug | `/selo:fastlane {request}` |
-| Have a free sentence routed to its lane | `routing: suggest` in `selo.yaml` (the lane proposed), or `routing: auto` (a fastlane-sized change run at once, a blueprint proposed); a new session after the change |
+| Let selo pick the lane, and still validate | `/selo:pilot {request}`: the lane said in one line, then run here with its own questions (or `{blueprint}` to resume its build) |
+| Have a free sentence routed to its lane | `"SELO_ROUTING": "on"` in your `~/.claude/settings.json` (below): a free change request runs `/selo:pilot`; a new session after the change |
 | Try changes one by one on the running app, commit once at the end | `/selo:fastlane {request} — iterate`: no test, review or commit until « on valide » |
 | A new page, entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
-| Let it choose the lane and do everything, no click | `/selo:autopilot {request}` (or `{blueprint}` to resume); ` — fastlane`, ` — blueprint`, ` — until blueprint`, ` — no browser` |
+| Let it choose the lane and do everything, no click | Selo Ops' « Autonome » box: `/selo:pilot {request} — autonomous` (or `{blueprint}` to resume); ` — fastlane`, ` — blueprint`, ` — until blueprint`, ` — no browser` |
 | Review recent work, a range, files | `/selo:review` (or `/selo:review {range or files}`) |
 | Review a blueprint before building it, or a built one | `/selo:review blueprint {blueprint}`, `/selo:review {blueprint}` |
 | Check a page or domain sheet against the code | `/selo:review {slug}` (lists its open blueprints too) |
@@ -43,7 +44,7 @@ flowchart TD
     land --> push
 ```
 
-`/selo:autopilot` reads the code, picks the lane, and runs it with no question (each step a fresh subagent); in a worktree it stops on the landing's yes. A fastlane that meets a new page, entity or rule stops before its commit and proposes `/selo:blueprint {same request}`.
+`/selo:pilot` picks the lane and runs it here, with that lane's questions; with ` — autonomous` it runs it with no question (each step a fresh subagent), and in a worktree stops on the landing's yes. A fastlane that meets a new page, entity or rule stops before its commit and proposes `/selo:blueprint {same request}`.
 
 ## Fastlane
 
@@ -57,7 +58,7 @@ The page's code is read, then each component touched: tests first, build + full 
 
 - `/selo:mockup {request}` → `.planning/mockups/{date}-{name}.html`, one self-contained file (the skin's tokens and recipes inlined), one plate per state and width, shown as an Artifact or in the browser pane. Each turn ends on `Autre chose, ou on valide ?`. Validated, it stays uncommitted: the lane given ` — mockup {file}` commits it with its work and its browser test compares the page with it.
 - `/selo:fastlane {request} — iterate`: on the base branch it asks first whether to move to a worktree. The app runs on the slot; each turn one change, built, no test, review or commit. « On valide »: the spec delta from the final state, the tests, the review, the full suites, the browser test, then the commits on one yes.
-- Neither runs under autopilot: both need you.
+- Neither runs in autonomous mode: both need you.
 
 ## Blueprint lane
 
@@ -66,13 +67,32 @@ The page's code is read, then each component touched: tests first, build + full 
 3. `/selo:build {blueprint}`: every stage chained, one commit each (`Spec: pending (…)`), the decisions it takes under `### Decided during build`, then the review, the full suites, the browser test, and the delta merged into `.planning/pages/` and `.planning/domain/` (`docs({name}): spec merged`). ` — stage N` runs one stage; ` — no browser` skips the browser test.
 4. In a worktree (a branch other than the base branch): the build ends with the landing, one squashed commit on the base branch on your yes.
 
-## Autopilot
+## Pilot
 
 ```
-/selo:autopilot Add a due date to todos
+/selo:pilot Add a due date to todos
 ```
 
-Every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; `/selo:autopilot {blueprint}` resumes at its Progress.
+The session places the request (one page or one component, no new page, entity or rule: the fastlane; else the blueprint), says the lane and its prompt in one line, then runs it here: the blueprint's grill and one yes, or the fastlane's commit yes. Typing `/selo:pilot` is the yes on the lane. To force a lane, type that lane's command.
+
+` — autonomous`, added by Selo Ops' « Autonome » box (never typed): every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; `/selo:pilot {blueprint} — autonomous` resumes at its Progress.
+
+## Your settings
+
+Two switches of yours, not of the project, in the `env` block of `~/.claude/settings.json`, both off by default; a new session after a change:
+
+```json
+{
+  "env": {
+    "SELO_ROUTING": "on",
+    "SELO_COMMIT": "auto"
+  }
+}
+```
+
+- `SELO_ROUTING=on`: a free sentence asking to change the application runs `/selo:pilot` on it; a continuation, an answer or a question passes untouched.
+- `SELO_COMMIT=auto`: a fastlane on the base branch commits without showing its messages for your yes. The iterate mode's « on valide » still asks its yes, and so does a worktree's landing.
+- Both together are the old `routing: auto`: a free sentence that ends in commits with no yes.
 
 ## Running the app
 

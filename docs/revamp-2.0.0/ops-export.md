@@ -29,7 +29,7 @@ Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, w
 |---|---|---|
 | `SessionStart` | | Writes the session file (`status: live`, root, repo, `startedAt`, `transcriptPath`, `model` when the input has it), rescans the project. |
 | `UserPromptSubmit` | | A `/selo:{lane} …` prompt opens a run on its step (§5.2); any other prompt opens a `free` run, or keeps the current run when it answers its question (a commit's yes, an answer). A subagent's hand-back (nothing but `<agent-message from="{agent_id}">` blocks of a known subagent run, after the harness's blocks and the `Another Claude session sent a message:` preamble) keeps the main run too, and so does a prompt holding nothing but `<task-notification>` blocks (a background subagent's end; selo-ops 1.0.0 opened an empty `free` run there). Phase → `working`, `pendingCommit`, `question` and `error` cleared. Opening a main run first settles the previous one's `usage` on its slice up to the transcript's size now (§5.6), then sets the new run's `transcriptFrom` to that size (0 when the transcript does not exist yet). |
-| `PreToolUse` | `Skill` | Same as above for a brief-driven call: an autopilot's subagents run the skills through the Skill tool, never from a typed prompt. `agent_id` makes it a subagent run. The skill is named `selo:{name}` or by its short `{name}` (selo-ops 2.5.0). |
+| `PreToolUse` | `Skill` | Same as above for a brief-driven call: an orchestrator's subagents, and an interactive pilot's lane, run the skills through the Skill tool, never from a typed prompt. `agent_id` makes it a subagent run. The skill is named `selo:{name}` or by its short `{name}` (selo-ops 2.5.0). |
 | `PreToolUse` | any other tool (selo-ops 2.5.0) | Only for a main run still `free`, with no `skill`, `working`, not read yet: reads the run's first transcript rows for a short command (decision 31) and retags the run. Any other call leaves after reading the session file, without the lock. |
 | `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. A `node {plugin}/scripts/ops.mjs mark …` command sets the run's `substep` and `sheets` (§5.4). |
 | `PostToolUse` | `Edit\|Write\|NotebookEdit` | Adds the path to the session's `touchedFiles`. A file under `.planning/blueprints/` names the run's `blueprint` (a draft has one before its commit); a file under `.planning/pages/` or `.planning/domain/` adds its sheet to `sheets`. |
@@ -137,8 +137,8 @@ type Blueprint = {
   progress: { reviewDone: boolean; specMerged: boolean }
   /** The merge commit (`Spec: home +FR-18 …`), once there is one. */
   mergeCommit: { sha: string; subject: string } | null
-  /** The prompts for its next step, computed by the plugin: `/selo:build {file}` (resume included), `/selo:review {file}`; null once done. */
-  next: { label: string; prompt: string; autopilot: string | null } | null
+  /** The prompts for its next step, computed by the plugin: `/selo:build {file}` (resume included), `/selo:review {file}`; `pilot`: the same step with no question, `/selo:pilot {file} — autonomous` (`autopilot`, `/selo:autopilot {file}`, before selo-ops 2.8.0); null once done. */
+  next: { label: string; prompt: string; pilot: string | null } | null
   /** The live sessions working on it, from the session files of this root (a convenience; the session files are the source). */
   sessions: string[]
 }
@@ -195,36 +195,37 @@ type SeloSession = {
   close: { ok: boolean; blockers: CloseBlocker[] }
   /** Every run of the session, newest first: the main loop's and its subagents'. */
   runs: Run[]
-  /** The main loop's latest run: what a tile shows. An autopilot stands for its subagents. */
+  /** The main loop's latest run: what a tile shows. An orchestrator (`pilot — autonomous`, or a run of the old `autopilot`) stands for its subagents. */
   current: Run | null
 }
 
 type Run = {
   /** `{sessionId}:{since}`, stable. */
   id: string
-  /** The subagent the run works in (an autopilot's build, a review); null for the main loop. */
+  /** The subagent the run works in (an orchestrator's build, a review); null for the main loop. */
   agentId: string | null
   /** The subagent's `agent_type`, from `SubagentStart`; kept when a skill names its lane. Null for the main loop. */
   agentType: string | null
   /** Deprecated since selo-ops 2.5.0, kept one version for older readers: read `flow` and `skill`. The `/selo:{name}` that opened the run, `free` for none and for `/selo:run`. */
-  lane: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
+  lane: 'fastlane' | 'blueprint' | 'build' | 'pilot' | 'autopilot' | 'review' | 'try' | 'grill' | 'setup' | 'free'
   /**
-   * How the work is driven, set by the run's first lane skill (`fastlane`; `blueprint` and `build` → `blueprint`; `autopilot`), then fixed.
+   * How the work is driven, set by the run's first lane skill (`fastlane`; `blueprint` and `build` → `blueprint`; `pilot`), then fixed: an interactive pilot that calls the fastlane stays `pilot`. `autopilot` is no longer written (selo-ops 2.8.0); a run exported before keeps it.
    * A tool skill alone (`grill`, `mockup`, `review`, `try`, `run`, `setup`) and no skill leave `free`. Added by selo-ops 2.5.0.
    */
-  flow: 'free' | 'fastlane' | 'blueprint' | 'autopilot'
+  flow: 'free' | 'fastlane' | 'blueprint' | 'pilot' | 'autopilot'
   /**
    * The selo skill running now, null for none. From the `/selo:{name}` prompt, a short `/{name}` command (read from the transcript),
-   * or the Skill tool. An autopilot main run takes its subagents' skill (`autopilot` until its first one). A tool skill called during a lane
+   * or the Skill tool. An orchestrator's main run (`flow: 'pilot'` with `mode: 'autonomous'`) takes its subagents' skill (`pilot` until its first one); an interactive pilot's takes the lane skill it calls. A tool skill called during a lane
    * replaces the lane's skill; the lane's comes back at the run's next mark or its done footer (no event says a skill ended). Added by selo-ops 2.5.0.
    */
-  skill: 'fastlane' | 'blueprint' | 'build' | 'autopilot' | 'grill' | 'mockup' | 'review' | 'try' | 'run' | 'setup' | null
+  skill: 'fastlane' | 'blueprint' | 'build' | 'pilot' | 'autopilot' | 'grill' | 'mockup' | 'review' | 'try' | 'run' | 'setup' | null
   /**
-   * How a fastlane runs: `iterate` when its prompt carries ` — iterate` (a loop of changes, no test, review or commit until the person validates;
-   * the fastlane's end follows, from its `tests` mark on), else null. Read from the whole prompt, before `request` is cut; set with the run's
-   * first fastlane, then fixed. Added by selo-ops 2.7.0.
+   * The prompt's suffix, as it says it: `iterate` when a fastlane's prompt carries ` — iterate` (a loop of changes, no test, review or commit until
+   * the person validates; the fastlane's end follows, from its `tests` mark on); `autonomous` when a selo skill's prompt carries ` — autonomous`
+   * (a `pilot` run: the orchestrator; a subagent's step: run with no question); else null. Read from the whole prompt, before `request` is cut;
+   * set with the run's first skill that carries one, then fixed. Added by selo-ops 2.7.0; `autonomous` by 2.8.0.
    */
-  mode: 'iterate' | null
+  mode: 'iterate' | 'autonomous' | null
   /** The prompt's text after the command, shortened to 200 characters once the harness's leading blocks are gone (a `<pasted_content>` unwrapped, any other closed block such as `<artifact-view-context>` dropped); a subagent's `agent_type` until a skill names its lane. */
   request: string
   /** A subagent's title: its Agent call's `description` (else its `prompt`), 200 characters, then at `SubagentStop` the `description` of its meta file (set right if two calls of one type swapped); null for the main loop. */
@@ -239,7 +240,7 @@ type Run = {
   sheets: string[]
   /**
    * Where a blueprint's build stands: `stage:N`, `review`, `merge` (the delta merged into the sheets); null otherwise.
-   * Set at the start (a build, an autopilot on a file, a review of a blueprint); moved by a build's stage commits, or, for an autopilot, by each subagent it spawns.
+   * Set at the start (a build, a pilot on a file, a review of a blueprint); moved by a build's stage commits, or, for an orchestrator, by each subagent it spawns.
    * Before selo-ops 2.5.0 it also held the lane's name (`blueprint`, `fastlane`, `try`, `grill`, `setup`, `free`).
    */
   step: string | null
@@ -253,7 +254,7 @@ type Run = {
    * Where the run stands for the person, from the end of the last turn:
    * `working` while a turn runs; `awaiting-commit`: the turn ended on a commit question (its message in a closing code block);
    * `awaiting-answer`: on any other question; `job-done`: on the done footer; `turn-ended`: on none of these;
-   * `stopped`: the session ended, or the autopilot stopped on a blocker, before `job-done`.
+   * `stopped`: the session ended, or the orchestrator stopped on a blocker, before `job-done`.
    */
   phase: 'working' | 'awaiting-commit' | 'awaiting-answer' | 'job-done' | 'turn-ended' | 'stopped'
   /** The commit proposed, whole: subject and body. Selo Ops shows the subject (live-sessions FR-36). */
@@ -327,7 +328,7 @@ type CloseBlocker =
 | `/selo:fastlane {request} — iterate` | `fastlane` | `fastlane` | null | null; `mode: "iterate"` |
 | `/selo:blueprint {request}` | `blueprint` | `blueprint` | null | null until its file is committed |
 | `/selo:build {file} [— stage N]` | `blueprint` | `build` | first unticked `stage:N` | the file |
-| `/selo:autopilot {request \| file}` | `autopilot` | `autopilot` | null, or the first unticked stage | the file, or null |
+| `/selo:pilot {request \| file}` | `pilot` | `pilot` | null, or the first unticked stage | the file, or null; `mode: "autonomous"` with ` — autonomous` |
 | `/selo:review [scope]` | `free` | `review` | `review` when the scope is a blueprint, else null | the file when the scope is one |
 | `/selo:try`, `/selo:grill`, `/selo:mockup`, `/selo:setup`, `/selo:run` | `free` | same word | null | null |
 | anything else | `free` | null | null | null |

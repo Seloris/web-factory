@@ -24,15 +24,15 @@ skills/
   mockup/               a static mockup on the front's skin, iterated and validated before any code
   blueprint/            one screen: spec delta, decisions, stages, tests; one yes, one commit
   build/                a blueprint's stages chained, review, browser test, delta merged (or the worktree's landing)
-  autopilot/            no question: picks the fastlane or the blueprint lane, one fresh subagent per step
+  pilot/                picks the fastlane or the blueprint lane and runs it here; — autonomous: no question, one fresh subagent per step
   grill/                the interview that settles decisions
   review/               the reviewer on recent work, a blueprint, or a page against its spec
   try/                  click through a front component locally, on this worktree's slot
   run/                  start the app on this worktree's slot, give its URLs, stop it
 agents/                 reviewer.md (read-only review), runner.md (builds, tests, lint)
-scripts/                manifest.mjs (the manifest parser), spec-check.mjs (spec ids, --merge), commit-hook.mjs, agent-model.mjs, lane-hint.mjs, timestamp.mjs,
+scripts/                manifest.mjs (the manifest parser), spec-check.mjs (spec ids, --merge), commit-hook.mjs, agent-model.mjs, lane-hint.mjs, settings.mjs, timestamp.mjs,
                         run.mjs + slots.mjs (the app on a slot per worktree), ops.mjs (the marks' stub)
-hooks/hooks.json        the commit hook (warns, never blocks), the model hook (selo's subagents on their role's model), the lane hook (a free request routed, `routing`); the ops export is the selo-ops plugin's
+hooks/hooks.json        the commit hook (warns, never blocks), the model hook (selo's subagents on their role's model), the lane hook (a free request routed to `pilot`, `SELO_ROUTING`); the ops export is the selo-ops plugin's
 reference/              rules.md (read first by every skill), caveman.md (agent-to-agent voice), ui-design.md
 skins/                  the looks of a front: the token contract, recipes.css, one folder per skin
 templates/              what setup writes into a project; planning/ holds the page, domain and blueprint templates

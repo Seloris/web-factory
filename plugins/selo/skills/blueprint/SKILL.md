@@ -1,6 +1,6 @@
 ---
 name: blueprint
-description: "Write a blueprint under .planning/blueprints/: the page and domain spec delta, the Business decisions, the Technical defaults, the stages and their commit subjects, the tests, on one screen; a short grill first unless the request carries its decisions; one yes, one commit. Use for a new page, a new entity or business rule, or a change across several pages. Never code, never edits a page or domain spec, except a page stub it touches: that one's spec is written from the code first and committed before the blueprint. With — autonomous (under autopilot): no question."
+description: "Write a blueprint under .planning/blueprints/: the page and domain spec delta, the Business decisions, the Technical defaults, the stages and their commit subjects, the tests, on one screen; a short grill first unless the request carries its decisions; one yes, one commit. Use for a new page, a new entity or business rule, or a change across several pages. Never code, never edits a page or domain spec, except a page stub it touches: that one's spec is written from the code first and committed before the blueprint. With — autonomous (from pilot): no question."
 ---
 
 # Write a blueprint
@@ -30,4 +30,4 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (**Specs: pages and domain
 
 ## Autonomous mode
 
-` — autonomous` (from `autopilot`): no question. `grill` runs in autonomous mode; its answers go into Business decisions and Technical defaults; a question with no defensible answer stops the step, nothing written. When `models.implementer` is `sonnet` (the `lean` preset), the Technical defaults also settle the detail choices each stage would otherwise take (routes, storage, the split into components, the contract rules), so the build decides less. No review offer, no yes: commit with the subject of step 6 (a bootstrap first, in its own commit, listed in the report). The report gives the path and the stages; no next prompt.
+` — autonomous` (from `pilot`): no question. `grill` runs in autonomous mode; its answers go into Business decisions and Technical defaults; a question with no defensible answer stops the step, nothing written. When `models.implementer` is `sonnet` (the `lean` preset), the Technical defaults also settle the detail choices each stage would otherwise take (routes, storage, the split into components, the contract rules), so the build decides less. No review offer, no yes: commit with the subject of step 6 (a bootstrap first, in its own commit, listed in the report). The report gives the path and the stages; no next prompt.

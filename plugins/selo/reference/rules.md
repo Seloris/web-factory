@@ -20,13 +20,15 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the
 |---|---|---|
 | **Fastlane** | One page or one component, no new entity or business rule | `/selo:fastlane {request}` |
 | **Blueprint** | A new page, a new entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
-| **Autopilot** | The person leaves | `/selo:autopilot {request \| blueprint}` |
+| **Pilot** | selo picks the lane; ` — autonomous`: the person leaves | `/selo:pilot {request \| blueprint}` |
 
 A fastlane that meets a new entity or business rule stops before its commit and proposes `/selo:blueprint {same request}`. A free sentence asking to change something is a fastlane.
 
-**Routing a free request.** With `routing: suggest` or `auto` in `selo.yaml`, the plugin's lane hook adds a note to every free prompt (not a slash command): a new request to change the application is placed in its lane first. `suggest`: name the lane and its exact prompt, say why in one line, wait for the yes. `auto`: a request that fits the fastlane runs it at once (the `fastlane` skill); one that needs a blueprint is proposed, never started. A prompt that continues work in progress (a skill running, an iterate or mockup loop), answers a question, or asks one gets no lane.
+`/selo:pilot` places the request itself, says the lane in one line (the lane, its exact prompt, why), then runs it in the session with that lane's own questions and yeses. With ` — autonomous` it runs each step as a fresh subagent, with no question (**Autonomous mode**).
 
-Two ways for the person to see a change before it is final, never under autopilot:
+**Routing a free request.** A setting of the person, not of the project: `SELO_ROUTING` in the `env` block of `~/.claude/settings.json` (`scripts/settings.mjs` reads it; a new session after a change). `on`: the plugin's lane hook adds a note to every free prompt (not a slash command) in a selo project: a new request to change the application runs the `pilot` skill, said in one line. A prompt that continues work in progress (a skill running, an iterate or mockup loop), answers a question, or asks one gets no lane. Absent or anything else: off, no note.
+
+Two ways for the person to see a change before it is final, never in autonomous mode:
 
 - **Mockup first:** `/selo:mockup {request}` draws it as a static HTML file on the front's skin (`.planning/mockups/`), iterated until the person validates it, uncommitted; then either lane takes ` — mockup {file}`, commits the file with its work and compares the page with it in its browser test.
 - **Iterate:** `/selo:fastlane {request} — iterate` runs the app and applies one change per turn, with no test, review or commit, until the person validates; then the fastlane's end runs once on the final state (the spec delta, the tests, the review, the suites, the browser test, the commits on one yes).
@@ -91,7 +93,7 @@ A page stub gets its spec from the code that exists (its **bootstrap**): `/selo:
 
 Every change of behaviour updates its page or domain spec, never later than the commit that ships it:
 
-- **Fastlane:** the delta in the same commit as the code. A delta that restates the request is applied without a question; a page with no spec file gets one from the template, FRs only for what this change touches; a page stub is bootstrapped first (**A spec written from code**), in its own commit, then gets the delta; a behaviour the person did not ask for is asked once, grouped, before the commit (under autopilot: applied and listed first under Business decisions).
+- **Fastlane:** the delta in the same commit as the code. A delta that restates the request is applied without a question; a page with no spec file gets one from the template, FRs only for what this change touches; a page stub is bootstrapped first (**A spec written from code**), in its own commit, then gets the delta; a behaviour the person did not ask for is asked once, grouped, before the commit (in autonomous mode: applied and listed first under Business decisions).
 - **Blueprint:** a page stub it touches is bootstrapped before the delta is drafted (its `+` ids and "before" texts come from that spec); the delta lives in the blueprint's `## Spec delta` while it is built; `build` merges it into the specs at the end (**Blueprints**).
 - A refactor, a look, a fix restoring the specified behaviour, tooling: no spec change.
 
@@ -124,7 +126,7 @@ A blueprint (`templates/planning/blueprint.md`) is one screen: the spec delta, t
 **Lifecycle.** Committed with its delta (`docs({name}): blueprint — {summary}`). `build` runs the stages, one commit each with `Spec: pending (…)`, ticks Progress, then reviews, then merges the delta:
 
 1. `node ${CLAUDE_PLUGIN_ROOT}/scripts/spec-check.mjs --merge {blueprint}` reads the delta against the current specs and prints, for each line, its final id and its status: `ok`, `conflict` (the spec's current text no longer holds the stored "before") or `missing` (the id is gone). It writes nothing.
-2. A `conflict` or a `missing` line stops the merge and asks the person (under autopilot: the step stops, the stage commits stay).
+2. A `conflict` or a `missing` line stops the merge and asks the person (in autonomous mode: the step stops, the stage commits stay).
 3. Otherwise the session applies each line to its file (an FR placed under its zone; a new page from the page template), rewrites in the blueprint every provisional id that changed (the delta and every mention), applying the printed `renames` in their order, ticks `Spec merged`, and commits the specs and the blueprint alone: `docs({name}): spec merged`, body the `specLine` the script printed (`Spec: todo-detail +FR-01 … · home +FR-18 · todo ~BR-03`), checked first with `spec-check {slug} --cite`.
 
 A blueprint is never edited after `Spec merged`; a new iteration is a new blueprint. A file of `blueprints/` with a `Legacy:` line under its title is a 1.0 plan moved by `/selo:setup update`: history, never built, revised or listed as open.
@@ -139,6 +141,7 @@ Both variants: files named on `git add` (never `-A`, `git add .`, `-a`): it keep
 
 Work is committed on `baseBranch` as it goes: no feature branch, no squash. Several sessions share the checkout:
 
+- **a fastlane's commits wait for one yes**: their messages shown in code blocks, all made on the person's yes, unless the person's `SELO_COMMIT` is `auto` (`node ${CLAUDE_PLUGIN_ROOT}/scripts/settings.mjs`: `commit`); a build's stage commits need none (the blueprint's yes covers them), nor does autonomous mode;
 - commit in one command, naming the files this work wrote: `git add {new files} && git commit --only -m "{subject}" -m "{body}" -- {files}`; `--only` leaves out what other sessions staged;
 - a file you must change that holds another session's uncommitted edits: do not write it; wait up to five minutes for that session's commit, else stop and name the file;
 - a dirty tree is not a blocker;
@@ -166,7 +169,7 @@ The session leads: it plans, decides, writes. Each subagent is spawned with its 
 
 Always pass the role's model: the plugin's model hook is the guard, not the source. It puts `reviewer` and `runner` on their role's model whatever the call names, `Explore` and `Plan` on `explorer` and `planner` when the call names none, and leaves any other agent as called (`docs/manifest.md`, "Models").
 
-Put the role first in the spawn's description (`runner · web tests`). A blueprint or an implementation is not a subagent's job, except under `autopilot`. A subagent without the Agent tool runs its commands itself, filtered to the errors, and says what it could not delegate.
+Put the role first in the spawn's description (`runner · web tests`). A blueprint or an implementation is not a subagent's job, except under `pilot — autonomous`. A subagent without the Agent tool runs its commands itself, filtered to the errors, and says what it could not delegate.
 
 ## Decisions
 
@@ -174,7 +177,7 @@ Recorded in two lists, in the blueprint (in the fastlane, in the commit body and
 
 ## Autonomous mode
 
-Only `autopilot` turns it on, by ending a step's prompt with ` — autonomous`; a person never types it. No question: each takes its recommended answer. A question with no defensible answer stops the step, with nothing committed. The hard rules hold.
+Only `pilot` turns it on, by ending a step's prompt with ` — autonomous`; `pilot` gets it the same way, from Selo Ops' new-session page: a person never types it. No question: each takes its recommended answer. A question with no defensible answer stops the step, with nothing committed. The hard rules hold.
 
 ## Language
 
@@ -218,4 +221,4 @@ Selo Ops reads these shapes from the turn's last message (the ops export of the 
 
 ## A 1.0 project
 
-A project still in the 1.0 shape, the layout of factory 0.8 and selo-flow 1.0 (a `factory.yaml` or a `selo-flow.yaml` instead of `selo.yaml`, or a `.planning/features/*/00_spec.md`), is migrated first: `fastlane`, `blueprint`, `build`, `autopilot` and `review` say so, change nothing, and give `/selo:setup update`, which moves its areas to pages and domain sheets and its plans to legacy blueprints.
+A project still in the 1.0 shape, the layout of factory 0.8 and selo-flow 1.0 (a `factory.yaml` or a `selo-flow.yaml` instead of `selo.yaml`, or a `.planning/features/*/00_spec.md`), is migrated first: `fastlane`, `blueprint`, `build`, `pilot` and `review` say so, change nothing, and give `/selo:setup update`, which moves its areas to pages and domain sheets and its plans to legacy blueprints.

@@ -38,12 +38,12 @@ Then three lanes, each step ending with the prompt of the next one ready to copy
 /selo:fastlane  {request}     "change this": code + page spec delta, one review, commit(s)
 /selo:blueprint {request}     grill → page spec delta + brief, one yes, one commit
 /selo:build     {blueprint}   every stage chained, one commit each, review, delta merged
-/selo:autopilot {request}     no question: picks Fastlane or Blueprint → Build
+/selo:pilot     {request}     selo picks Fastlane or Blueprint, then runs it here
 ```
 
 Before the code, `/selo:mockup {request}` draws the change on the front's skin until you validate it (then ` — mockup {file}` on either lane); `/selo:fastlane {request} — iterate` applies one change per turn on the running app and commits once you validate.
 
-Or in one command, with no question: `/selo:autopilot {request}` reads the code, picks the lane and runs it, each step a fresh subagent; the recommended answers are taken and listed as Business decisions and Technical defaults (needs the `auto` or `acceptEdits` permission mode).
+Or with no question: `/selo:pilot {request} — autonomous` (Selo Ops' « Autonome » box) reads the code, picks the lane and runs it, each step a fresh subagent; the recommended answers are taken and listed as Business decisions and Technical defaults (needs the `auto` or `acceptEdits` permission mode).
 
 Every code commit carries a `Spec:` line (`Spec: home +FR-12 ~FR-03 · todo +BR-06`, or `Spec: none (refactor)`): the page and domain specs follow the code, `spec-check` keeps its ids straight and the plugin's commit hook warns when the line is missing. `/selo:grill` settles open decisions; `/selo:review` reviews recent work, a blueprint or a page against its spec; `/selo:setup update` brings a project up to date with the plugin.
 

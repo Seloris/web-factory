@@ -2,6 +2,16 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-25 — selo-ops 2.8.0: `pilot` replaces `autopilot`, its mode as the prompt says it
+
+selo 2.6.0 replaces `/selo:autopilot` with `/selo:pilot`: interactive without a suffix, the old autopilot with ` — autonomous` (`docs/revamp-2.6.0/proposal.md` §3.2). The export carries the prompt's facts, nothing derived (the person: « toutes les données telles quelles, pas d'interprétation »).
+
+- **`SKILLS.pilot`**, a lane skill, `flow: "pilot"`; `autopilot` is no longer a selo skill, so `/selo:autopilot` opens a `free` run. A run exported before keeps `flow`/`lane` `autopilot`, and is still read as an orchestrator (forward-only: `schemaVersion` stays 1).
+- **`mode: "autonomous"`** when a selo skill's prompt carries ` — autonomous` (a `pilot` run, and a subagent's step); `iterate` stays the fastlane's.
+- **The orchestrator rules** (« it stands for its subagents »: their skill, step, marks and commits taken by the main run) key on `flow === "pilot" && mode === "autonomous"`, or the old `autopilot` flow. An interactive pilot runs its lane in the main run: `flow: "pilot"`, `skill: "fastlane"`, no takeover; its build's stage commits still move its step.
+- **`next.autopilot` becomes `next.pilot`**: `/selo:pilot {file} — autonomous`.
+- `scripts/manifest.mjs` copied over: selo 2.6.0 removes the `routing` key. `docs/revamp-2.0.0/ops-export.md` (§5.1 `lane`, `flow`, `skill`, `mode`, `next`; §5.2) follows.
+
 ## 2026-10-24 — selo-ops 2.7.1: the manifest's routing key
 
 selo 2.5.0 adds `routing` to `selo.yaml`: `scripts/manifest.mjs` is copied over (it knows the key, so a project that sets it gets no unknown-key warning). Nothing the export writes changes: a fastlane started by the session under `routing: auto` is read through the Skill tool, as before.
