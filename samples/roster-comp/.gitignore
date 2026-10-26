@@ -1,0 +1,9 @@
+.claude/local/
+# angular-dotnet pack
+bin/
+obj/
+TestResults/
+**/.data/*.db*
+node_modules/
+dist/
+.angular/

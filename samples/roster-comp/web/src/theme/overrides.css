@@ -1,0 +1,57 @@
+/* This application's own values for the skin's variables, loaded after skin.css (the selo plugin's
+   skins/README.md lists them): one dark, old-school World of Warcraft look over the "pro" skin,
+   in both color schemes, so the selector matches the skin's dark-mode block. */
+@import "@fontsource/cinzel/600.css";
+@import "@fontsource/cinzel/700.css";
+
+:root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+  --font-display: 'Cinzel', Georgia, 'Times New Roman', serif;
+  --title-size: 22px;
+  --title-weight: 700;
+  --title-tracking: 0.04em;
+  --bg: #0b0a08;
+  --bg-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(140, 90, 20, .22), transparent 70%);
+  --surface: #16120d;
+  --surface-2: #241d14;
+  --border: #3d3120;
+  --text: #ece0c4;
+  --text-muted: #a3927a;
+  --accent: #9e1a10;
+  --accent-text: #ffd100;
+  --accent-soft: #3a1a10;
+  --accent-soft-text: #ffd100;
+  --danger: #e0412f;
+  --danger-soft: #34140f;
+  --danger-text: #ffffff;
+  --focus: rgba(255, 209, 0, .45);
+  --control-bg: #0d0b08;
+  --control-border: #4a3b22;
+  --control-border-on: #ffd100;
+  --panel-border: var(--border-width) solid #6e5526;
+  --shadow-card: 0 0 0 1px #000, inset 0 1px 0 rgba(255, 209, 0, .10), 0 12px 32px rgba(0, 0, 0, .65);
+  --btn-border: #6e5526;
+  --pop-bg: #16120d;
+  --scrim: rgba(0, 0, 0, .7);
+  --list-rule: 1px solid var(--border);
+  --item-rule: 1px solid var(--border);
+  color-scheme: dark;
+
+  --page-width: 1184px;
+  --gold: #ffd100;
+  --gold-dim: #b8962e;
+  --warn: var(--gold);
+  /* tiers in item-quality colors: S legendary, A epic, B rare, C uncommon */
+  --tier-s: #ff8000;
+  --tier-a: #b048f8;
+  --tier-b: #2b8cff;
+  --tier-c: #1eff00;
+  /* class colors */
+  --class-warrior: #c69b6d;
+  --class-paladin: #f48cba;
+  --class-hunter: #aad372;
+  --class-rogue: #fff468;
+  --class-priest: #ffffff;
+  --class-mage: #3fc7eb;
+  --class-warlock: #8788ee;
+  --class-druid: #ff7c0a;
+}
