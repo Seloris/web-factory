@@ -225,6 +225,37 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
     }
 
     [Fact]
+    public async Task PlacePlayer_Should_PutTheChosenSpecLocked_When_ASpecOfTheRoleIsPicked()
+    {
+        // Arrange
+        var seraphine = await Client.CreatePlayerAsync(
+            "Séraphine", CT, ("paladin-holy", Rank.S), ("priest-discipline", Rank.A), ("paladin-retribution", Rank.A));
+
+        // Act
+        var body = await PostAsync("/roster/placements", new PlacePlayer.Command(seraphine, Role.Heal, null, "priest-discipline"));
+
+        // Assert
+        Placement(body, seraphine).ShouldBe(new PlacementDto(seraphine, "Séraphine", "priest-discipline", Role.Heal, Rank.A, 2, true));
+        Saved(await SavedRosterAsync()).ShouldBe($"{seraphine}:priest-discipline*");
+    }
+
+    [Theory]
+    [InlineData("paladin-retribution")]
+    [InlineData("druid-restoration")]
+    public async Task PlacePlayer_Should_Return422SpecNotChosen_When_ThePickedSpecIsNotOneOfTheirChoicesOfTheRole(string specId)
+    {
+        // Arrange
+        var seraphine = await Client.CreatePlayerAsync("Séraphine", CT, ("paladin-holy", Rank.S), ("paladin-retribution", Rank.A));
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/roster/placements", new PlacePlayer.Command(seraphine, Role.Heal, null, specId), CT);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await response.CodeOfAsync(CT)).ShouldBe("spec_not_chosen");
+    }
+
+    [Fact]
     public async Task PlacePlayer_Should_Return422RoleNotChosen_When_NoneOfTheirChoicesHasTheRole()
     {
         // Arrange

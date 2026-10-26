@@ -21,6 +21,9 @@ Pages: `roster-builder` · Domain: `roster` · Components: `api`, `web`
 - A chosen spec that is not one of the player's choices for that role is refused as a domain error (422), like a role with no choice.
 - The class menu is one small dialog shared by the drop, « Placer » and « Remplir », built from the house dialog.
 
+### Decided during build
+- Code of a picked spec refused → `spec_not_chosen` (stable snake_case, like `role_not_chosen`).
+
 ## Stages
 1. api — `feat(class-choice): api — place a player on a chosen spec`
 2. web — `feat(class-choice): web — class menu on placement, buffs under the composition`
@@ -31,7 +34,7 @@ Pages: `roster-builder` · Domain: `roster` · Components: `api`, `web`
 - browser: at 1440 px, drag a sheet with two heal choices onto a heal place, pick the second, see it placed with that spec and the buffs updated below the composition; « Placer » by keyboard offers the same menu.
 
 ## Progress
-- [ ] Stage 1 — api
+- [x] Stage 1 — api
 - [ ] Stage 2 — web
 - [ ] Review
 - [ ] Browser test

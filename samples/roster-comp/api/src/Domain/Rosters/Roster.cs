@@ -83,14 +83,19 @@ public sealed class Roster
     }
 
     /// <summary>
-    /// Puts a player on a place of a role by hand, on their best choice of that role, locked. On an occupied place
+    /// Puts a player on a place of a role by hand, on the choice of that role picked (<paramref name="specId"/>), else their best one, locked. On an occupied place
     /// (<paramref name="targetPlayerId"/>), a placed player swaps with the occupant when the occupant fits the role they leave;
     /// otherwise the occupant leaves the roster.
     /// </summary>
-    public void Place(Player player, Role role, int? targetPlayerId, IReadOnlyList<Player> players)
+    public void Place(Player player, Role role, int? targetPlayerId, string? specId, IReadOnlyList<Player> players)
     {
-        var choice = player.BestChoiceFor(role)
+        var best = player.BestChoiceFor(role)
             ?? throw new DomainException("role_not_chosen", $"{player.Pseudo} has no {role} choice");
+        var choice = specId is null
+            ? best
+            : player.ChoiceOf(specId) is { } picked && picked.Role == role
+                ? picked
+                : throw new DomainException("spec_not_chosen", $"{specId} is not a {role} choice of {player.Pseudo}");
         var target = targetPlayerId is { } targetId && targetId != player.Id
             ? Find(targetId) ?? throw new NotFoundException("Placement", targetId)
             : null;

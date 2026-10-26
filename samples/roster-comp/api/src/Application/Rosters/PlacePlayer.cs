@@ -8,10 +8,10 @@ using RosterComp.Domain.Players;
 
 namespace RosterComp.Application.Rosters;
 
-/// <summary>A player put on a place of a role by hand; <c>TargetPlayerId</c>: the occupant of the place, when it has one.</summary>
+/// <summary>A player put on a place of a role by hand; <c>TargetPlayerId</c>: the occupant of the place, when it has one; <c>SpecId</c>: the choice picked, their best one of the role when absent.</summary>
 public static class PlacePlayer
 {
-    public sealed record Command(int PlayerId, Role Role, int? TargetPlayerId);
+    public sealed record Command(int PlayerId, Role Role, int? TargetPlayerId, string? SpecId = null);
 
     public sealed class Validator : AbstractValidator<Command>
     {
@@ -29,7 +29,7 @@ public static class PlacePlayer
             var players = await db.Players.ToListAsync(cancellationToken);
             var player = players.FirstOrDefault(p => p.Id == command.PlayerId)
                 ?? throw new NotFoundException(nameof(Player), command.PlayerId);
-            roster.Place(player, command.Role, command.TargetPlayerId, players);
+            roster.Place(player, command.Role, command.TargetPlayerId, command.SpecId, players);
             await db.SaveChangesAsync(cancellationToken);
             return RosterStore.ToResponse(roster, players);
         }

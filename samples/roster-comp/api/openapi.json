@@ -781,6 +781,12 @@
               "integer"
             ],
             "format": "int32"
+          },
+          "specId": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
