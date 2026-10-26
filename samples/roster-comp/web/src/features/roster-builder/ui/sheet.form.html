@@ -1,0 +1,63 @@
+@let pseudoKey = pseudoError();
+@let choicesKey = choicesError();
+<form novalidate (submit)="onSubmit($event)">
+  <app-field [label]="'rosterBuilder.sheetForm.pseudo' | translate" [error]="pseudoKey ? (pseudoKey | translate: { max: maxLength }) : null">
+    <input appControl [formField]="fields.pseudo" autocomplete="off" />
+  </app-field>
+
+  <app-field [label]="'rosterBuilder.sheetForm.choices' | translate" [error]="choicesKey ? (choicesKey | translate) : null">
+    <ul>
+      @for (choice of choices(); track $index; let i = $index) {
+        <li>
+          <app-select class="rank">
+            <select appControl [formField]="fields.choices[i].rank" [style.color]="'var(--tier-' + choice.rank.toLowerCase() + ')'"
+              [attr.aria-label]="'rosterBuilder.sheetForm.rank' | translate: { n: i + 1 }">
+              @for (rank of ranks; track rank) {
+                <option [value]="rank">{{ rank }}</option>
+              }
+            </select>
+          </app-select>
+          <app-select class="class">
+            <select appControl [formField]="fields.choices[i].classId" [style.color]="'var(--class-' + choice.classId + ')'"
+              [attr.aria-label]="'rosterBuilder.sheetForm.class' | translate: { n: i + 1 }" (change)="onClassChange(i, $event)">
+              @for (gameClass of classes(); track gameClass.id) {
+                <option [value]="gameClass.id">{{ gameClass.name }}</option>
+              }
+            </select>
+          </app-select>
+          @if (specs().get(choice.specId); as info) {
+            <app-spec-icon [icon]="info.spec.icon" [classId]="info.gameClass.id" [label]="info.gameClass.name + ' ' + info.spec.name" />
+          } @else {
+            <span></span>
+          }
+          <app-select>
+            <select appControl [formField]="fields.choices[i].specId" [attr.aria-label]="'rosterBuilder.sheetForm.spec' | translate: { n: i + 1 }">
+              @for (spec of specsOf(choice.classId); track spec.id) {
+                <option [value]="spec.id">{{ spec.name }}</option>
+              }
+            </select>
+          </app-select>
+          @if (specs().get(choice.specId); as info) {
+            <span class="role"><app-icon [name]="info.spec.role" />{{ 'rosterBuilder.roles.one.' + info.spec.role | translate }}</span>
+          } @else {
+            <span></span>
+          }
+          <button appButton variant="ghost" type="button" [disabled]="choices().length === 1"
+            [attr.aria-label]="'rosterBuilder.sheetForm.removeChoice' | translate: { n: i + 1 }" (click)="removeChoice(i)">
+            <app-icon name="cross" />
+          </button>
+        </li>
+      }
+    </ul>
+  </app-field>
+  <button appButton variant="quiet" type="button" class="add" (click)="addChoice()"><app-icon name="plus" />{{ 'rosterBuilder.sheetForm.addChoice' | translate }}</button>
+
+  @if (serverErrors().general; as general) {
+    <app-error-message>{{ general | translate }}</app-error-message>
+  }
+
+  <div class="actions">
+    <button appButton variant="quiet" type="button" [disabled]="isSaving()" (click)="cancelled.emit()">{{ 'rosterBuilder.sheetForm.cancel' | translate }}</button>
+    <button appButton variant="primary" type="submit" [disabled]="isSaving()">{{ 'rosterBuilder.sheetForm.save' | translate }}</button>
+  </div>
+</form>

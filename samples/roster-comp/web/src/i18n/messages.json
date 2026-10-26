@@ -1,1 +1,193 @@
-{}
+{
+  "rosterBuilder": {
+    "title": "Roster de raid",
+    "subtitle": "WoW Forever · qui joue quoi, au plus près des envies de chacun",
+    "retry": "Réessayer",
+    "toolbar": {
+      "raid": "Raid",
+      "tanks": "Tanks",
+      "heals": "Heals",
+      "dps": "DPS",
+      "fewerTanks": "Un tank de moins",
+      "moreTanks": "Un tank de plus",
+      "fewerHeals": "Un heal de moins",
+      "moreHeals": "Un heal de plus",
+      "locked": {
+        "one": "{{count}} verrouillé gardé",
+        "many": "{{count}} verrouillés gardés"
+      },
+      "unlockAll": "Tout déverrouiller",
+      "reshuffle": "Remélanger",
+      "generate": "Générer le roster"
+    },
+    "roles": {
+      "Tank": "Tanks",
+      "Heal": "Heals",
+      "Dps": "DPS",
+      "one": {
+        "Tank": "Tank",
+        "Heal": "Heal",
+        "Dps": "DPS"
+      }
+    },
+    "sheets": {
+      "title": "Fiches des joueurs",
+      "count": {
+        "one": "{{count}} fiche",
+        "many": "{{count}} fiches"
+      },
+      "add": "Ajouter un joueur",
+      "empty": "Aucune fiche. Ajoutez le premier joueur avec ses classes préférées, classées de S à C.",
+      "loading": "Chargement des fiches…",
+      "failed": "Impossible de charger les fiches : le serveur ne répond pas.",
+      "placeLabel": "Placer {{pseudo}}",
+      "edit": "Modifier la fiche de {{pseudo}}",
+      "delete": "Supprimer la fiche de {{pseudo}}"
+    },
+    "roster": {
+      "title": "Composition",
+      "places": "{{count}} / {{places}} places",
+      "onRank": {
+        "one": "{{count}} sur un choix {{rank}}",
+        "many": "{{count}} sur leur choix {{rank}}"
+      },
+      "locked": {
+        "one": "{{count}} verrouillé",
+        "many": "{{count}} verrouillés"
+      },
+      "notGenerated": "Le roster apparaît ici une fois généré. Saisissez les fiches, puis « Générer le roster ».",
+      "loading": "Chargement du roster…",
+      "failed": "Impossible de charger le roster.",
+      "lock": "Verrouiller {{pseudo}}",
+      "unlock": "Déverrouiller {{pseudo}}",
+      "placeLabel": "Placer {{pseudo}}",
+      "fillLabel": "Placer un joueur sur cette place {{role}}",
+      "free": {
+        "Tank": "Place libre — aucune fiche restante ne peut tanker",
+        "Heal": "Place libre — aucune fiche restante ne peut soigner",
+        "Dps": "Place libre — aucune fiche restante ne peut faire de DPS",
+        "notEnoughSheets": "Place libre — pas assez de fiches",
+        "open": "Place libre — à pourvoir"
+      }
+    },
+    "place": {
+      "rank": "Rang {{rank}}",
+      "firstChoice": "1er choix",
+      "nthChoice": "{{n}}e choix"
+    },
+    "warnings": {
+      "notEnoughSheets": {
+        "one": "1 place DPS vide : {{sheets}} fiches pour un raid de {{size}}.",
+        "many": "{{count}} places DPS vides : {{sheets}} fiches pour un raid de {{size}}."
+      },
+      "shortTank": {
+        "one": "Il manque 1 tank : aucune fiche restante n’a de choix tank.",
+        "many": "Il manque {{count}} tanks : aucune fiche restante n’a de choix tank."
+      },
+      "shortHeal": {
+        "one": "Il manque 1 heal : aucune fiche restante n’a de choix heal.",
+        "many": "Il manque {{count}} heals : aucune fiche restante n’a de choix heal."
+      },
+      "shortDps": {
+        "one": "Il manque 1 DPS : aucune fiche restante n’a de choix DPS.",
+        "many": "Il manque {{count}} DPS : aucune fiche restante n’a de choix DPS."
+      },
+      "openTank": {
+        "one": "1 place tank libre.",
+        "many": "{{count}} places tank libres."
+      },
+      "openHeal": {
+        "one": "1 place heal libre.",
+        "many": "{{count}} places heal libres."
+      },
+      "openDps": {
+        "one": "1 place DPS libre.",
+        "many": "{{count}} places DPS libres."
+      },
+      "unplaced": {
+        "one": "{{names}} n’a aucune place.",
+        "many": "{{names}} n’ont aucune place."
+      }
+    },
+    "buffs": {
+      "title": "Buffs du raid",
+      "covered": "{{covered}} / {{total}} couverts",
+      "missing": {
+        "one": "{{count}} manquant",
+        "many": "{{count}} manquants"
+      },
+      "empty": "Les buffs se calculent sur le roster généré.",
+      "footnote": "Buffs de groupe, selon la répartition des groupes, non comptés : Aura de dévotion, Totem Fontaine de mana, Pacte de sang, Étreinte vampirique.",
+      "groups": {
+        "Raid": "Buffs de raid",
+        "Totems": "Totems et bénédictions",
+        "Debuffs": "Affaiblissements du boss",
+        "Utility": "Utilité"
+      },
+      "specNote": "{{specs}}",
+      "pools": {
+        "blessing": "une bénédiction par paladin",
+        "air-totem": "un totem d’air par chaman",
+        "curse": "une malédiction par démoniste"
+      },
+      "excluded": "Exclu par {{buff}}",
+      "needNth": "Il faut un {{n}}e {{class}}",
+      "needSpec": "Il faut un {{class}} {{specs}}",
+      "needClass": "Il faut un {{class}}"
+    },
+    "sheetForm": {
+      "newTitle": "Nouvelle fiche",
+      "editTitle": "Fiche de {{pseudo}}",
+      "pseudo": "Pseudo",
+      "choices": "Choix, du plus voulu au moins voulu",
+      "rank": "Rang du choix {{n}}",
+      "class": "Classe du choix {{n}}",
+      "spec": "Spécialisation du choix {{n}}",
+      "removeChoice": "Retirer le choix {{n}}",
+      "addChoice": "Ajouter un choix",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "errors": {
+        "pseudoRequired": "Le pseudo est obligatoire.",
+        "pseudoTooLong": "Le pseudo tient en {{max}} caractères au plus.",
+        "pseudoInvalid": "Pseudo refusé : obligatoire, 24 caractères au plus.",
+        "choicesInvalid": "Choix refusés : chaque choix prend une spécialisation connue et un rang de S à C.",
+        "noChoice": "Ajoutez au moins un choix.",
+        "duplicateSpec": "Une même spécialisation ne figure qu’une fois sur la fiche.",
+        "pseudo_taken": "Ce pseudo est déjà pris.",
+        "duplicate_spec": "Une même spécialisation ne figure qu’une fois sur la fiche.",
+        "too_many_players": "Le raid compte déjà 20 fiches.",
+        "unknown": "L’enregistrement a échoué. Réessayez."
+      }
+    },
+    "deleteDialog": {
+      "title": "Supprimer la fiche de {{pseudo}} ?",
+      "message": "{{pseudo}} sort aussi du roster ; sa place se libère.",
+      "confirm": "Supprimer",
+      "cancel": "Annuler",
+      "failed": "La suppression a échoué. Réessayez."
+    },
+    "fillDialog": {
+      "title": "Place {{role}} libre",
+      "placed": "déjà placé",
+      "none": "Aucune fiche n’a de choix de ce rôle."
+    },
+    "placeDialog": {
+      "title": "Placer {{pseudo}}",
+      "free": "Une place {{role}} libre",
+      "instead": "Remplacer {{pseudo}}",
+      "here": "Déjà à cette place",
+      "noRole": "Aucun choix de cette fiche ne correspond à un rôle du roster.",
+      "remove": "Sortir du roster",
+      "cancel": "Annuler"
+    },
+    "errors": {
+      "role_not_chosen": "Ce joueur n’a aucun choix de ce rôle.",
+      "role_full": "Toutes les places de ce rôle sont prises.",
+      "below_locked_players": "Impossible : des joueurs verrouillés occupent ces places. Déverrouillez-les d’abord.",
+      "composition_too_large": "Tanks et heals dépassent la taille du raid.",
+      "not_found": "Ce joueur n’existe plus : les fiches et le roster ont été relus.",
+      "unknown": "Le déplacement a échoué. Réessayez."
+    }
+  }
+}

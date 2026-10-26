@@ -1,0 +1,149 @@
+@let roster = store.roster();
+@let raid = store.raid();
+<header>
+  <h1 appPageTitle>{{ 'rosterBuilder.title' | translate }}</h1>
+  <p>{{ 'rosterBuilder.subtitle' | translate }}</p>
+</header>
+
+@if (roster && raid) {
+  <app-composition-toolbar
+    [raids]="store.catalogue.data()?.raids ?? []"
+    [raidId]="roster.raidId"
+    [tanks]="roster.tanks"
+    [heals]="roster.heals"
+    [dps]="roster.dps"
+    [raidSize]="raid.size"
+    [lockedByRole]="lockedByRole()"
+    [isGenerated]="roster.isGenerated"
+    [canGenerate]="players().length > 0"
+    [isPending]="store.isPending()"
+    (compositionChange)="store.actions.setComposition($event)"
+    (generate)="store.actions.generate()"
+    (unlockAll)="store.actions.unlockAll()"
+  />
+}
+
+<div class="cols">
+  <section appFrame class="sheets" [class.is-drop]="isOverSheets()" [heading]="'rosterBuilder.sheets.title' | translate"
+    (dragover)="onSheetsDragOver($event)" (dragleave)="isOverSheets.set(false)" (drop)="onSheetsDrop($event)">
+    <span frameSub>
+      @if (store.players.data(); as sheets) {
+        {{ plural('rosterBuilder.sheets.count', sheets.length) | translate: { count: sheets.length } }}
+      }
+    </span>
+    <span frameActions>
+      @if (players().length > 0) {
+        <button appButton variant="quiet" [disabled]="store.isPending() || players().length >= maxSheets" (click)="openSheet(null)">
+          <app-icon name="plus" />{{ 'rosterBuilder.sheets.add' | translate }}
+        </button>
+      }
+    </span>
+    @if (store.players.data(); as sheets) {
+      @if (sheets.length > 0) {
+        <app-sheets-list [players]="sheets" [specs]="specs()" [isPending]="store.isPending()"
+          (edit)="openSheet($event)" (remove)="askDelete($event)" (placeRequested)="placingId.set($event.id)"
+          (dragStarted)="startDrag($event, false)" (dragEnded)="endDrag()" />
+      } @else {
+        <div class="state">
+          <app-empty-state>{{ 'rosterBuilder.sheets.empty' | translate }}</app-empty-state>
+          <button appButton variant="primary" (click)="openSheet(null)"><app-icon name="plus" />{{ 'rosterBuilder.sheets.add' | translate }}</button>
+        </div>
+      }
+    } @else if (store.players.hasError()) {
+      <div class="state failed">
+        <app-error-message>{{ 'rosterBuilder.sheets.failed' | translate }}</app-error-message>
+        <button appButton variant="primary" (click)="store.actions.retryPlayers()">{{ 'rosterBuilder.retry' | translate }}</button>
+      </div>
+    } @else {
+      <app-loading-state>{{ 'rosterBuilder.sheets.loading' | translate }}</app-loading-state>
+    }
+  </section>
+
+  <section appFrame class="roster" [heading]="'rosterBuilder.roster.title' | translate">
+    <span frameSub>
+      @for (part of rosterSub(); track $index) {
+        @if (!$first) {
+          ·
+        }
+        @if ($index === 1) {
+          <b class="gold">{{ part.key | translate: part.params }}</b>
+        } @else {
+          {{ part.key | translate: part.params }}
+        }
+      }
+    </span>
+    @if (roster && store.catalogue.data()) {
+      @if (store.moveError(); as error) {
+        <app-error-message>{{ error | translate }}</app-error-message>
+      }
+      @if (roster.isGenerated) {
+        <app-roster-board [roles]="views()" [specs]="specs()" [warnings]="warnings()" [acceptedRoles]="acceptedRoles()"
+          [isPending]="store.isPending()" (lockToggled)="toggleLock($event)" (placeRequested)="placingId.set($event)"
+          (dropped)="onDrop($event)" (dragStarted)="startDrag($event, true)" (dragEnded)="endDrag()"
+          (fillRequested)="fillingRole.set($event)" />
+      } @else {
+        <app-empty-state>{{ 'rosterBuilder.roster.notGenerated' | translate }}</app-empty-state>
+      }
+    } @else if (store.loadedRoster.hasError() || store.catalogue.hasError()) {
+      <div class="state failed">
+        <app-error-message>{{ 'rosterBuilder.roster.failed' | translate }}</app-error-message>
+        <button appButton variant="quiet" (click)="store.actions.retryRoster()">{{ 'rosterBuilder.retry' | translate }}</button>
+      </div>
+    } @else {
+      <app-loading-state>{{ 'rosterBuilder.roster.loading' | translate }}</app-loading-state>
+    }
+  </section>
+
+  @if (roster && store.catalogue.data()) {
+    <section appFrame class="buffs" [heading]="'rosterBuilder.buffs.title' | translate">
+      <span frameSub>
+        @if (roster.isGenerated) {
+          @let count = buffsCount();
+          <b class="gold">{{ 'rosterBuilder.buffs.covered' | translate: count }}</b>
+          @if (count.missing > 0) {
+            · {{ plural('rosterBuilder.buffs.missing', count.missing) | translate: { count: count.missing } }}
+          }
+        }
+      </span>
+      @if (roster.isGenerated) {
+        <app-buffs-recap [buffs]="roster.buffs" [classes]="classes()" [specs]="specs()" />
+      } @else {
+        <app-empty-state>{{ 'rosterBuilder.buffs.empty' | translate }}</app-empty-state>
+      }
+    </section>
+  }
+</div>
+
+@if (editing(); as sheet) {
+  <app-dialog [isOpen]="true" [isWide]="true" [isPending]="store.isPending()" (cancelled)="editing.set(null)"
+    [title]="sheet.player ? ('rosterBuilder.sheetForm.editTitle' | translate: { pseudo: sheet.player.pseudo }) : ('rosterBuilder.sheetForm.newTitle' | translate)">
+    <app-sheet-form [detail]="sheet.player" [classes]="classes()" [specs]="specs()" [isSaving]="store.isPending()" [problem]="sheetProblem()"
+      (save)="saveSheet($event)" (cancelled)="editing.set(null)" />
+  </app-dialog>
+}
+
+@if (deleting(); as player) {
+  <app-confirm-dialog
+    [isOpen]="true"
+    [title]="'rosterBuilder.deleteDialog.title' | translate: { pseudo: player.pseudo }"
+    [message]="'rosterBuilder.deleteDialog.message' | translate: { pseudo: player.pseudo }"
+    [confirmLabel]="'rosterBuilder.deleteDialog.confirm' | translate"
+    [cancelLabel]="'rosterBuilder.deleteDialog.cancel' | translate"
+    [isPending]="store.isPending()"
+    [error]="deleteFailed() ? ('rosterBuilder.deleteDialog.failed' | translate) : null"
+    (confirmed)="confirmDelete()"
+    (cancelled)="deleting.set(null)"
+  />
+}
+
+@if (placing(); as player) {
+  <app-place-dialog [player]="player" [views]="views()" [specs]="specs()" [isPending]="store.isPending()"
+    (chosen)="placeFromDialog($event)" (removed)="removeFromDialog()" (cancelled)="placingId.set(null)" />
+}
+
+@if (fillingRole(); as role) {
+  @if (roster) {
+    <app-fill-dialog [role]="role" [players]="players()" [roster]="roster" [specs]="specs()" [isPending]="store.isPending()"
+      (chosen)="fillFromDialog($event)" (cancelled)="fillingRole.set(null)" />
+  }
+}

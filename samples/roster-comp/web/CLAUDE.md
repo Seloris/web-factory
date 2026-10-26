@@ -40,7 +40,8 @@ src/
                             Control (input[appControl], select[appControl]), SearchInput (app-search-input), Select (app-select: the chevron),
                             Button (button[appButton], variant: primary, danger, quiet, ghost), Switch (app-switch), Checkbox (input[appCheckbox]),
                             List (ul[appList], li[appListItem] with isDone, [appListItemText]), Badge, EmptyState, LoadingState,
-                            ErrorMessage (role="alert"), ConfirmDialog (a native <dialog>), icons.ts (app-search-icon, app-trash-icon)
+                            ErrorMessage (role="alert"), ConfirmDialog (a native <dialog>), Dialog (app-dialog: a native <dialog>, its content projected),
+                            icons.ts (app-search-icon, app-trash-icon)
       utils/                resource-state.ts (resourceState, resourceStateWithParams), problem-details.ts (problemOf)
     {feature}/
       {feature}.routes.ts   the feature's routes, lazy-loaded by app.routes.ts
@@ -78,8 +79,9 @@ Create only the subfolders a feature needs, and keep the tree shallow.
 
 The skin named in the `component` block above: its fonts in `src/theme/fonts.css` and its tokens in `src/theme/skin.css` (both written by setup, rewritten by `/selo:setup skin`), imported first by `src/styles.css`, then `base.css` and `overrides.css`. The UI follows the selo plugin's design rules (`reference/ui-design.md`), its element recipes (`skins/recipes.css`) and the skin's `SKIN.md`, read in place; this section wins over them. Features compose the `features/core/ui` components and style only their own layout; a recipe or a component two features need that `core/ui` lacks is added there, in the same way.
 
-- Variables this application changes: in `src/theme/overrides.css`, never in `skin.css`. It turns `pro` into one dark, old-school World of Warcraft look in both color schemes: dark leather surfaces, gold frames and focus, a red accent with gold text, titles in Cinzel (`@fontsource/cinzel`, imported at the top of `overrides.css`, never in `fonts.css`).
+- Variables this application changes: in `src/theme/overrides.css`, never in `skin.css`. It turns `pro` into one dark, old-school World of Warcraft look in both color schemes: dark leather surfaces, gold frames and focus, a red accent with gold text, titles in Cinzel and the text in Marcellus (`@fontsource/cinzel`, `@fontsource/marcellus`, imported at the top of `overrides.css`, never in `fonts.css`).
 - The application's own variables, also in `overrides.css`: `--tier-s` to `--tier-c` (the choice ranks S to C, in item-quality colors: legendary, epic, rare, uncommon), `--class-{class}` (each class's color), `--gold`, `--gold-dim`, `--page-width`. A rank or a class is always shown with its variable, never a literal color.
+- Hooks of `core/ui` an override may set, each falling back to the skin: Button's `--btn-primary-bg`, `--btn-danger-bg`, `--btn-quiet-bg`, `--btn-quiet-hover-bg`, `--btn-quiet-text`, `--btn-bevel`, `--btn-text-shadow`; Field's `--label-color`, `--label-shadow`.
 - Keep the `pro` density: 32px controls, ruled rows, compact spacing.
 
 ## Testing

@@ -4,6 +4,7 @@ let nextId = 0;
 
 // A label, its control and its error (recipe: field). The control is projected and gets its id and
 // aria attributes from FieldControl: `<app-field [label]="…" [error]="…"><input appControl … /></app-field>`.
+// A project may set --label-color and --label-shadow in its overrides; each falls back to the skin.
 @Component({
   selector: 'app-field',
   template: `
@@ -24,7 +25,8 @@ let nextId = 0;
       font-weight: var(--label-weight);
       text-transform: var(--label-transform);
       letter-spacing: var(--label-tracking);
-      color: var(--text-muted);
+      color: var(--label-color, var(--text-muted));
+      text-shadow: var(--label-shadow, none);
     }
     .error {
       margin: 8px 0 0;

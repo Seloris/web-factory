@@ -3,15 +3,15 @@
 Pages: `roster-builder` (new, `Route: /`) · Domain: `player` (new), `roster` (new) · Components: `api`, `web`
 
 ## Spec delta
-- player + BR-01 — A sheet has a pseudo, unique whatever its case, and at least one choice; a choice is a class, one of its specs and a rank S, A, B or C; several choices may share a rank; a sheet never holds the same spec twice.
+- player + BR-01 — A sheet has a pseudo of 24 characters at most, unique whatever its case, and at least one choice; a choice is a class, one of its specs and a rank S, A, B or C; several choices may share a rank; a sheet never holds the same spec twice.
 - player + BR-02 — At most 20 sheets exist; a 21st is refused.
 - player + BR-03 — Each spec has one role (tank, heal or DPS) and its game icon, from the catalogue of the mockup's plate 8 (9 classes, 28 specs).
 - roster + BR-01 — The composition is a raid of the catalogue (its size, at most 20) and a number of tanks and of heals whose sum never exceeds that size; the DPS are the rest.
 - roster + BR-02 — Generation places each sheet at most once, on one of its choices whose role has a free place: first the most places filled, then the most S choices, then A, then B; at random between equal solutions.
-- roster + BR-03 — A locked player keeps their place and spec through every generation; the tanks or heals count never goes below the locked players of that role.
-- roster + BR-04 — A change of composition regenerates the roster, locks kept; a deleted sheet frees its place; an edited sheet keeps its place while its placed choice still exists, else frees it.
-- roster + BR-05 — A buff is covered when the roster holds a player able to give it (the catalogue of the mockup's plates 1–2); a paladin gives one blessing, a shaman one air totem, a warlock one curse, and Windfury Totem excludes Flametongue Totem.
-- roster + BR-06 — A player placed by hand takes their best-ranked choice of that place's role and is locked; a place whose role has none of their choices refuses them.
+- roster + BR-03 — A locked player keeps their place and spec through every generation; the tanks or heals count never goes below the locked players of that role, nor the DPS places below the locked DPS.
+- roster + BR-04 — A change of composition regenerates the roster, locks kept (before any roster, it is only saved); a deleted sheet frees its place; an edited sheet keeps its place while its placed choice still exists, else frees it.
+- roster + BR-05 — A buff is covered when the roster holds a player able to give it (the catalogue of the mockup's plates 1–2); a paladin gives one blessing among Kings, Might and Wisdom (Salvation aside), a shaman one air totem, a warlock one curse; Windfury Totem goes to an enhancement shaman first and excludes Flametongue Totem.
+- roster + BR-06 — A player placed by hand takes their best-ranked choice of that place's role and is locked; a place whose role has none of their choices refuses them; dropped on a placed player, the two swap, both locked, when the occupant fits the role left, else the occupant leaves the roster.
 - roster-builder + FR-01 — The toolbar sets the raid, the tanks and the heals with − and + steppers, and shows the DPS as the rest (`roster` BR-01, BR-03).
 - roster-builder + FR-02 — « Générer le roster » generates the roster (`roster` BR-02), disabled while no sheet exists; once a roster exists it reads « Remélanger », beside the locked count and « Tout déverrouiller ».
 - roster-builder + FR-03 — The sheets list shows each pseudo in its class color and each choice as its rank, its spec's game icon and « [Classe · Spé] », with edit and delete buttons and « Ajouter un joueur », disabled at 20 sheets (`player` BR-02).
@@ -44,6 +44,16 @@ Pages: `roster-builder` (new, `Route: /`) · Domain: `player` (new), `roster` (n
 - Flametongue Totem? → given by any shaman, and lacking « exclu par Totem Furie-des-vents » while Windfury is covered; not a third air totem as plate 1's wording suggests (its weapon enchant and Windfury's overwrite each other).
 - Givers the plates leave unclear? → Judgement of the Crusader: a protection or retribution paladin; Demoralizing Shout and Thunder Clap: a protection warrior; Faerie Fire: a balance or feral druid; Blessing of Salvation: any paladin, outside the one-blessing pool (Kings, Might, Wisdom), as both plates show; Windfury goes to an enhancement shaman first.
 - A sheet's pseudo color? → the class of its first choice (a sheet may hold several classes).
+- « Placer », which the mockup does not draw? → a dialog listing, for each role of the sheet's choices, « Une place {rôle} libre » and « Remplacer {pseudo} » per occupant, plus « Sortir du roster » for a placed player (the same moves as the drag and drop).
+- Dragging a placed player out of the roster? → dragged from their place onto the sheets frame, they leave the roster; a sheet dropped back on the list does nothing.
+- « Placer » on an empty place (FR-09)? → a dialog listing the sheets with a choice of its role, those left out first; the chosen one takes the place.
+- A sheet created after generation, or taken out by hand? → left out, named by the warning « … n’a aucune place » until a reshuffle or a move.
+- The buffs frame while the page loads or fails? → absent, as on plates 5–6; the sheets and the composition carry the loading and error states.
+- An empty place after moves by hand, which a sheet left out could fill? → « Place libre — à pourvoir » and the warning « 1 place tank libre. », not « aucune fiche restante… », which only holds when no sheet left out has the role.
+- A buff's note? → the givers' specs for a spec-bound buff (« · Précision »), and a pool's rule once, on its first covered buff (the plates put it on various buffs).
+- A lacking buff? → « Exclu par {buff} », « Il faut un {n}e {Classe} » (its pool's players all taken), « Il faut un {Classe} {Spé} », or « Il faut un {Classe} ».
+- The toolbar while the page loads or fails? → shown once the roster and the catalogue are loaded (plates 5–6 draw it with defaults; the front hardcodes no raid).
+- The buffs recap? → its own frame under both columns, with its empty state before any roster (plate 4 draws it inside the composition's frame).
 
 ## Technical defaults
 - Storage → the sheets, the composition and the one roster in SQLite; no sign-in, said once in `Program.cs`.
@@ -65,6 +75,10 @@ Pages: `roster-builder` (new, `Route: /`) · Domain: `player` (new), `roster` (n
 - Ties → a random noise below one rank step added to each weight (exact order kept, ties random); `Random.Shared` injected, a seeded one in the tests.
 - Endpoints → `GET /catalogue`; `/players` GET, POST, PUT, DELETE (204); `/roster` GET, `PUT /composition`, `POST /generate`, `POST /placements` (`playerId`, `role`, `targetPlayerId` of the occupant), `DELETE /placements/{playerId}`, `PUT /placements/{playerId}/lock`, `POST /unlock-all`, each answering the whole roster with its buffs recap.
 - Warnings and empty-place reasons → computed by the front from the counts, the sheets and the unplaced ids; a lacking pool buff carries the count of its class it needs, an excluded one the buff excluding it.
+- Body font → Marcellus (`@fontsource/marcellus` 5.3.0, the version of Cinzel), imported by `overrides.css`.
+- `core/ui` hooks → Button reads optional `--btn-*` variables and Field `--label-color` / `--label-shadow`, each falling back to the skin, so the WoW look stays in `overrides.css`; `core/ui` gains `Dialog`, a native `<dialog>` with projected content, for the sheet form and « Placer ».
+- Moves → a drop while a move is in flight is ignored and rows are not draggable then (two answers could land out of order); a `not_found` refusal reads the sheets and the roster again.
+- Loading → core `LoadingState` text, no progress bar (the API reports no progress).
 - OpenAPI → schema ids take the use case's name (`SavePlayerCommand`, nested types otherwise collided) and numbers are strict (they were typed `integer | string`).
 
 ## Stages
@@ -78,7 +92,7 @@ Pages: `roster-builder` (new, `Route: /`) · Domain: `player` (new), `roster` (n
 
 ## Progress
 - [x] Stage 1 — api
-- [ ] Stage 2 — web
-- [ ] Review
-- [ ] Browser test
+- [x] Stage 2 — web
+- [x] Review
+- [x] Browser test
 - [ ] Spec merged
