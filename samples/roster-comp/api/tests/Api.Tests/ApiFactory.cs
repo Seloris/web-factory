@@ -18,7 +18,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Default", $"Data Source=test-{Guid.NewGuid():N};Mode=Memory;Cache=Shared");
-        builder.ConfigureTestServices(services => services.AddSingleton<TimeProvider>(Time));
+        builder.ConfigureTestServices(services => services
+            .AddSingleton<TimeProvider>(Time)
+            .AddSingleton(new Random(20261026)));
     }
 
     /// <summary>

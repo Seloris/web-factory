@@ -16,6 +16,8 @@ public static class DependencyInjection
         // An in-memory SQLite database (the demo's, the tests') lives while one connection to it stays open: this one, for the app's lifetime.
         services.AddSingleton(_ => new SqliteConnection(connectionString));
         services.TryAddSingleton(TimeProvider.System);
+        // The roster generation's tie-breaker: injected like the clock, so the tests can pin it.
+        services.TryAddSingleton(Random.Shared);
         return services;
     }
 

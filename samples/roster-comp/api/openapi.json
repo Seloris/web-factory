@@ -25,10 +25,643 @@
           }
         }
       }
+    },
+    "/catalogue": {
+      "get": {
+        "tags": [
+          "Catalogue"
+        ],
+        "summary": "Classes, specs and raids of the game",
+        "operationId": "GetCatalogue",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/players": {
+      "get": {
+        "tags": [
+          "Players"
+        ],
+        "summary": "Every sheet, in creation order",
+        "operationId": "GetPlayers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlayerDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Players"
+        ],
+        "summary": "Add a sheet",
+        "operationId": "CreatePlayer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePlayerCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/players/{id}": {
+      "put": {
+        "tags": [
+          "Players"
+        ],
+        "summary": "Edit a sheet; its place holds while the choice it plays there exists",
+        "operationId": "UpdatePlayer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePlayerCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Players"
+        ],
+        "summary": "Delete a sheet; its place frees",
+        "operationId": "DeletePlayer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roster": {
+      "get": {
+        "tags": [
+          "Roster"
+        ],
+        "summary": "The composition, the placed players and the buffs recap",
+        "operationId": "GetRoster",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roster/composition": {
+      "put": {
+        "tags": [
+          "Roster"
+        ],
+        "summary": "Set the raid, the tanks and the heals; a generated roster is generated again, locks kept",
+        "operationId": "UpdateComposition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCompositionCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roster/generate": {
+      "post": {
+        "tags": [
+          "Roster"
+        ],
+        "summary": "Generate the roster again, locked players kept",
+        "operationId": "GenerateRoster",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roster/placements": {
+      "post": {
+        "tags": [
+          "Roster"
+        ],
+        "summary": "Put a player on a place of a role by hand, locked",
+        "operationId": "PlacePlayer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlacePlayerCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roster/placements/{playerId}": {
+      "delete": {
+        "tags": [
+          "Roster"
+        ],
+        "summary": "Take a player out of the roster; their place frees",
+        "operationId": "RemovePlacement",
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roster/placements/{playerId}/lock": {
+      "put": {
+        "tags": [
+          "Roster"
+        ],
+        "summary": "Lock or unlock a placed player",
+        "operationId": "SetPlacementLock",
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPlacementLockCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roster/unlock-all": {
+      "post": {
+        "tags": [
+          "Roster"
+        ],
+        "summary": "Unlock every placed player",
+        "operationId": "UnlockAll",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterDto"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "BuffDto": {
+        "required": [
+          "id",
+          "name",
+          "group",
+          "classId",
+          "specIds",
+          "pool",
+          "givers",
+          "neededCount",
+          "excludedById"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "group": {
+            "$ref": "#/components/schemas/BuffGroup"
+          },
+          "classId": {
+            "type": "string"
+          },
+          "specIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pool": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "givers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuffGiverDto"
+            }
+          },
+          "neededCount": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "excludedById": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BuffGiverDto": {
+        "required": [
+          "playerId",
+          "pseudo",
+          "specId"
+        ],
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pseudo": {
+            "type": "string"
+          },
+          "specId": {
+            "type": "string"
+          }
+        }
+      },
+      "BuffGroup": {
+        "enum": [
+          "Raid",
+          "Totems",
+          "Debuffs",
+          "Utility"
+        ]
+      },
+      "CatalogueDto": {
+        "required": [
+          "classes",
+          "raids"
+        ],
+        "type": "object",
+        "properties": {
+          "classes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClassDto"
+            }
+          },
+          "raids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaidDto"
+            }
+          }
+        }
+      },
+      "ChoiceDto": {
+        "required": [
+          "specId",
+          "rank"
+        ],
+        "type": "object",
+        "properties": {
+          "specId": {
+            "type": "string"
+          },
+          "rank": {
+            "$ref": "#/components/schemas/Rank"
+          }
+        }
+      },
+      "ClassDto": {
+        "required": [
+          "id",
+          "name",
+          "specs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "specs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpecDto"
+            }
+          }
+        }
+      },
       "HealthResponse": {
         "required": [
           "status",
@@ -44,12 +677,361 @@
             "format": "date-time"
           }
         }
+      },
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PlacementDto": {
+        "required": [
+          "playerId",
+          "pseudo",
+          "specId",
+          "role",
+          "rank",
+          "choicePosition",
+          "isLocked"
+        ],
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pseudo": {
+            "type": "string"
+          },
+          "specId": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "rank": {
+            "$ref": "#/components/schemas/Rank"
+          },
+          "choicePosition": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isLocked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlacePlayerCommand": {
+        "required": [
+          "playerId",
+          "role",
+          "targetPlayerId"
+        ],
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "targetPlayerId": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PlayerDto": {
+        "required": [
+          "id",
+          "pseudo",
+          "choices"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pseudo": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChoiceDto"
+            }
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RaidDto": {
+        "required": [
+          "id",
+          "name",
+          "size"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Rank": {
+        "enum": [
+          "S",
+          "A",
+          "B",
+          "C"
+        ]
+      },
+      "Role": {
+        "enum": [
+          "Tank",
+          "Heal",
+          "Dps"
+        ]
+      },
+      "RosterDto": {
+        "required": [
+          "raidId",
+          "tanks",
+          "heals",
+          "dps",
+          "isGenerated",
+          "placements",
+          "unplacedPlayerIds",
+          "buffs"
+        ],
+        "type": "object",
+        "properties": {
+          "raidId": {
+            "type": "string"
+          },
+          "tanks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "heals": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isGenerated": {
+            "type": "boolean"
+          },
+          "placements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlacementDto"
+            }
+          },
+          "unplacedPlayerIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "buffs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuffDto"
+            }
+          }
+        }
+      },
+      "SavePlayerChoice": {
+        "required": [
+          "specId",
+          "rank"
+        ],
+        "type": "object",
+        "properties": {
+          "specId": {
+            "type": "string"
+          },
+          "rank": {
+            "$ref": "#/components/schemas/Rank"
+          }
+        }
+      },
+      "SavePlayerCommand": {
+        "required": [
+          "pseudo",
+          "choices"
+        ],
+        "type": "object",
+        "properties": {
+          "pseudo": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SavePlayerChoice"
+            }
+          }
+        }
+      },
+      "SetPlacementLockCommand": {
+        "required": [
+          "isLocked"
+        ],
+        "type": "object",
+        "properties": {
+          "isLocked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SpecDto": {
+        "required": [
+          "id",
+          "name",
+          "role",
+          "icon"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "icon": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateCompositionCommand": {
+        "required": [
+          "raidId",
+          "tanks",
+          "heals"
+        ],
+        "type": "object",
+        "properties": {
+          "raidId": {
+            "type": "string"
+          },
+          "tanks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "heals": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       }
     }
   },
   "tags": [
     {
       "name": "Health"
+    },
+    {
+      "name": "Catalogue"
+    },
+    {
+      "name": "Players"
+    },
+    {
+      "name": "Roster"
     }
   ]
 }

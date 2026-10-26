@@ -38,6 +38,13 @@ Pages: `roster-builder` (new, `Route: /`) · Domain: `player` (new), `roster` (n
 - A player placed by hand? → locked at once; a role with none of their choices refuses the drop (`roster` BR-06). The mockup does not draw the drag and drop.
 - The game's icons? → loaded from Wowhead's CDN: no Blizzard art in the repository.
 
+### Decided during build
+- A placed player dropped on an occupant who does not fit the role they leave? → the occupant leaves the roster, as one displaced by a sheet (the move is never refused for the occupant's sake).
+- The occupant of a swap? → locked too (both were moved by hand; a reshuffle would otherwise undo half the swap).
+- Flametongue Totem? → given by any shaman, and lacking « exclu par Totem Furie-des-vents » while Windfury is covered; not a third air totem as plate 1's wording suggests (its weapon enchant and Windfury's overwrite each other).
+- Givers the plates leave unclear? → Judgement of the Crusader: a protection or retribution paladin; Demoralizing Shout and Thunder Clap: a protection warrior; Faerie Fire: a balance or feral druid; Blessing of Salvation: any paladin, outside the one-blessing pool (Kings, Might, Wisdom), as both plates show; Windfury goes to an enhancement shaman first.
+- A sheet's pseudo color? → the class of its first choice (a sheet may hold several classes).
+
 ## Technical defaults
 - Storage → the sheets, the composition and the one roster in SQLite; no sign-in, said once in `Program.cs`.
 - Catalogue → classes, specs (role, icon name), raids and buffs as API code data served by one endpoint; the front hardcodes none; one raid for now, « Sommet d'Hyjal — 20 joueurs ».
@@ -46,6 +53,19 @@ Pages: `roster-builder` (new, `Route: /`) · Domain: `player` (new), `roster` (n
 - Icons → `https://wow.zamimg.com/images/wow/icons/medium/{icon}.jpg`; one that fails to load shows the class color and the spec's initial (offline demo).
 - Drag and drop → the browser's native drag and drop, no new dependency; touch and keyboard go through « Placer » (FR-09). Each move is one API call that returns the roster.
 - Demo → `DemoSeeder` holds plate 1's 20 sheets.
+
+### Decided during build
+- Catalogue names → French display names served as API data, ids in English (`warrior-protection`); the front's own words stay in its i18n.
+- Spec icons → 28 Wowhead names, each checked to answer 200 (priest Discipline `spell_holy_powerwordshield`, priest Holy `spell_holy_guardianspirit`).
+- Pseudo uniqueness → a stored key (trimmed, upper-invariant) with a unique index (SQLite folds ASCII only, so « Séraphine » and « SÉRAPHINE » would both pass).
+- `player` BR-01 split → the validator answers 400 by field (pseudo required and at most 24 characters, at least one choice, a known spec, a rank S to C); the handler answers 409 `pseudo_taken`, 422 `duplicate_spec`, 422 `too_many_players` (BR-02).
+- Default composition → Hyjal, 2 tanks, 4 heals (plate 4); a composition change before any roster is saved, nothing generated.
+- Stepper floor → DPS too: 422 `below_locked_players` when tanks or heals go below their locked players, or leave fewer DPS places than locked DPS; 422 `composition_too_large` past the raid's size.
+- Places → ordered by sheet; no place index stored: a drop on an empty place takes a free place of its role. A placement before any generation marks the roster generated.
+- Ties → a random noise below one rank step added to each weight (exact order kept, ties random); `Random.Shared` injected, a seeded one in the tests.
+- Endpoints → `GET /catalogue`; `/players` GET, POST, PUT, DELETE (204); `/roster` GET, `PUT /composition`, `POST /generate`, `POST /placements` (`playerId`, `role`, `targetPlayerId` of the occupant), `DELETE /placements/{playerId}`, `PUT /placements/{playerId}/lock`, `POST /unlock-all`, each answering the whole roster with its buffs recap.
+- Warnings and empty-place reasons → computed by the front from the counts, the sheets and the unplaced ids; a lacking pool buff carries the count of its class it needs, an excluded one the buff excluding it.
+- OpenAPI → schema ids take the use case's name (`SavePlayerCommand`, nested types otherwise collided) and numbers are strict (they were typed `integer | string`).
 
 ## Stages
 1. api — `feat(roster-builder): api — sheets, catalogue, roster generation, manual placement, locks and buffs`
@@ -57,7 +77,7 @@ Pages: `roster-builder` (new, `Route: /`) · Domain: `player` (new), `roster` (n
 - browser: on the demo at 1280 and 360 px against plates 1–7: generate, lock two, reshuffle keeps them, edit and delete a sheet, drag a sheet onto a place and swap two players, « Placer » at 360 px, warnings with 15 sheets, empty, loading and error states.
 
 ## Progress
-- [ ] Stage 1 — api
+- [x] Stage 1 — api
 - [ ] Stage 2 — web
 - [ ] Review
 - [ ] Browser test

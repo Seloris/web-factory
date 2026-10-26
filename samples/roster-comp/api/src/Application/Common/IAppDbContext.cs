@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using RosterComp.Domain.Players;
+using RosterComp.Domain.Rosters;
+
 namespace RosterComp.Application.Common;
 
 /// <summary>
@@ -5,5 +9,9 @@ namespace RosterComp.Application.Common;
 /// </summary>
 public interface IAppDbContext
 {
+    DbSet<Player> Players { get; }
+
+    DbSet<Roster> Rosters { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
