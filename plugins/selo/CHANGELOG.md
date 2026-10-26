@@ -2,6 +2,14 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-26 — selo 2.7.0: a validated mockup, marked in its file and built by `/selo:pilot`
+
+Selo Ops' new « Nouvelle session » window offers to resume a validated mockup: « Je reste là » runs `/selo:pilot {request} — mockup {file}`, « Je m'absente » the same with ` — autonomous`. Two gaps: a validated mockup, left uncommitted, looked like one still being iterated, so no tool could list it; and `pilot` took no mockup, only `fastlane` and `blueprint` did.
+
+- **The validated mark.** On the person's validation, `mockup` step 6 writes `<meta name="selo:mockup" content="validated">` right after the file's `<title>`, never before; step 3 now opens `<head>` with the charset, the viewport and the `<title>`, before the inlined CSS, so the mark sits in the first 8 KB, where a reader stops. `revise {file}` (step 5) removes it while the mockup is iterated again; the next validation writes it back. `reference/rules.md` (**Mockup first**) states the contract once: an uncommitted file under `.planning/mockups/` with the mark is validated, waiting to be built. Selo Ops lists those.
+- **`/selo:pilot {request} — mockup {file} [— autonomous]`.** `pilot` passes the mockup to the lane it picks: the fastlane builds to it and compares; the blueprint cites it under `## Mockup` and its build compares in the browser test, as before. In autonomous mode the mockup is already validated: no question about it; a missing file or one without the mark stops before the first step. Interactive, an unmarked file stops too, with `/selo:mockup revise {file}`: building a drawing still being iterated is the mistake the mark exists to prevent. The fastlane's switch to the blueprint keeps the mockup.
+- `fastlane` and `blueprint` say their options combine (`pilot` sends ` — mockup {file} — autonomous`). `reference/rules.md` (**Three lanes**, **Mockup first**, **Autonomous mode**: drawing needs the person, building a validated mockup does not), the cheatsheet and the README follow.
+
 ## 2026-10-25 — selo 2.6.0: `/selo:pilot`, routing and commit as the person's settings
 
 The proposal is `docs/revamp-2.6.0/proposal.md` (session « Routing et autopilote », 2026-10-24; decided 2026-10-25). Two questions decide how a request runs: who picks the lane, who validates. `routing: auto` was an autopilot cut down to the fastlane, on a sentence nobody typed as a command, and on `baseBranch` it ended in commits with no yes; Selo Ops' new-session page needs one command per case, not a config value read at session start.

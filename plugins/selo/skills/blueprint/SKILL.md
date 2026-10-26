@@ -9,7 +9,7 @@ One intention, one yes: the "what" (the spec delta) and the "how, in short" (dec
 
 Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (**Specs: pages and domains**, **Blueprints**, **Decisions**), then the manifest, then `${CLAUDE_PLUGIN_ROOT}/templates/planning/blueprint.md`.
 
-`/selo:blueprint {request}`, optionally ending with ` — mockup .planning/mockups/{file}` (from `/selo:mockup`) or ` — autonomous`. `/selo:blueprint revise {file}: {changes or review findings}` edits a draft, or a committed blueprint whose build has not started (no stage ticked), and goes to step 5; a blueprint being built or built is never revised: a new iteration is a new blueprint. A 1.0 project (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
+`/selo:blueprint {request}`, optionally ending with ` — mockup .planning/mockups/{file}` (from `/selo:mockup`), ` — autonomous`, or both in that order (from `pilot`). `/selo:blueprint revise {file}: {changes or review findings}` edits a draft, or a committed blueprint whose build has not started (no stage ticked), and goes to step 5; a blueprint being built or built is never revised: a new iteration is a new blueprint. A 1.0 project (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
 
 ## Procedure
 

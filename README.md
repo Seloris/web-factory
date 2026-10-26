@@ -41,7 +41,7 @@ Then three lanes, each step ending with the prompt of the next one ready to copy
 /selo:pilot     {request}     selo picks Fastlane or Blueprint, then runs it here
 ```
 
-Before the code, `/selo:mockup {request}` draws the change on the front's skin until you validate it (then ` — mockup {file}` on either lane); `/selo:fastlane {request} — iterate` applies one change per turn on the running app and commits once you validate.
+Before the code, `/selo:mockup {request}` draws the change on the front's skin until you validate it (then ` — mockup {file}` on either lane, or on `/selo:pilot`); `/selo:fastlane {request} — iterate` applies one change per turn on the running app and commits once you validate.
 
 Or with no question: `/selo:pilot {request} — autonomous` (Selo Ops' « Autonome » box) reads the code, picks the lane and runs it, each step a fresh subagent; the recommended answers are taken and listed as Business decisions and Technical defaults (needs the `auto` or `acceptEdits` permission mode).
 

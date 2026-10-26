@@ -9,7 +9,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first, then the manifest: the `s
 
 ## Input
 
-`/selo:fastlane {request}`, of any size, optionally ending with ` — iterate` (**Iterate mode**), ` — mockup .planning/mockups/{file}`, ` — no browser` or ` — autonomous`.
+`/selo:fastlane {request}`, of any size, optionally ending with ` — iterate` (**Iterate mode**), ` — mockup .planning/mockups/{file}`, ` — no browser` or ` — autonomous`, combined in that order (`pilot` sends ` — mockup {file} — autonomous`).
 
 - **A blueprint** `.planning/blueprints/{file}`: this skill does not build it; give `/selo:build {file}` instead.
 - **A 1.0 project** (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
