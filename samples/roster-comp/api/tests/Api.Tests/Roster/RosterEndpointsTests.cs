@@ -99,6 +99,9 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
         Placement(body, grumdar).IsLocked.ShouldBeTrue();
         Placement(body, grumdar).Role.ShouldBe(Role.Tank);
         Placement(body, tharok).SpecId.ShouldBe("warrior-fury");
+        var saved = await SavedRosterAsync();
+        (saved.Tanks, saved.Heals).ShouldBe((1, 4));
+        Saved(saved).ShouldBe($"{grumdar}:warrior-protection*, {tharok}:warrior-fury");
     }
 
     [Fact]
@@ -112,6 +115,8 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
 
         // Assert
         ShouldBeEmptyRoster(body, tanks: 3, heals: 5, dps: 12);
+        var saved = await SavedRosterAsync();
+        (saved.Tanks, saved.Heals, saved.IsGenerated, saved.Placements.Count).ShouldBe((3, 5, false, 0));
     }
 
     [Theory]
@@ -201,6 +206,7 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
         var body = await GetRosterAsync();
         body.Placements.ShouldBeEmpty();
         body.UnplacedPlayerIds.ShouldBe([grumdar]);
+        (await SavedRosterAsync()).Placements.ShouldBeEmpty();
     }
 
     [Fact]
@@ -264,6 +270,7 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
         // Assert
         Placement(body, tharok).ShouldBe(new PlacementDto(tharok, "Tharok", "warrior-protection", Role.Tank, Rank.A, 2, true));
         Placement(body, grumdar).ShouldBe(new PlacementDto(grumdar, "Grumdar", "warrior-fury", Role.Dps, Rank.B, 2, true));
+        Saved(await SavedRosterAsync()).ShouldBe($"{grumdar}:warrior-fury*, {tharok}:warrior-protection*");
     }
 
     [Fact]
@@ -281,6 +288,7 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
         // Assert
         body.Placements.Select(p => p.PlayerId).ShouldBe([aelwen]);
         body.UnplacedPlayerIds.ShouldBe([grumdar]);
+        Saved(await SavedRosterAsync()).ShouldBe($"{aelwen}:paladin-protection*");
     }
 
     [Fact]
@@ -298,6 +306,7 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
         // Assert
         body.Placements.Select(p => p.PlayerId).ShouldBe([tharok]);
         body.UnplacedPlayerIds.ShouldBe([grumdar]);
+        Saved(await SavedRosterAsync()).ShouldBe($"{tharok}:warrior-protection*");
     }
 
     [Fact]
@@ -325,6 +334,7 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
         var body = (await response.Content.ReadFromJsonAsync<RosterDto>(CT))!;
         body.Placements.ShouldBeEmpty();
         body.UnplacedPlayerIds.ShouldBe([grumdar]);
+        (await SavedRosterAsync()).Placements.ShouldBeEmpty();
     }
 
     [Fact]
@@ -351,6 +361,7 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
         // Assert
         Placement(locked, grumdar).IsLocked.ShouldBeTrue();
         Placement(unlocked, grumdar).IsLocked.ShouldBeFalse();
+        Saved(await SavedRosterAsync()).ShouldBe($"{grumdar}:warrior-protection");
     }
 
     [Fact]
@@ -368,7 +379,18 @@ public sealed class RosterEndpointsTests(ApiFactory api) : ApiTest(api)
         // Assert
         body.Placements.ShouldAllBe(p => !p.IsLocked);
         body.Placements.Count.ShouldBe(2);
+        Saved(await SavedRosterAsync()).ShouldBe($"{grumdar}:warrior-protection, {velyss}:priest-holy");
     }
+
+    // The roster as saved, read through a new scope.
+    private async Task<RosterComp.Domain.Rosters.Roster> SavedRosterAsync()
+    {
+        using var scope = Api.Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Rosters.AsNoTracking().SingleAsync(CT);
+    }
+
+    private static string Saved(RosterComp.Domain.Rosters.Roster roster) =>
+        string.Join(", ", roster.Placements.OrderBy(p => p.PlayerId).Select(p => $"{p.PlayerId}:{p.SpecId}{(p.IsLocked ? "*" : "")}"));
 
     private static PlacementDto Placement(RosterDto roster, int playerId) => roster.Placements.Single(p => p.PlayerId == playerId);
 
