@@ -39,4 +39,4 @@ Pages: `roster-builder` · Domain: `roster` · Components: `api`, `web`
 - [x] Stage 2 — web
 - [x] Review
 - [x] Browser test
-- [ ] Spec merged
+- [x] Spec merged

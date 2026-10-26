@@ -20,8 +20,9 @@ The raid leader comes to this page to note who plays what, ranked from S to C, a
 - **FR-06** — The composition shows tanks, heals and DPS with « n / m » counts; each place shows its lock, spec icon, pseudo, class and spec, rank and the choice's position in the sheet (« 1er choix »); an empty place says why; its header counts the places filled, the players on each rank and the locked players.
 - **FR-07** — Each place's lock button locks or unlocks its player (`roster` BR-03).
 - **FR-08** — A sheet or a placed player dragged onto a place puts that player there (`roster` BR-06): two placed players swap when each fits the other's role, an occupant displaced by a sheet leaves the roster, and a placed player dragged out of the roster frees their place.
-- **FR-09** — Each sheet and each place has a « Placer » action offering the same moves by keyboard and on touch screens.
+- **FR-09** — Each sheet and each place has a « Placer » action offering the same moves by keyboard.
 - **FR-10** — Warnings above the roles name each shortfall: a role short of players and why, empty places for want of sheets, a player left with no place.
+- **FR-14** — Placing a player on a place, by drag and drop, « Placer » or « Remplir », asks which of their choices of that place's role they play (rank, spec icon, « [Classe · Spé] », best-ranked first) when they have several, and places them at once when they have one (`roster` BR-06).
 
 ## Buffs
 
@@ -30,9 +31,12 @@ The raid leader comes to this page to note who plays what, ranked from S to C, a
 ## States and layout
 
 - **FR-12** — Each zone shows an empty state before any sheet or roster, a loading state, and on an API failure an error with « Réessayer ».
-- **FR-13** — At 360 px the page is one column: composition, buffs, then sheets.
+- **FR-15** — On a desktop screen the sheets fill the left column and the composition the right one, the buffs recap right below it, so the roster and its buffs show together.
 
 ## Non-goals
 
 - Group buffs (Devotion Aura, Mana Spring Totem, Blood Pact, Vampiric Embrace): they depend on the raid's groups, which the page does not set.
 - Sign-in and several rosters: one shared roster.
+- Phones and touch screens: the page is laid out and used on a desktop screen only.
+
+Retired: FR-13
