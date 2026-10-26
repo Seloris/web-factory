@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-26 — selo-ops 2.10.0: the models from the person's settings
+
+selo 2.8.0 moves the models out of `selo.yaml` into the person's `SELO_MODELS` and `SELO_MODEL_{ROLE}`; `scripts/manifest.mjs` is its copy. The project file's `manifest.preset` and `manifest.models` keep their shape and now carry the person's settings as the exporting process sees them: the hooks run with the session's `env`, but `ops.mjs scan` from a bare terminal sees the defaults unless the shell has them. `docs/revamp-2.0.0/ops-export.md` (§4) says so.
+
 ## 2026-10-26 — selo-ops 2.9.0: each checkout's mockups
 
 Selo Ops' new « Nouvelle session » window offers to build a validated mockup (`/selo:pilot {request} — mockup {file}`, selo 2.7.0). It never runs git and reads only the export, so it cannot tell a mockup waiting to be built from one already built and committed.

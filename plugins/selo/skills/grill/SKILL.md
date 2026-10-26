@@ -15,7 +15,7 @@ Run on `/selo:grill`, from `blueprint` (it runs it unless the request already ca
 
 - **Blueprint** (`/selo:grill {request or page}`, or run by `blueprint`): business questions first. Who, when, which rule, which page or domain sheet, what happens in each edge case: unauthorized user, empty list, concurrent edits, limits, multi-tenant or multi-scope cases when the project has them. Then the technical choices a reviewer would question (a route, a storage type, a contract rule), checked against the conventions of the components in scope (their `CLAUDE.md`, the project's `.claude/rules/`); never file-level detail.
 - **Request** (offered by any agent when a request is ambiguous): whatever blocks the work.
-- **Setup** (offered by `setup`): the manifest's values: components, stacks, commands, models, base branch.
+- **Setup** (offered by `setup`): the manifest's values: components, stacks, commands, base branch.
 
 ## Facts and decisions
 

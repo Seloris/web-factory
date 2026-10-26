@@ -2,6 +2,15 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-26 — selo 2.8.0: the models, the person's setting
+
+The person (2026-10-26): the models should be a setting of the person, a preset by default that their own file overrides, as `SELO_ROUTING` and `SELO_COMMIT` already are. Same case as routing in 2.6.0: two people on one repository pick their own models, and a choice written in `selo.yaml` was imposed on everyone who opened it.
+
+- **`SELO_MODELS` and `SELO_MODEL_{ROLE}`** in the `env` block of `~/.claude/settings.json`: the preset (`standard` when absent, or `lean`) and one role's model (`SELO_MODEL_REVIEWER: fable`), the other roles keeping the preset. An empty value is unset; an unknown preset reads as `standard` with a warning, never an error: a typo in the person's file must not break every project, nor silence the model hook.
+- **`manifest.mjs` resolves them**, `readManifest(dir, { env })`: the resolved manifest keeps its `models`, so the skills, the model hook and the ops export read them where they did. Resolved there and not in `settings.mjs`, because selo-ops carries a byte copy of `manifest.mjs` and no `settings.mjs`. The `models` key of `selo.yaml` is removed: an unknown key, warned. `agent-model.mjs` takes the `env` too (its tests inject it, so the person's own settings never leak into them).
+- **`setup`** no longer asks the models, and `/selo:setup models` is gone: setup never writes `~/.claude`. `templates/settings.json` drops `CLAUDE_CODE_SUBAGENT_MODEL`: a project's `env` overrides the person's, so a runner model written per project would have blocked theirs; the skills pass every role's model, so it only reached unlisted agents. `setup update` removes the `models` key and that env entry, and gives the roles the old key set apart from `standard` as the person's env lines.
+- `samples/todo-app` and `examples/two-components` lose their `models`. `docs/manifest.md` ("Models"), `reference/rules.md` (**Subagents**), the cheatsheet ("Your settings"), the README and `templates/CLAUDE.md` follow. `selo-ops` 2.10.0 carries the copy.
+
 ## 2026-10-26 — selo 2.7.0: a validated mockup, marked in its file and built by `/selo:pilot`
 
 Selo Ops' new « Nouvelle session » window offers to resume a validated mockup: « Je reste là » runs `/selo:pilot {request} — mockup {file}`, « Je m'absente » the same with ` — autonomous`. Two gaps: a validated mockup, left uncommitted, looked like one still being iterated, so no tool could list it; and `pilot` took no mockup, only `fastlane` and `blueprint` did.

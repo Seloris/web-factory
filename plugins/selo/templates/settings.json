@@ -27,8 +27,5 @@
   },
   "enabledPlugins": {
     "selo@selo": true
-  },
-  "env": {
-    "CLAUDE_CODE_SUBAGENT_MODEL": "{{runner_model}}"
   }
 }

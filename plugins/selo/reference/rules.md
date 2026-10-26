@@ -162,7 +162,7 @@ No skill removes a worktree or its branch: the person or the desktop app does (a
 
 ## Subagents
 
-The session leads: it plans, decides, writes. Each subagent is spawned with its role's model from `models`:
+The session leads: it plans, decides, writes. Each subagent is spawned with its role's model from the resolved manifest's `models`, a setting of the person, not of the project: `SELO_MODELS` (the preset, `standard` by default) and `SELO_MODEL_{ROLE}` in the `env` block of `~/.claude/settings.json` (`docs/manifest.md`, "Models"; a new session after a change):
 
 - `reviewer`: every review, always a subagent (it has no stake in the code);
 - `runner`: a command whose output floods the context (a full suite, a build, a lint run); it returns the errors with `file:line`;

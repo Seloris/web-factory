@@ -4,9 +4,6 @@ base_branch: main
 language:
   chat: fr
   repo: en
-models:
-  preset: standard
-  reviewer: opus
 components:
   - name: api
     path: api

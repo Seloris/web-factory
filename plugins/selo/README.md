@@ -43,4 +43,4 @@ tests/                  node --test
 CHANGELOG.md            why each rule of the process exists
 ```
 
-Agents carry no `model` in their frontmatter: the skill that spawns one passes the role's model from the manifest, and the model hook (`scripts/agent-model.mjs`) puts the call on that model when it names another.
+Agents carry no `model` in their frontmatter: the skill that spawns one passes the role's model from the resolved manifest (the person's `SELO_MODELS` and `SELO_MODEL_{ROLE}`), and the model hook (`scripts/agent-model.mjs`) puts the call on that model when it names another.

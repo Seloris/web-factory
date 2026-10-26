@@ -58,20 +58,21 @@ test("fencedBlock: picks the right language", () => {
   assert.equal(fencedBlock(md, "component"), null);
 });
 
-test("resolveModels: presets and overrides", () => {
-  assert.equal(resolveModels(undefined).planner, "opus");
-  assert.throws(() => resolveModels("premium"), /Unknown models preset/);
-  assert.equal(resolveModels({ preset: "standard", planner: "fable" }).planner, "fable");
-  const custom = resolveModels({ preset: "standard", reviewer: "fable" });
-  assert.equal(custom.reviewer, "fable");
-  assert.equal(custom.implementer, "opus");
-  assert.equal(resolveModels("lean").implementer, "sonnet");
-  assert.equal(resolveModels({ preset: "lean", runner: "sonnet" }).planner, "opus");
-  assert.throws(() => resolveModels("gold"));
+test("resolveModels: the person's preset and overrides, from the environment", () => {
+  assert.deepEqual(resolveModels({}), { preset: "standard", planner: "opus", implementer: "opus", reviewer: "opus", runner: "haiku", explorer: "haiku" });
+  assert.equal(resolveModels({ SELO_MODELS: "lean" }).implementer, "sonnet");
+  const custom = resolveModels({ SELO_MODEL_REVIEWER: "fable", SELO_MODEL_PLANNER: " fable " });
+  assert.deepEqual([custom.reviewer, custom.planner, custom.implementer], ["fable", "fable", "opus"]);
+  const lean = resolveModels({ SELO_MODELS: "lean", SELO_MODEL_RUNNER: "sonnet", SELO_MODEL_EXPLORER: "  " });
+  assert.deepEqual([lean.preset, lean.implementer, lean.runner, lean.explorer], ["lean", "sonnet", "sonnet", "haiku"]);
+  const warnings = [];
+  const typo = resolveModels({ SELO_MODELS: "gold", SELO_MODEL_REVIEWER: "fable" }, warnings);
+  assert.deepEqual([typo.preset, typo.implementer, typo.reviewer], ["standard", "opus", "fable"]);
+  assert.deepEqual(warnings, ['SELO_MODELS: unknown preset "gold" (known: standard, lean; standard used)']);
 });
 
 test("readManifest: the example project", () => {
-  const m = readManifest(join(example, "web"));
+  const m = readManifest(join(example, "web"), { env: {} });
   assert.equal(m.root, example);
   assert.equal(m.name, "two-components");
   assert.equal(m.selo, "2.0.0");
@@ -204,17 +205,33 @@ test("readManifest: an unknown key is a warning, never an error", () => {
   }
 });
 
-test("readManifest: unknown roles and language keys are warned, so is a demo without its address", () => {
+test("readManifest: unknown language keys are warned, so are a demo without its address and the person's unknown preset", () => {
   const dir = mkdtempSync(join(tmpdir(), "selo-keys-"));
   try {
-    writeFileSync(join(dir, "selo.yaml"), "name: x\nmodels:\n  preset: standard\n  advisor: opus\nlanguage:\n  chat: fr\n  ui: fr\ncomponents:\n  - {name: a, path: a}\n");
+    writeFileSync(join(dir, "selo.yaml"), "name: x\nlanguage:\n  chat: fr\n  ui: fr\ncomponents:\n  - {name: a, path: a}\n");
     mkdirSync(join(dir, "a"));
     writeFileSync(join(dir, "a", "CLAUDE.md"), "```component\nkind: front\ncommands:\n  demo: npm run demo\n```\n");
-    assert.deepEqual(readManifest(dir).warnings, [
-      'selo.yaml, models: unknown key "advisor" (ignored)',
+    const m = readManifest(dir, { env: { SELO_MODELS: "gold" } });
+    assert.equal(m.models.preset, "standard");
+    assert.deepEqual(m.warnings, [
       'selo.yaml, language: unknown key "ui" (ignored)',
       `${join("a", "CLAUDE.md")}: commands.demo without demo_port (the browser test runs on the dev servers)`,
+      'SELO_MODELS: unknown preset "gold" (known: standard, lean; standard used)',
     ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("readManifest: `models` is a person's setting since 2.8.0, an unknown key here", () => {
+  const dir = mkdtempSync(join(tmpdir(), "selo-models-"));
+  try {
+    mkdirSync(join(dir, "a"));
+    writeFileSync(join(dir, "a", "CLAUDE.md"), "```component\nkind: api\ncommands:\n  build: b\n```\n");
+    writeFileSync(join(dir, "selo.yaml"), "name: x\nmodels:\n  preset: lean\n  reviewer: fable\ncomponents:\n  - {name: a, path: a}\n");
+    const m = readManifest(dir, { env: { SELO_MODEL_PLANNER: "fable" } });
+    assert.deepEqual([m.models.preset, m.models.implementer, m.models.reviewer, m.models.planner], ["standard", "opus", "opus", "fable"]);
+    assert.deepEqual(m.warnings, ['selo.yaml: unknown key "models" (ignored)']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -21,7 +21,7 @@ export const PRESETS = {
 export const ROLES = Object.keys(PRESETS.standard);
 export const COMMAND_KEYS = ["build", "test", "lint", "handoff", "prepare", "integration_tests", "serve", "demo"];
 // The keys the parser reads; any other is reported in `warnings`, never an error.
-export const MANIFEST_KEYS = ["selo", "name", "base_branch", "language", "models", "components"];
+export const MANIFEST_KEYS = ["selo", "name", "base_branch", "language", "components"];
 export const COMPONENT_KEYS = ["name", "path", "handoff", "needs", "port", "demo_port", "url", "serve_url", "demo_url"];
 export const BLOCK_KEYS = ["kind", "stack", "skin", "layers", "commands", "logins", "port", "demo_port", "url", "serve_url", "demo_url"];
 
@@ -233,16 +233,18 @@ export const findRoot = (dir) => {
   }
 };
 
-export const resolveModels = (spec) => {
-  if (spec == null) return { preset: "standard", ...PRESETS.standard };
-  if (typeof spec === "string") {
-    if (!PRESETS[spec]) throw new Error(`Unknown models preset "${spec}" (known: ${Object.keys(PRESETS).join(", ")})`);
-    return { preset: spec, ...PRESETS[spec] };
+// The roles' models are the person's setting, not the project's (since 2.8.0): the `env` block of
+// ~/.claude/settings.json. SELO_MODELS: the preset (`standard` by default); SELO_MODEL_{ROLE}: one role's model.
+// An unknown preset reads as `standard`, with a warning: a typo in the person's file never breaks a project.
+export const resolveModels = (env = process.env, warnings = []) => {
+  const set = (v) => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
+  let preset = set(env.SELO_MODELS) ?? "standard";
+  if (!PRESETS[preset]) {
+    warnings.push(`SELO_MODELS: unknown preset "${preset}" (known: ${Object.keys(PRESETS).join(", ")}; standard used)`);
+    preset = "standard";
   }
-  const preset = spec.preset ?? "standard";
-  if (!PRESETS[preset]) throw new Error(`Unknown models preset "${preset}"`);
   const out = { preset, ...PRESETS[preset] };
-  for (const role of ROLES) if (spec[role] != null) out[role] = String(spec[role]);
+  for (const role of ROLES) out[role] = set(env[`SELO_MODEL_${role.toUpperCase()}`]) ?? out[role];
   return out;
 };
 
@@ -276,7 +278,8 @@ const readComponent = (root, c, warnings, slot) => {
 };
 
 // `slot`: the run's slot (scripts/run.mjs), which shifts every url; the base ports stay as written.
-export const readManifest = (dir = process.cwd(), { slot = 0 } = {}) => {
+// `env`: where the person's models are read (resolveModels).
+export const readManifest = (dir = process.cwd(), { slot = 0, env = process.env } = {}) => {
   const root = findRoot(dir);
   if (!root) throw new Error(`No ${MANIFEST_FILE} found from ${resolve(dir)} upwards`);
   const spec = parseYaml(readFileSync(join(root, MANIFEST_FILE), "utf8")) ?? {};
@@ -284,7 +287,6 @@ export const readManifest = (dir = process.cwd(), { slot = 0 } = {}) => {
   if (!Array.isArray(spec.components) || spec.components.length === 0) throw new Error("Manifest: `components` must list at least one component");
   const warnings = [
     ...unknownKeys(spec, MANIFEST_KEYS, "selo.yaml"),
-    ...unknownKeys(spec.models, [...ROLES, "preset"], "selo.yaml, models"),
     ...unknownKeys(spec.language, ["chat", "repo"], "selo.yaml, language"),
   ];
   const components = spec.components.map((c, i) => {
@@ -301,7 +303,7 @@ export const readManifest = (dir = process.cwd(), { slot = 0 } = {}) => {
     slot,
     baseBranch: spec.base_branch ? String(spec.base_branch) : "main",
     language: { chat: spec.language?.chat ?? "en", repo: spec.language?.repo ?? "en" },
-    models: resolveModels(spec.models),
+    models: resolveModels(env, warnings),
     components,
     warnings,
   };

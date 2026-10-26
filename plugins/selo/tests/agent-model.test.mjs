@@ -10,22 +10,23 @@ import { resolveModels } from "../scripts/manifest.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "..", "scripts", "agent-model.mjs");
-const standard = resolveModels("standard");
+const standard = resolveModels({});
 
-// A throwaway project: a `.git` folder bounds findRoot; `models` is written as given (null: no key).
-const project = (models) => {
+// A throwaway project: a `.git` folder bounds findRoot. The models are the person's: the `env` of each call.
+const project = (yaml = "name: demo\ncomponents:\n  - name: api\n    path: api\n") => {
   const dir = mkdtempSync(join(tmpdir(), "selo-agent-model-"));
   mkdirSync(join(dir, ".git"));
-  const lines = ["name: demo"];
-  if (models !== null) lines.push(models);
-  lines.push("components:", "  - name: api", "    path: api");
-  writeFileSync(join(dir, "selo.yaml"), lines.join("\n") + "\n");
+  writeFileSync(join(dir, "selo.yaml"), yaml);
   return dir;
 };
 
 const event = (cwd, tool_input) => ({ hook_event_name: "PreToolUse", tool_name: "Agent", cwd, tool_input });
 
-const run = (stdin) => spawnSync(process.execPath, [script], { input: stdin, encoding: "utf8" });
+// The person's own SELO_MODEL* never reach the script: only the `models` given.
+const run = (stdin, models = {}) => {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("SELO_MODEL")));
+  return spawnSync(process.execPath, [script], { input: stdin, encoding: "utf8", env: { ...env, ...models } });
+};
 
 test("enforceModel: reviewer and runner always take their role's model", () => {
   for (const [type, model] of [["selo:reviewer", "opus"], ["reviewer", "opus"], ["selo:runner", "haiku"], ["runner", "haiku"]]) {
@@ -60,43 +61,54 @@ test("enforceModel: every other field of tool_input kept", () => {
 });
 
 test("hookOutput: the PreToolUse output, updatedInput only, no permission decision", () => {
-  const dir = project("models: standard");
+  const dir = project();
   try {
     const input = { subagent_type: "selo:reviewer", description: "reviewer · work", prompt: "review", model: "sonnet" };
-    assert.deepEqual(hookOutput(event(dir, input)), { hookSpecificOutput: { hookEventName: "PreToolUse", updatedInput: { ...input, model: "opus" } } });
+    assert.deepEqual(hookOutput(event(dir, input), {}), { hookSpecificOutput: { hookEventName: "PreToolUse", updatedInput: { ...input, model: "opus" } } });
     mkdirSync(join(dir, "web", "src"), { recursive: true });
-    assert.equal(hookOutput(event(join(dir, "web", "src"), input))?.hookSpecificOutput.updatedInput.model, "opus", "selo.yaml found up the cwd");
-    assert.equal(hookOutput(event(dir, { ...input, model: "opus" })), null, "already right");
+    assert.equal(hookOutput(event(join(dir, "web", "src"), input), {})?.hookSpecificOutput.updatedInput.model, "opus", "selo.yaml found up the cwd");
+    assert.equal(hookOutput(event(dir, { ...input, model: "opus" }), {}), null, "already right");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("hookOutput: no models key gives the standard preset", () => {
-  const dir = project(null);
+test("hookOutput: no setting gives the standard preset", () => {
+  const dir = project();
   try {
-    assert.equal(hookOutput(event(dir, { subagent_type: "Explore", prompt: "p" }))?.hookSpecificOutput.updatedInput.model, "haiku");
+    assert.equal(hookOutput(event(dir, { subagent_type: "Explore", prompt: "p" }), {})?.hookSpecificOutput.updatedInput.model, "haiku");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("hookOutput: a lean preset", () => {
-  const dir = project("models: lean");
+test("hookOutput: the person's lean preset", () => {
+  const dir = project();
+  const lean = { SELO_MODELS: "lean" };
   try {
-    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "sonnet" }))?.hookSpecificOutput.updatedInput.model, "opus");
-    assert.equal(hookOutput(event(dir, { subagent_type: "selo:runner", model: "sonnet" }))?.hookSpecificOutput.updatedInput.model, "haiku");
-    assert.equal(hookOutput(event(dir, { subagent_type: "Plan" }))?.hookSpecificOutput.updatedInput.model, "opus");
+    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "sonnet" }), lean)?.hookSpecificOutput.updatedInput.model, "opus");
+    assert.equal(hookOutput(event(dir, { subagent_type: "selo:runner", model: "sonnet" }), lean)?.hookSpecificOutput.updatedInput.model, "haiku");
+    assert.equal(hookOutput(event(dir, { subagent_type: "Plan" }), lean)?.hookSpecificOutput.updatedInput.model, "opus");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("hookOutput: a map overriding one role", () => {
-  const dir = project("models:\n  preset: standard\n  reviewer: fable");
+test("hookOutput: the person overriding one role", () => {
+  const dir = project();
+  const env = { SELO_MODEL_REVIEWER: "fable" };
   try {
-    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "opus" }))?.hookSpecificOutput.updatedInput.model, "fable");
-    assert.equal(hookOutput(event(dir, { subagent_type: "selo:runner", model: "haiku" })), null, "the other roles keep the preset");
+    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "opus" }), env)?.hookSpecificOutput.updatedInput.model, "fable");
+    assert.equal(hookOutput(event(dir, { subagent_type: "selo:runner", model: "haiku" }), env), null, "the other roles keep the preset");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("hookOutput: an unknown preset reads as standard", () => {
+  const dir = project();
+  try {
+    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "sonnet" }), { SELO_MODELS: "nope" })?.hookSpecificOutput.updatedInput.model, "opus");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -106,34 +118,24 @@ test("hookOutput: no selo.yaml gives nothing", () => {
   const dir = mkdtempSync(join(tmpdir(), "selo-agent-model-"));
   mkdirSync(join(dir, ".git"));
   try {
-    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "sonnet" })), null);
+    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "sonnet" }), {}), null);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("hookOutput: a broken manifest gives nothing", () => {
-  for (const models of ["models: nope", "models:\n  preset: nope"]) {
-    const dir = project(models);
-    try {
-      assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "sonnet" })), null, models);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  }
-  const dir = mkdtempSync(join(tmpdir(), "selo-agent-model-"));
-  mkdirSync(join(dir, ".git"));
-  writeFileSync(join(dir, "selo.yaml"), "name: demo\n");
+  const dir = project("name: demo\n");
   try {
-    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "sonnet" })), null, "no components");
+    assert.equal(hookOutput(event(dir, { subagent_type: "selo:reviewer", model: "sonnet" }), {}), null, "no components");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("script: prints the output, nothing on a broken manifest or bad stdin, always exit 0", () => {
-  const dir = project("models: standard");
-  const broken = project("models: nope");
+test("script: prints the output from the person's environment, nothing on a broken manifest or bad stdin, always exit 0", () => {
+  const dir = project();
+  const broken = project("name: demo\n");
   try {
     const ok = run(JSON.stringify(event(dir, { subagent_type: "selo:runner", prompt: "p", model: "opus" })));
     assert.equal(ok.status, 0);
@@ -141,6 +143,8 @@ test("script: prints the output, nothing on a broken manifest or bad stdin, alwa
     const right = run(JSON.stringify(event(dir, { subagent_type: "selo:runner", model: "haiku" })));
     assert.equal(right.status, 0);
     assert.equal(right.stdout, "", "already right");
+    const mine = run(JSON.stringify(event(dir, { subagent_type: "selo:runner", model: "haiku" })), { SELO_MODEL_RUNNER: "sonnet" });
+    assert.equal(JSON.parse(mine.stdout).hookSpecificOutput.updatedInput.model, "sonnet", "the person's setting");
     const bad = run(JSON.stringify(event(broken, { subagent_type: "selo:runner", model: "opus" })));
     assert.equal(bad.status, 0);
     assert.equal(bad.stdout, "", "broken manifest");

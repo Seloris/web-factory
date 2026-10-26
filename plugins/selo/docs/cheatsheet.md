@@ -79,13 +79,15 @@ The session places the request (one page or one component, no new page, entity o
 
 ## Your settings
 
-Two switches of yours, not of the project, in the `env` block of `~/.claude/settings.json`, both off by default; a new session after a change:
+Yours, not the project's, in the `env` block of `~/.claude/settings.json`; a new session after a change:
 
 ```json
 {
   "env": {
     "SELO_ROUTING": "on",
-    "SELO_COMMIT": "auto"
+    "SELO_COMMIT": "auto",
+    "SELO_MODELS": "lean",
+    "SELO_MODEL_REVIEWER": "fable"
   }
 }
 ```
@@ -93,6 +95,7 @@ Two switches of yours, not of the project, in the `env` block of `~/.claude/sett
 - `SELO_ROUTING=on`: a free sentence asking to change the application runs `/selo:pilot` on it; a continuation, an answer or a question passes untouched.
 - `SELO_COMMIT=auto`: a fastlane on the base branch commits without showing its messages for your yes. The iterate mode's « on valide » still asks its yes, and so does a worktree's landing.
 - Both together are the old `routing: auto`: a free sentence that ends in commits with no yes.
+- `SELO_MODELS`: the models' preset, `standard` (default: opus to plan, code and review, haiku to run and search) or `lean` (sonnet codes). `SELO_MODEL_{PLANNER|IMPLEMENTER|REVIEWER|RUNNER|EXPLORER}`: one role's model, the others keep the preset (`docs/manifest.md`, "Models").
 
 ## Running the app
 
@@ -120,4 +123,4 @@ git add {new files} && git commit --only -m "feat(due-date): api — optional du
 - Integration tests run only when you ask, by name.
 - `✅ JOB DONE` footer = the job is done: its commits, on the branch named, then one `Next:` line per next step (what it does · `the prompt`); a free request answered without a commit shows the recap alone.
 - Selo Ops: the `selo-ops` plugin, enabled once at user scope (`claude plugin install selo-ops@selo --scope user`), writes one JSON per session and per project under `~/.claude/selo/` (`SELO_OPS_DIR` overrides it), silently, in a selo project or not. `node {selo-ops}/scripts/ops.mjs scan {root}` rescans a project with no session open.
-- The session's model is yours to pick: the manifest's `models` says which one each role is meant for. Its subagents follow it: the model hook puts `reviewer`, `runner`, and an `Explore` or `Plan` spawned with no model, on their role's model.
+- The session's model is yours to pick: your `SELO_MODELS` and `SELO_MODEL_{ROLE}` say which one each role is meant for. Its subagents follow them: the model hook puts `reviewer`, `runner`, and an `Explore` or `Plan` spawned with no model, on their role's model.

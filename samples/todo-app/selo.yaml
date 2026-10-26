@@ -4,7 +4,6 @@ base_branch: main
 language:
   chat: fr
   repo: en
-models: standard
 components:
   - name: api
     path: api

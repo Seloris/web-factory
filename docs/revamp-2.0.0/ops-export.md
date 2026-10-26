@@ -69,7 +69,7 @@ type SeloProject = {
   manifest: {
     name: string
     preset: string
-    /** Role → model id, on the preset. */
+    /** Role → model id, on the preset: the person's settings (`SELO_MODELS`, `SELO_MODEL_{ROLE}`, selo 2.8.0) as the exporting process sees them. */
     models: Record<string, string>
     /** In implementation order, as `selo.yaml` lists them. */
     components: { name: string; path: string; kind: string }[]

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// PreToolUse hook on Agent / Task: a subagent of a selo project runs on its role's model from selo.yaml,
-// whatever the call names. `selo:reviewer` and `selo:runner` always take their role's model; `Explore` and
+// PreToolUse hook on Agent / Task: a subagent of a selo project runs on its role's model, the person's setting
+// (SELO_MODELS, SELO_MODEL_{ROLE}: manifest.mjs, resolveModels), whatever the call names. `selo:reviewer` and `selo:runner` always take their role's model; `Explore` and
 // `Plan` take theirs only when the call names none; any other agent is untouched. The skills keep passing the
 // role's model: this hook is the guard, not the source. It prints `updatedInput` (every field of the call
 // kept, `model` replaced) and no permission decision; nothing when the model is already right, outside a
@@ -34,14 +34,14 @@ export function enforceModel(toolInput, models) {
   return { ...toolInput, model: target };
 }
 
-// The hook's output for one event, or null: the manifest found up the event's cwd. Never throws.
-export function hookOutput(event) {
+// The hook's output for one event, or null: the manifest found up the event's cwd, the models from `env`. Never throws.
+export function hookOutput(event, env = process.env) {
   try {
     const input = event?.tool_input;
     if (!input || !AGENT_ROLES[input.subagent_type]) return null;
     const root = findRoot(event.cwd ?? process.cwd());
     if (root === null) return null;
-    const updatedInput = enforceModel(input, readManifest(root).models);
+    const updatedInput = enforceModel(input, readManifest(root, { env }).models);
     return updatedInput === null ? null : { hookSpecificOutput: { hookEventName: "PreToolUse", updatedInput } };
   } catch {
     return null;

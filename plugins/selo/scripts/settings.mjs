@@ -2,7 +2,8 @@
 // The person's selo settings, from the environment (the `env` block of ~/.claude/settings.json), so skills and
 // hooks read one place. SELO_ROUTING=on: a free change request runs `pilot` (scripts/lane-hint.mjs); anything
 // else or absent: off. SELO_COMMIT=auto: a fastlane on baseBranch commits without its yes; else: ask.
-// Prints { routing, commit } as JSON.
+// The models (SELO_MODELS, SELO_MODEL_{ROLE}) are the person's too: manifest.mjs resolves them into the manifest's
+// `models`, which the skills already read. Prints { routing, commit } as JSON.
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 

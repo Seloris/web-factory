@@ -2,7 +2,7 @@
 
 selo knows nothing about a project's stack. Everything it needs is declared in two places, inside the project, both read by the plugin's `scripts/manifest.mjs` (the single parser used by the skills):
 
-1. the project's **`selo.yaml`**, at its root beside `CLAUDE.md`, which describes the application: name, base branch, languages, models, components in implementation order;
+1. the project's **`selo.yaml`**, at its root beside `CLAUDE.md`, which describes the application: name, base branch, languages, components in implementation order;
 2. one **`CLAUDE.md` per component**, which holds a fenced `component` block describing that component. Claude Code loads a subfolder's `CLAUDE.md` when it works on files under it, so a component is autonomous: it can move to its own repository and keep its instructions.
 
 Both are YAML (a small subset: maps, lists, scalars, inline `[a, b]` and `{a: b}`, `#` comments). The rest of each `CLAUDE.md` is free Markdown: conventions, glossary, hard rules.
@@ -18,7 +18,6 @@ base_branch: main              # the branch every session commits on
 language:
   chat: fr                     # what agents speak to the user
   repo: en                     # everything written to the repository
-models: standard               # the preset, or a map with one model per role (below)
 components:                    # the order is the order of the stages; paths relative to this file
   - name: api
     path: src/api
@@ -30,11 +29,11 @@ components:                    # the order is the order of the stages; paths rel
     demo_port: 5181                   # where its demo answers (optional; also allowed in the component block)
 ```
 
-A key the parser does not know (at the top level, in a component, its `commands`, `models` or `language`) is ignored and reported in the resolved manifest's `warnings`, as is a `demo` command without its `demo_port`; a skill tells the person.
+A key the parser does not know (at the top level, in a component, its `commands` or `language`) is ignored and reported in the resolved manifest's `warnings`, as is a `demo` command without its `demo_port`; a skill tells the person.
 
 ### Models
 
-One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). Two presets: `standard`, the recommended set, and `lean`, sonnet as implementer for the person who wants it (a more detailed blueprint under `pilot — autonomous` only); `setup` asks for each role with it as the answer, and writes the map only for the roles the person changed:
+Not in `selo.yaml`: the models are the person's setting, not the project's (two people on one repository pick their own), read from the environment, the `env` block of `~/.claude/settings.json` (a new session after a change). The resolved manifest's `models` holds them, so a skill reads them there. One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). Two presets: `standard`, the default, and `lean`, sonnet as implementer for the person who wants it (a more detailed blueprint under `pilot — autonomous` only):
 
 | Role | `standard` | `lean` |
 |---|---|---|
@@ -44,12 +43,19 @@ One model per role, any model Claude Code accepts as a subagent's `model:` (`opu
 | runner | haiku | haiku |
 | explorer | haiku | haiku |
 
-```yaml
-models:
-  preset: standard
-  planner: fable
-  reviewer: fable
+`SELO_MODELS` picks the preset (absent: `standard`); `SELO_MODEL_{ROLE}` overrides one role, the others keep the preset:
+
+```json
+{
+  "env": {
+    "SELO_MODELS": "standard",
+    "SELO_MODEL_PLANNER": "fable",
+    "SELO_MODEL_REVIEWER": "fable"
+  }
+}
 ```
+
+An unknown preset reads as `standard` and is reported in the resolved manifest's `warnings`. A `models` key left in `selo.yaml` (before 2.8.0) is an unknown key: `setup update` removes it and gives its roles as these lines.
 
 The plugin's agents carry no `model` in their frontmatter: the skill that spawns one passes the role's model. The plugin's `PreToolUse` hook on `Agent|Task` (`scripts/agent-model.mjs`) is the guard, not the source: it rewrites the call's `model` to its role's when they differ, every other field kept, and prints nothing when the model is already right, outside a selo project, or on a manifest that fails to parse:
 

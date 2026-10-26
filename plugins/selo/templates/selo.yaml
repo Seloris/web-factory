@@ -4,6 +4,5 @@ base_branch: {{base_branch}}
 language:
   chat: {{language_chat}}
   repo: {{language_repo}}
-models: {{models}}
 components:
 {{components}}
