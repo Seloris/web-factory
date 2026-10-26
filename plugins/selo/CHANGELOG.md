@@ -2,6 +2,16 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-26 — selo 2.9.0: the `angular-dotnet` stack pack
+
+The person (2026-10-26): a second stack, Angular and .NET with a single front office, based on a production Angular/.NET project (its back office for the front, its Clean Architecture for the API), made simpler. `react-express` was the only pack, so an Angular/.NET project got no template, no skeleton and no stack skills from `setup`.
+
+- **`stacks/angular-dotnet/`**: the two component templates, the three skills (`ef-migrations`, `openapi-client`, `write-api-tests`), the `gitignore` lines and both skeletons, each proved green from a filled copy (build, tests, lint, handoff, prepare, dev and demo on their ports, the proxy, a skin's fonts).
+- **Simpler than its source, on the person's choices:** four projects (`Domain` ← `Application` ← `Infrastructure` / `Api`) but Minimal APIs with the use case's nested `Handler` injected into its endpoint, no mediator library and no repository; FluentValidation behind one endpoint filter; SQLite instead of SQL Server, so the endpoint tests run in process (`WebApplicationFactory`, in-memory SQLite) inside `test` at every stage, with no Docker, as PGlite does for `react-express`. One front, not an Nx workspace.
+- **The skins hold:** the shared components port `skins/recipes.css` as standalone Angular components (attribute selectors on the native elements, so Signal Forms binds them), and Tailwind's colors, radii, fonts and shadows are mapped to the skin's tokens with its default palette off: a literal color cannot reach a feature through a utility class. Fonts through a `fonts.css` that `setup` writes from the pack's font table.
+- **Ports:** `ng serve` reads neither `PORT` nor `API_URL`, so `serve.mjs` starts it on the slot's port and `proxy.conf.mjs` reads `API_URL`; the API listens on `PORT` from its configuration. The demo builds in `Release`: a dev API running on the same worktree locks `bin/Debug`, and `try`'s demo, rebuilt there after a stage, failed on the locked files. `run.mjs`'s tree kill stops `dotnet run` and `serve.mjs` with their children. The OpenAPI document is generated at build time (`Microsoft.Extensions.ApiDescription.Server`), skipping the migrations when the host is the document generator.
+- `stacks/README.md` lists the pack.
+
 ## 2026-10-26 — selo 2.8.0: the models, the person's setting
 
 The person (2026-10-26): the models should be a setting of the person, a preset by default that their own file overrides, as `SELO_ROUTING` and `SELO_COMMIT` already are. Same case as routing in 2.6.0: two people on one repository pick their own models, and a choice written in `selo.yaml` was imposed on everyone who opened it.
