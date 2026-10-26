@@ -141,6 +141,11 @@
     (chosen)="placeFromDialog($event)" (removed)="removeFromDialog()" (cancelled)="placingId.set(null)" />
 }
 
+@if (choosing(); as pick) {
+  <app-choice-dialog [player]="pick.player" [role]="pick.role" [choices]="pick.choices" [specs]="specs()"
+    [isPending]="store.isPending()" (chosen)="placeOnChoice($event)" (cancelled)="choosing.set(null)" />
+}
+
 @if (fillingRole(); as role) {
   @if (roster) {
     <app-fill-dialog [role]="role" [players]="players()" [roster]="roster" [specs]="specs()" [isPending]="store.isPending()"

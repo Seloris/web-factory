@@ -23,6 +23,7 @@ Pages: `roster-builder` · Domain: `roster` · Components: `api`, `web`
 
 ### Decided during build
 - Code of a picked spec refused → `spec_not_chosen` (stable snake_case, like `role_not_chosen`).
+- Browser scenario with two choices of a role → run on DPS (Kaëlis, Morwen): no demo sheet has two heal choices.
 
 ## Stages
 1. api — `feat(class-choice): api — place a player on a chosen spec`
@@ -30,12 +31,12 @@ Pages: `roster-builder` · Domain: `roster` · Components: `api`, `web`
 
 ## Tests
 - api: placed on a chosen spec of the role; no spec given takes the best-ranked one; a spec not among their choices of the role refused; a swap's occupant takes their best-ranked choice of the role left.
-- web: the drop with several choices of the role opens the menu and places on the one picked; with one choice it places at once; cancelling the menu places nobody.
-- browser: at 1440 px, drag a sheet with two heal choices onto a heal place, pick the second, see it placed with that spec and the buffs updated below the composition; « Placer » by keyboard offers the same menu.
+- web: none (the front has no unit tests); its checks are in the browser line.
+- browser: at 1440 px, drag a sheet with two heal choices onto a heal place, pick the second, see it placed with that spec and the buffs updated below the composition; a sheet with one choice of the role is placed at once; cancelling the menu places nobody; « Placer » by keyboard offers the same menu.
 
 ## Progress
 - [x] Stage 1 — api
-- [ ] Stage 2 — web
-- [ ] Review
-- [ ] Browser test
+- [x] Stage 2 — web
+- [x] Review
+- [x] Browser test
 - [ ] Spec merged

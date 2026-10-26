@@ -181,12 +181,17 @@
       "remove": "Sortir du roster",
       "cancel": "Annuler"
     },
+    "choiceDialog": {
+      "title": "{{pseudo}} en {{role}} : quelle classe ?",
+      "cancel": "Annuler"
+    },
     "errors": {
       "role_not_chosen": "Ce joueur n’a aucun choix de ce rôle.",
       "role_full": "Toutes les places de ce rôle sont prises.",
       "below_locked_players": "Impossible : des joueurs verrouillés occupent ces places. Déverrouillez-les d’abord.",
       "composition_too_large": "Tanks et heals dépassent la taille du raid.",
       "not_found": "Ce joueur n’existe plus : les fiches et le roster ont été relus.",
+      "spec_not_chosen": "Ce joueur n’a pas ce choix pour ce rôle.",
       "unknown": "Le déplacement a échoué. Réessayez."
     }
   }

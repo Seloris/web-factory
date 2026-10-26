@@ -5,5 +5,6 @@ import { Role } from '../models/role';
 export interface PlacePlayerCommand {
   playerId: number;
   role: Role;
+  specId?: (string | null);
   targetPlayerId: (number | null);
 }

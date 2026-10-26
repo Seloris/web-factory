@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
+import { ChoiceDto } from '../../../api/models/choice-dto';
 import { PlacementDto } from '../../../api/models/placement-dto';
 import { PlayerDto } from '../../../api/models/player-dto';
 import { Role } from '../../../api/models/role';
@@ -14,6 +15,7 @@ import { PageTitle } from '../../core/ui/page-title';
 import { ProblemDetails } from '../../core/utils/problem-details';
 import { RosterBuilderStore } from '../data-access/roster-builder.store';
 import { BuffsRecap } from '../ui/buffs-recap';
+import { ChoiceDialog } from '../ui/choice-dialog';
 import { CompositionToolbar } from '../ui/composition-toolbar';
 import { Frame } from '../ui/frame';
 import { FillDialog } from '../ui/fill-dialog';
@@ -22,7 +24,7 @@ import { PlaceDialog } from '../ui/place-dialog';
 import { PlaceDrop, RosterBoard } from '../ui/roster-board';
 import { SheetForm } from '../ui/sheet.form';
 import { SheetsList } from '../ui/sheets-list';
-import { Message, RANKS, ROLES, indexSpecs, plural, roleViews, rolesOfPlayer, warningsOf } from '../utils/roster-view';
+import { Message, RANKS, ROLES, choicesOf, indexSpecs, plural, roleViews, rolesOfPlayer, warningsOf } from '../utils/roster-view';
 
 const MAX_SHEETS = 20;
 
@@ -39,6 +41,7 @@ const MAX_SHEETS = 20;
     LoadingState,
     PageTitle,
     BuffsRecap,
+    ChoiceDialog,
     CompositionToolbar,
     FillDialog,
     Frame,
@@ -88,7 +91,8 @@ const MAX_SHEETS = 20;
     .cols {
       display: grid;
       grid-template-columns: 430px minmax(0, 1fr);
-      grid-template-areas: 'sheets roster' 'buffs buffs';
+      grid-template-rows: auto 1fr;
+      grid-template-areas: 'sheets roster' 'sheets buffs';
       gap: 22px;
       align-items: start;
     }
@@ -116,27 +120,6 @@ const MAX_SHEETS = 20;
     }
     .failed {
       padding: 22px 8px;
-    }
-    @media (max-width: 1024px) {
-      :host {
-        padding: 24px 20px;
-      }
-      .cols {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: 'roster' 'buffs' 'sheets';
-      }
-    }
-    @media (max-width: 640px) {
-      :host {
-        gap: 16px;
-        padding: 18px 14px;
-      }
-      h1 {
-        font-size: 24px;
-      }
-      .cols {
-        gap: 16px;
-      }
     }
   `,
 })
@@ -203,6 +186,7 @@ export class RosterBuilderPage {
   protected readonly placingId = signal<number | null>(null);
   protected readonly placing = computed(() => this.players().find((p) => p.id === this.placingId()) ?? null);
   protected readonly fillingRole = signal<Role | null>(null);
+  protected readonly choosing = signal<{ player: PlayerDto; role: Role; targetPlayerId: number | null; choices: ChoiceDto[] } | null>(null);
 
   protected openSheet(player: PlayerDto | null): void {
     this.sheetProblem.set(null);
@@ -240,7 +224,26 @@ export class RosterBuilderPage {
     const playerId = this.draggedId();
     this.endDrag();
     if (playerId !== null && playerId !== drop.targetPlayerId && !this.store.isPending()) {
-      void this.store.actions.place(playerId, drop.role, drop.targetPlayerId);
+      void this.requestPlace(playerId, drop.role, drop.targetPlayerId);
+    }
+  }
+
+  // With several choices of the place's role, the class menu asks which one; with one, the player is placed at once.
+  protected async requestPlace(playerId: number, role: Role, targetPlayerId: number | null): Promise<void> {
+    const player = this.players().find((p) => p.id === playerId);
+    const choices = player ? choicesOf(player, role, this.specs()) : [];
+    if (player && choices.length > 1) {
+      this.choosing.set({ player, role, targetPlayerId, choices });
+    } else {
+      await this.store.actions.place(playerId, role, targetPlayerId);
+    }
+  }
+
+  protected async placeOnChoice(specId: string): Promise<void> {
+    const choosing = this.choosing();
+    if (choosing) {
+      await this.store.actions.place(choosing.player.id, choosing.role, choosing.targetPlayerId, specId);
+      this.choosing.set(null);
     }
   }
 
@@ -276,7 +279,7 @@ export class RosterBuilderPage {
   protected async placeFromDialog(drop: PlaceDrop): Promise<void> {
     const playerId = this.placingId();
     if (playerId !== null) {
-      await this.store.actions.place(playerId, drop.role, drop.targetPlayerId);
+      await this.requestPlace(playerId, drop.role, drop.targetPlayerId);
       this.placingId.set(null);
     }
   }
@@ -284,7 +287,7 @@ export class RosterBuilderPage {
   protected async fillFromDialog(playerId: number): Promise<void> {
     const role = this.fillingRole();
     if (role !== null) {
-      await this.store.actions.place(playerId, role, null);
+      await this.requestPlace(playerId, role, null);
       this.fillingRole.set(null);
     }
   }

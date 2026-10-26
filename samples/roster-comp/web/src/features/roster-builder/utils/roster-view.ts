@@ -1,4 +1,5 @@
 import { CatalogueDto } from '../../../api/models/catalogue-dto';
+import { ChoiceDto } from '../../../api/models/choice-dto';
 import { ClassDto } from '../../../api/models/class-dto';
 import { PlacementDto } from '../../../api/models/placement-dto';
 import { PlayerDto } from '../../../api/models/player-dto';
@@ -34,6 +35,11 @@ export function classOfPlayer(player: PlayerDto, specs: SpecIndex): string {
 
 export function rolesOfPlayer(player: PlayerDto, specs: SpecIndex): Set<Role> {
   return new Set(player.choices.map((c) => specs.get(c.specId)?.spec.role).filter((r): r is Role => r !== undefined));
+}
+
+// A player's choices of a role, best-ranked first, in their sheet's order between equal ranks.
+export function choicesOf(player: PlayerDto, role: Role, specs: SpecIndex): ChoiceDto[] {
+  return player.choices.filter((c) => specs.get(c.specId)?.spec.role === role).sort((a, b) => RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank));
 }
 
 export function placesOf(roster: RosterDto, role: Role): number {

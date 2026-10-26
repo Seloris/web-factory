@@ -7,7 +7,7 @@ import { Icon } from './icon';
 import { PlaceDrop } from './roster-board';
 import { RoleView, SpecIndex, rolesOfPlayer } from '../utils/roster-view';
 
-// « Placer », the drag and drop by keyboard and on touch screens: for each role the player has a choice of,
+// « Placer », the drag and drop by keyboard: for each role the player has a choice of,
 // a free place of it and each of its occupants to replace; out of the roster when the player is placed.
 @Component({
   selector: 'app-place-dialog',

@@ -20,7 +20,7 @@ import { ProblemDetails, problemOf } from '../../core/utils/problem-details';
 import { resourceState } from '../../core/utils/resource-state';
 
 // The codes of a refused roster move the page explains; any other failure reads as a generic error.
-const KNOWN_CODES = ['role_not_chosen', 'role_full', 'below_locked_players', 'composition_too_large', 'not_found'];
+const KNOWN_CODES = ['role_not_chosen', 'spec_not_chosen', 'role_full', 'below_locked_players', 'composition_too_large', 'not_found'];
 
 @Injectable({ providedIn: 'root' })
 export class RosterBuilderStore {
@@ -52,8 +52,8 @@ export class RosterBuilderStore {
     unlockAll: () => this.#move(() => this.api.invoke(unlockAll)),
     setLock: (playerId: number, isLocked: boolean) =>
       this.#move(() => this.api.invoke(setPlacementLock, { playerId, body: { isLocked } })),
-    place: (playerId: number, role: Role, targetPlayerId: number | null) =>
-      this.#move(() => this.api.invoke(placePlayer, { body: { playerId, role, targetPlayerId } })),
+    place: (playerId: number, role: Role, targetPlayerId: number | null, specId: string | null = null) =>
+      this.#move(() => this.api.invoke(placePlayer, { body: { playerId, role, targetPlayerId, specId } })),
     remove: (playerId: number) => this.#move(() => this.api.invoke(removePlacement, { playerId })),
     // Answers the refusal, for the sheet form to show by field; null once saved.
     savePlayer: async (id: number | null, command: SavePlayerCommand): Promise<ProblemDetails | null> => {
