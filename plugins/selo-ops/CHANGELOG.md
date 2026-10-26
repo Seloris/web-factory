@@ -2,6 +2,14 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-26 — selo-ops 2.9.0: each checkout's mockups
+
+Selo Ops' new « Nouvelle session » window offers to build a validated mockup (`/selo:pilot {request} — mockup {file}`, selo 2.7.0). It never runs git and reads only the export, so it cannot tell a mockup waiting to be built from one already built and committed.
+
+- **`mockups: [{ file, title, validated, committed }]`** in the project file, one per `.planning/mockups/*.html` of the checkout, sorted by name; a worktree gets its own list, as blueprints do. `title` is the `<title>` text, else the file name; `validated` is selo's mark, `<meta name="selo:mockup" content="validated">`, looked for in the first 8 KB only (where selo 2.7.0 puts it); `committed` is false when git lists the file untracked, modified or staged (the same `changedPaths` that counts `changedCount`). Selo Ops shows `validated && !committed` as « maquettes à construire ».
+- Read on every rescan (a commit, a `Stop`, `ops.mjs scan`), so a validation is seen at the end of its turn. A new field read leniently: `schemaVersion` stays 1.
+- `docs/revamp-2.0.0/ops-export.md` (§4, the `Mockup` type) follows.
+
 ## 2026-10-25 — selo-ops 2.8.0: `pilot` replaces `autopilot`, its mode as the prompt says it
 
 selo 2.6.0 replaces `/selo:autopilot` with `/selo:pilot`: interactive without a suffix, the old autopilot with ` — autonomous` (`docs/revamp-2.6.0/proposal.md` §3.2). The export carries the prompt's facts, nothing derived (the person: « toutes les données telles quelles, pas d'interprétation »).

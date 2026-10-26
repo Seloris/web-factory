@@ -183,10 +183,31 @@ const liveSessions = (dir, root) =>
     ? readdirSync(join(dir, "sessions")).filter((f) => f.endsWith(".json")).map((f) => readJson(join(dir, "sessions", f))).filter((s) => s?.status === "live" && s.root === root)
     : [];
 
+// The first 8 KB of a file: where a mockup's <title> and validated mark sit (selo's rules, **Mockup first**).
+const headOf = (file, size = 8192) => {
+  const fd = openSync(file, "r");
+  try {
+    const buf = Buffer.alloc(size);
+    return buf.toString("utf8", 0, readSync(fd, buf, 0, size, 0));
+  } finally {
+    closeSync(fd);
+  }
+};
+
+// One `.planning/mockups/*.html`: validated by the mockup skill's meta; not committed when git lists it untracked, modified or staged.
+export function mockupOf(file, head, changed = new Set()) {
+  return {
+    file,
+    title: /<title[^>]*>([^<]*)<\/title>/i.exec(head)?.[1].trim() || basename(file, ".html"),
+    validated: /<meta\s+name=["']selo:mockup["']\s+content=["']validated["']\s*\/?>/i.test(head),
+    committed: !changed.has(file),
+  };
+}
+
 // A plain root (`selo` false): git counts only, no manifest, no `.planning`, no error.
 export function scanProject(rootIn, { dir = opsDir(), selo = true } = {}) {
   const root = normRoot(rootIn);
-  const out = { schemaVersion: SCHEMA, writtenAt: now(), selo: VERSION, root, repo: null, branch: null, baseBranch: "main", aheadCount: null, unpushedCount: null, changedCount: 0, manifest: null, sheets: [], blueprints: [], error: null };
+  const out = { schemaVersion: SCHEMA, writtenAt: now(), selo: VERSION, root, repo: null, branch: null, baseBranch: "main", aheadCount: null, unpushedCount: null, changedCount: 0, manifest: null, sheets: [], blueprints: [], mockups: [], error: null };
   if (selo) try {
     const m = readManifest(root);
     const { preset, ...models } = m.models;
@@ -196,6 +217,7 @@ export function scanProject(rootIn, { dir = opsDir(), selo = true } = {}) {
     out.error = e.message;
   }
   const common = git(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])?.trim();
+  let changed = new Set();
   if (common) {
     out.repo = normRoot(common);
     const branch = git(root, ["rev-parse", "--abbrev-ref", "HEAD"])?.trim();
@@ -206,7 +228,8 @@ export function scanProject(rootIn, { dir = opsDir(), selo = true } = {}) {
     };
     out.aheadCount = out.branch && out.branch !== out.baseBranch ? count(`${out.baseBranch}..HEAD`) : null;
     out.unpushedCount = count("@{u}..HEAD");
-    out.changedCount = changedPaths(root).size;
+    changed = changedPaths(root);
+    out.changedCount = changed.size;
   }
   if (!selo) return out;
   const planning = join(root, ".planning");
@@ -238,6 +261,10 @@ export function scanProject(rootIn, { dir = opsDir(), selo = true } = {}) {
       const key = s.component ? `${s.component}/${s.slug}` : s.slug;
       return { ...s, modifiedAt: mtime(f), lastCommit: lastCommit.get(s.file) ?? null, openBlueprints: open.filter((b) => b.sheets.includes(key) || b.delta.some((d) => d.sheet === key)).map((b) => b.name) };
     });
+    const mockups = join(planning, "mockups");
+    out.mockups = existsSync(mockups)
+      ? readdirSync(mockups).filter((n) => n.endsWith(".html")).sort().map((n) => mockupOf(`.planning/mockups/${n}`, headOf(join(mockups, n)), changed))
+      : [];
     const sessions = liveSessions(dir, root);
     for (const b of out.blueprints) b.sessions = sessions.filter((s) => s.current?.blueprint === b.name).map((s) => s.sessionId);
   } catch (e) {

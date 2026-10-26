@@ -78,6 +78,8 @@ type SeloProject = {
   sheets: Sheet[]
   /** Every blueprint, newest first; a merged one stays (it is never edited after). */
   blueprints: Blueprint[]
+  /** Every `.planning/mockups/*.html` of this checkout, by file name (selo-ops 2.9.0). Selo Ops offers `validated && !committed`: validated, waiting to be built. */
+  mockups: Mockup[]
   /** Why the lists are empty, when they are: no `.planning`, a read that failed. */
   error: string | null
 }
@@ -101,6 +103,17 @@ type Sheet = {
   lastCommit: { sha: string; subject: string; at: string } | null
   /** The blueprints not merged yet whose delta touches this sheet: the work in flight the sheet does not show (proposal §9). */
   openBlueprints: string[]
+}
+
+type Mockup = {
+  /** Relative to `root`, forward slashes: `.planning/mockups/2026-10-26-new-session-modes.html`. */
+  file: string
+  /** The text of its `<title>`, else the file name without `.html`. */
+  title: string
+  /** Its first 8 KB carry `<meta name="selo:mockup" content="validated">`, written by `/selo:mockup` on validation (selo's rules, **Mockup first**). */
+  validated: boolean
+  /** False when git lists it untracked, modified or staged. */
+  committed: boolean
 }
 
 type Blueprint = {

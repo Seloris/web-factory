@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { applyHook, blueprintOf, classifyEnd, closeOf, handBackFrom, newSession, parsePrompt, promptAction, rootKey } from "../scripts/ops.mjs";
+import { applyHook, blueprintOf, classifyEnd, closeOf, handBackFrom, mockupOf, newSession, parsePrompt, promptAction, rootKey, scanProject } from "../scripts/ops.mjs";
 
 const script = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "ops.mjs");
 const BP = ".planning/blueprints/2026-10-21-due-date.md";
@@ -676,4 +676,30 @@ test("the trail: one entry per change, phase changes included, deduplicated, cap
   applyHook(old, { hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: ".planning/blueprints/x.md — stage 2" } }, "C:/p");
   assert.equal(old.runs.find((r) => !r.agentId).trail, undefined);
   assert.equal(old.runs.find((r) => !r.agentId).step, "stage:2");
+});
+
+test("mockups: each .planning/mockups/*.html, its title, the validated mark, committed as git says", () => {
+  const { dir, g } = project();
+  const m = (name, html) => writeFileSync(join(dir, ".planning", "mockups", `${name}.html`), html);
+  const page = (title, mark = "") => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${mark}<style>${"x".repeat(9000)}</style></head></html>`;
+  const MARK = '<meta name="selo:mockup" content="validated">';
+  mkdirSync(join(dir, ".planning", "mockups"));
+  m("2026-10-20-built", page("Built", MARK));
+  m("2026-10-21-edited", page("Edited", MARK));
+  g("add", ".");
+  g("commit", "-q", "-m", "feat(home): built");
+  m("2026-10-21-edited", page("Edited again", MARK));
+  m("2026-10-26-new-session-modes", page(" Nouvelle session ", MARK));
+  m("2026-10-26-draft", "<!doctype html><html><head></head></html>");
+  m("2026-10-26-late-mark", page("Late") + MARK);
+  const byName = Object.fromEntries(scanProject(dir, { dir: mkdtempSync(join(tmpdir(), "selo-ops-dir-")) }).mockups.map((x) => [x.file.slice(".planning/mockups/".length, -5), x]));
+  assert.deepEqual(byName["2026-10-26-new-session-modes"], { file: ".planning/mockups/2026-10-26-new-session-modes.html", title: "Nouvelle session", validated: true, committed: false });
+  assert.deepEqual(byName["2026-10-20-built"], { file: ".planning/mockups/2026-10-20-built.html", title: "Built", validated: true, committed: true });
+  assert.equal(byName["2026-10-21-edited"].committed, false);
+  assert.deepEqual([byName["2026-10-26-draft"].title, byName["2026-10-26-draft"].validated], ["2026-10-26-draft", false]);
+  // Past the first 8 KB, the mark does not count.
+  assert.equal(byName["2026-10-26-late-mark"].validated, false);
+  assert.equal(mockupOf("a.html", "<META NAME='selo:mockup' CONTENT='validated' />").validated, true);
+  // No mockups folder: an empty list.
+  assert.deepEqual(scanProject(project().dir, { dir: mkdtempSync(join(tmpdir(), "selo-ops-dir-")) }).mockups, []);
 });
