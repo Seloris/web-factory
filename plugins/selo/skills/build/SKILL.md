@@ -1,7 +1,7 @@
 ---
 name: build
-description: "Build a committed blueprint (.planning/blueprints/{file}): every stage chained in this session by default, one per component in the manifest's order, test-first, verified through runner, one commit each with Spec: pending; the decisions it takes recorded under Decided during build; then one review, the full suites, the browser test (demo, else the dev server), and the spec delta merged with spec-check --merge. In a worktree, ends with the landing on the base branch: one squashed commit on the person's yes. --stage N runs one stage; --no-browser skips the browser test; --autonomous from pilot."
-argument-hint: "{blueprint} [--stage N] [--no-browser] [--autonomous]"
+description: "Build a committed blueprint (.planning/blueprints/{file}): every stage chained in this session by default, one per component in the manifest's order, test-first, verified through runner, one commit each with Spec: pending; the decisions it takes recorded under Decided during build; then one review, the full suites, the browser test (demo, else the dev server), and the spec delta merged with spec-check --merge. In a worktree, ends with the landing on the base branch: one squashed commit on the person's yes. --stage N runs one stage; --no-browser skips the browser test; --worktree [name] builds in a new or an existing worktree; --autonomous from pilot."
+argument-hint: "{blueprint} [--stage N] [--no-browser] [--worktree [{name}]] [--autonomous]"
 ---
 
 # Build a blueprint
@@ -10,12 +10,13 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (**Blueprints** and **Wher
 
 ## Input
 
-`/selo:build .planning/blueprints/{file}`, optionally with ` --stage {N}`, ` --no-browser`, ` --autonomous`, ` --review {findings}` (from `pilot`, step 9).
+`/selo:build .planning/blueprints/{file}`, optionally with ` --stage {N}`, ` --no-browser`, ` --worktree [{name}]`, ` --autonomous`, ` --review {findings}` (from `pilot`, step 9).
 
-- The blueprint must be committed (`git log -- {file}`): an untracked one is a draft, say so and stop. `Spec merged` ticked: the work is done, say so and stop. A `Legacy:` line under its title: a 1.0 plan moved by `setup update`, history, never built: say so and stop.
+- ` --worktree [{name}]`: the rules' **Choosing the checkout**, read first: a new worktree (no name: the blueprint's name), or the existing one of that name, entered before the checks below and said in one line (`Worktree {name} · branch {branch} · slot …`). A blueprint committed on a worktree's branch alone is found there only: a file absent from this checkout names the worktrees that hold it (`git worktree list`, `git -C {path} log -- {file}`; its `Next:` line carried ` --worktree {name}`) and stops.
+- The blueprint must be committed (`git log -- {file}`): a file present here but untracked is a draft, say so and stop. `Spec merged` ticked: the work is done, say so and stop. A `Legacy:` line under its title: a 1.0 plan moved by `setup update`, history, never built: say so and stop.
 - Read it whole, then the page and domain specs it names (the `BR` ids it cites are resolved there), then a `## Mockup` image or HTML mockup if any.
 - A 1.0 project (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
-- Note the variant (**Where commits go**): on `baseBranch`, or on a worktree's branch.
+- Note the variant (**Where commits go**): on `baseBranch`, or on a worktree's branch; the `Next:` lines of the report carry ` --worktree {name}` in the latter (the rules' **The next steps**).
 
 ## Stages
 
@@ -43,7 +44,7 @@ For each stage:
 13. **Merge the spec delta.**
     - **On `baseBranch`:** the rules' **Blueprints** lifecycle, steps 1 to 3: `spec-check --merge`; a `conflict` or `missing` line stops and asks (show the line, the stored "before", the spec's current text; the person decides the new wording); then the specs edited, the provisional ids rewritten in the blueprint, `Spec merged` ticked, the work's entry added to `.planning/changelog.md` (the rules' **The changelog**), one commit `docs({name}): spec merged` with the printed `specLine`, without a question (the delta was approved with the blueprint); the report gives the entry.
     - **In a worktree:** the landing of **Where commits go**, steps 1 to 4: sync, merge the delta (the same steps, the changelog entry included, against `baseBranch`'s specs, then the full suites again), show the landing with its message and the entry, and squash on the person's yes.
-14. **Report and stop:** the stages committed, the tests written, the verify results, the review findings (fixed and open), the decisions taken during the build (first), the browser-test result (and the mockup comparison), the final `Spec:` line, the integration-test command, then the done footer of the rules' **End of turn**. Next prompt: `/selo:build {file}` when stages remain (after ` --stage N`), `/selo:review {file}` when `Review` stays `[ ]`; none once `Spec merged` is ticked (in a worktree: once the landing is done).
+14. **Report and stop:** the stages committed, the tests written, the verify results, the review findings (fixed and open), the decisions taken during the build (first), the browser-test result (and the mockup comparison), the final `Spec:` line, the integration-test command, then the done footer of the rules' **End of turn**. Next prompt: `/selo:build {file}` when stages remain (after ` --stage N`), `/selo:review {file}` when `Review` stays `[ ]`; none once `Spec merged` is ticked (in a worktree: once the landing is done). In a worktree, before its landing, each carries ` --worktree {name}` and names the worktree and its slot (the rules' **The next steps**).
 
 ## Autonomous mode
 

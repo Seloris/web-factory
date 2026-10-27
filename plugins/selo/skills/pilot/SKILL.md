@@ -1,7 +1,7 @@
 ---
 name: pilot
-description: "selo picks the lane of a free request (the fastlane, or the blueprint lane), or resumes a committed blueprint. Interactive by default: the lane said in one line, then run in this session with its own questions and yeses. --autonomous: no question, each step a fresh subagent (blueprint, then build: stages, review, browser test, spec merged); in a worktree, stops ready to land and asks the one yes of the landing. --mockup {file} builds a validated /selo:mockup, passed to the lane picked; --fastlane / --blueprint force the lane; --until-blueprint stops once the blueprint is committed; --no-browser skips the browser test."
-argument-hint: "[request | blueprint] [--autonomous] [--fastlane | --blueprint] …"
+description: "selo picks the lane of a free request (the fastlane, or the blueprint lane), or resumes a committed blueprint. Interactive by default: the lane said in one line, then run in this session with its own questions and yeses. --autonomous: no question, each step a fresh subagent (blueprint, then build: stages, review, browser test, spec merged); in a worktree, stops ready to land and asks the one yes of the landing. --mockup {file} builds a validated /selo:mockup, passed to the lane picked; --fastlane / --blueprint force the lane; --until-blueprint stops once the blueprint is committed; --no-browser skips the browser test; --worktree [name] runs it in a new or an existing worktree."
+argument-hint: "[request | blueprint] [--mockup {file}] [--fastlane | --blueprint] [--worktree [{name}]] [--autonomous] …"
 ---
 
 # Pilot
@@ -18,12 +18,13 @@ Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first, then the manifest: `model
 `/selo:pilot {input}`:
 
 - **A free request**: the lane is chosen first.
-- **A blueprint** `.planning/blueprints/{file}`: the blueprint lane from its build, resumed at Progress. `Spec merged` ticked: done, say so and stop. A `Legacy:` line: a 1.0 plan, never built: say so and stop.
+- **A blueprint** `.planning/blueprints/{file}`: the blueprint lane from its build, resumed at Progress. A file absent from this checkout was committed on a worktree's branch alone: say so and stop, naming the worktrees that hold it (`git worktree list`, `git -C {path} log -- {file}`; its `Next:` line carried ` --worktree {name}`). `Spec merged` ticked: done, say so and stop. A `Legacy:` line: a 1.0 plan, never built: say so and stop.
 - **A 1.0 project** (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
 
-Options, at the end of the prompt, in this order when combined (`/selo:pilot {request} --mockup {file} --autonomous`):
+Options, at the end of the prompt, in this order when combined: ` --mockup {file}`, ` --fastlane` | ` --blueprint`, ` --until-blueprint`, ` --no-browser`, ` --worktree [{name}]`, ` --autonomous` (`/selo:pilot {request} --mockup {file} --worktree {name} --autonomous`):
 
-- ` --mockup .planning/mockups/{file}`: a free request built from a mockup of `/selo:mockup` (the rules' **Mockup first**), passed to the lane picked: the fastlane builds to it and compares; the blueprint cites it under `## Mockup`, and its build compares the page with it in its browser test. A missing file was drawn uncommitted in another checkout (or this one is a worktree): say so and stop. A file without the validated mark (`<meta name="selo:mockup" content="validated">`): in interactive mode, say it is still being iterated and give `/selo:mockup revise {file}: {changes}`, then stop; in autonomous mode, the same stop (**Prerequisites**).
+- ` --worktree [{name}]`, read first: the rules' **Choosing the checkout**: a new worktree (no name: named from the request, or a blueprint's name), or the existing one of that name, entered before anything else is checked (the mockup, the blueprint, the prerequisites are then looked for in the worktree) and said in one line (`Worktree {name} · branch {branch} · slot …`); the uncommitted mockup of ` --mockup` is copied there first. Passed on to the lane as given (already there, the lane does nothing with it).
+- ` --mockup .planning/mockups/{file}`: a free request built from a mockup of `/selo:mockup` (the rules' **Mockup first**), passed to the lane picked: the fastlane builds to it and compares; the blueprint cites it under `## Mockup`, and its build compares the page with it in its browser test. A missing file was drawn in another checkout: say so and stop, naming the worktrees that hold it when `git worktree list` and a `git -C {path} log -- {file}` find one (its `Next:` line carried ` --worktree {name}`). A file without the validated mark (`<meta name="selo:mockup" content="validated">`): in interactive mode, say it is still being iterated and give `/selo:mockup revise {file}: {changes}`, then stop; in autonomous mode, the same stop (**Prerequisites**).
 
 - ` --autonomous`: the autonomous mode below. A person never types it (the rules' **Autonomous mode**): Selo Ops' new-session page does.
 - ` --fastlane` / ` --blueprint`: force the lane of a free request. On an interactive run it is the same as typing that lane's command.
@@ -36,19 +37,19 @@ Options, at the end of the prompt, in this order when combined (`/selo:pilot {re
    - **Fastlane** when it touches one page or one component **and** adds no page, entity or business rule.
    - **Blueprint** otherwise.
 2. **Say the lane** in one line: the lane, its exact prompt (`/selo:fastlane {request}`, `/selo:blueprint {request}`, `/selo:build {blueprint}`), and why. Having typed `/selo:pilot` is the yes on the lane: no question.
-3. **Run the lane**: call its skill with the Skill tool (`selo:fastlane`, `selo:blueprint` or `selo:build`, the prompt of step 2 as its args, plus ` --mockup {file}` and ` --no-browser` when given), never by reading its `SKILL.md` alone: Selo Ops sees the lane through that call. Then follow it as if the person had typed that prompt: its questions, its yeses (the blueprint's one yes, the fastlane's commit yes on `baseBranch`), its landing in a worktree, its done footer and `Next:` lines.
+3. **Run the lane**: call its skill with the Skill tool (`selo:fastlane`, `selo:blueprint` or `selo:build`, the prompt of step 2 as its args, plus ` --mockup {file}`, ` --no-browser` and ` --worktree {name}` when given), never by reading its `SKILL.md` alone: Selo Ops sees the lane through that call. Then follow it as if the person had typed that prompt: its questions, its yeses (the blueprint's one yes, the fastlane's commit yes on `baseBranch`), its landing in a worktree, its done footer and `Next:` lines.
 
-The blueprint lane stops at the blueprint's commit, as `/selo:blueprint` does: its footer gives `/selo:pilot {file}` as the next step; pilot does not chain the build. A fastlane that stops because the change needs a blueprint: say so in one line, then call `selo:blueprint` on the same request (with its ` --mockup {file}`).
+The blueprint lane stops at the blueprint's commit, as `/selo:blueprint` does: its footer gives `/selo:pilot {file}` as the next step; pilot does not chain the build. A fastlane that stops because the change needs a blueprint: say so in one line, then call `selo:blueprint` on the same request (with its ` --mockup {file}` and ` --worktree {name}`).
 
 ## Autonomous mode
 
-The orchestrator never reads or writes the project's code, never asks the person (the landing of a worktree aside), and stops only on a real blocker. A blueprint given as input that is untracked is a draft: committed as it stands (`docs({name}): blueprint — {summary}`), then built.
+The orchestrator never reads or writes the project's code, never asks the person (the landing of a worktree aside), and stops only on a real blocker. With ` --worktree`, it enters the worktree itself before its first step, so every subagent starts there, and passes the option on to each step. A blueprint given as input that is untracked is a draft: committed as it stands (`docs({name}): blueprint — {summary}`), then built.
 
 ### Prerequisites
 
 - **Permissions.** The session runs in the `auto` or `acceptEdits` permission mode with a Bash allowlist covering `git`, `node ${CLAUDE_PLUGIN_ROOT}/scripts/*` and the components' commands (`build`, `test`, `lint`, `prepare`, `handoff`, `demo`, `serve`). Otherwise every subagent stops at its first prompt: say so and stop before the first step.
 - **A manifest** with every role's model and a `CLAUDE.md` per component (no `missingFile`).
-- **A mockup** given: the file exists in this checkout and its first 8 KB carry `<meta name="selo:mockup" content="validated">`. It is already validated: no question about it. A missing file or one without the mark: say which, give `/selo:mockup revise {file}: {changes}` for an unmarked one, and stop before the first step.
+- **A mockup** given: the file exists in this checkout (the worktree of ` --worktree`, entered first) and its first 8 KB carry `<meta name="selo:mockup" content="validated">`. It is already validated: no question about it. A missing file or one without the mark: say which, give `/selo:mockup revise {file}: {changes}` for an unmarked one, and stop before the first step.
 
 A dirty working tree is not a blocker (**Where commits go**).
 
@@ -76,15 +77,15 @@ The orchestrator never opens the files a report names, the blueprint's Progress 
 
 #### Fastlane
 
-1. One subagent (`models.implementer`): `/selo:fastlane {request} --autonomous` (` --mockup {file}` before ` --autonomous` when given, plus ` --no-browser`). It codes, updates the spec, runs the full suites and the browser test, and commits.
+1. One subagent (`models.implementer`): `/selo:fastlane {request} --autonomous` (` --mockup {file}` and ` --worktree {name}` before ` --autonomous` when given, plus ` --no-browser`). It codes, updates the spec, runs the full suites and the browser test, and commits.
 2. When it says it skipped the review (no Agent tool): spawn `reviewer` (`models.reviewer`) on the commits it made, and on findings one more subagent: `/selo:fastlane fix findings of the review of {commits}: {findings} --autonomous`, committed as `fix({page}): review — {summary}`.
 
 When it finds a new page, entity or business rule the lane choice missed, it stops before committing and says so: run the blueprint lane on the same request (with its ` --mockup {file}`), and say it in the report's first line.
 
 #### Blueprint lane
 
-1. **Blueprint** (`models.planner`): `/selo:blueprint {request} --autonomous` (` --mockup {file}` before ` --autonomous` when given: the blueprint cites it under `## Mockup`, so the build compares with it). It runs `grill` in autonomous mode, skipped when the request already carries its decisions. Ends with the blueprint committed; its report gives the path and the stages. Stop here on ` --until-blueprint`.
-2. **Build** (`models.implementer`): `/selo:build {blueprint} --autonomous` (plus ` --no-browser`): every stage chained, one commit each. When it reports `review needed` (no Agent tool): spawn `reviewer` (`models.reviewer`) on the blueprint's work, as `review` scopes it, then run the build again with ` --review {findings}` (` --review none` for a clean review): it fixes, runs the full suites and the browser test, and merges the delta.
+1. **Blueprint** (`models.planner`): `/selo:blueprint {request} --autonomous` (` --mockup {file}` and ` --worktree {name}` before ` --autonomous` when given: the blueprint cites the mockup under `## Mockup`, so the build compares with it). It runs `grill` in autonomous mode, skipped when the request already carries its decisions. Ends with the blueprint committed; its report gives the path and the stages. Stop here on ` --until-blueprint`.
+2. **Build** (`models.implementer`): `/selo:build {blueprint} --autonomous` (plus ` --no-browser`, and ` --worktree {name}` before ` --autonomous` when given): every stage chained, one commit each. When it reports `review needed` (no Agent tool): spawn `reviewer` (`models.reviewer`) on the blueprint's work, as `review` scopes it, then run the build again with ` --review {findings}` (` --review none` for a clean review): it fixes, runs the full suites and the browser test, and merges the delta.
 
 ### Worktree landing
 
@@ -101,13 +102,13 @@ To the person, in `language.chat`, normal prose:
 5. The points left open.
 6. The landing question in a worktree; else the done footer, one line per commit of the run.
 
-After ` --until-blueprint`, the next prompt: `/selo:pilot {blueprint} --autonomous`.
+After ` --until-blueprint`, the next prompt: `/selo:pilot {blueprint} --autonomous`, with ` --worktree {name}` before ` --autonomous` when the run was in a worktree (the rules' **The next steps**: the blueprint is committed on its branch alone).
 
 ### Stop
 
 The run stops only on a real blocker reported by a subagent: a suite still red after its fix attempt, a broken build, a question with no defensible answer, a merge `conflict` or `missing` line, a blueprint that contradicts its Progress, a file held by another session past the five-minute wait. No second subagent on the same step.
 
-On a stop: report the step and the error or open questions as given; revert nothing; say that `/selo:pilot {blueprint} --autonomous` resumes at Progress once the blueprint exists (a fastlane stop: the same request again, with its ` --mockup {file}`). The done footer lists the commits made before the stop; none if nothing was committed.
+On a stop: report the step and the error or open questions as given; revert nothing; say that `/selo:pilot {blueprint} --autonomous` resumes at Progress once the blueprint exists (a fastlane stop: the same request again, with its ` --mockup {file}`), with ` --worktree {name}` before ` --autonomous` when the run was in a worktree. The done footer lists the commits made before the stop; none if nothing was committed.
 
 ### Rules
 

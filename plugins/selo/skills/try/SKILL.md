@@ -1,12 +1,12 @@
 ---
 name: try
-description: "Test a front component in a browser on this worktree's slot: the demo of the component and of those it needs started in the background through run.mjs (seeded data, the slot's demo held by one session at a time), stopped after the test; without a demo, their dev servers, started and stopped the same way; with a mockup (a blueprint's, or a fastlane's --mockup), a screenshot compared with it. Signed in with the developer's local test accounts (the logins file the component declares). Use when the person asks to test, check, try, click through or reproduce something locally, to verify a front change in the real app, to check what a given profile sees, or to add, change, remove or list the local test accounts."
-argument-hint: "[component] [what to test]"
+description: "Test a front component in a browser on this worktree's slot: the demo of the component and of those it needs started in the background through run.mjs (seeded data, the slot's demo held by one session at a time), stopped after the test; without a demo, their dev servers, started and stopped the same way; with a mockup (a blueprint's, or a fastlane's --mockup), a screenshot compared with it. Signed in with the developer's local test accounts (the logins file the component declares). Use when the person asks to test, check, try, click through or reproduce something locally, to verify a front change in the real app, to check what a given profile sees, or to add, change, remove or list the local test accounts. --worktree {name} tests in that worktree."
+argument-hint: "[component] [what to test] [--worktree {name}]"
 ---
 
 # Test in the browser
 
-Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (the project), then the manifest: the prompt may name the component (`/selo:try {component} …`); the component to test is the one named, else the only component with a `url`; ask when several have one. Read its `CLAUDE.md`: how it and its backend run locally (the "Local run" section, when the manifest has no `demo` or `serve` command), what the local database is and how to read it (a read-only query command, if any).
+Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (the project), then the manifest: the prompt may name the component (`/selo:try {component} …`); the component to test is the one named, else the only component with a `url`; ask when several have one. ` --worktree {name}` at the end (the rules' **Choosing the checkout**): enter that existing worktree first (created under that name when none exists; the session stays there), said in one line `Worktree {name} · branch {branch} · slot …`; the test then runs on its slot. Read its `CLAUDE.md`: how it and its backend run locally (the "Local run" section, when the manifest has no `demo` or `serve` command), what the local database is and how to read it (a read-only query command, if any).
 
 ## Accounts
 

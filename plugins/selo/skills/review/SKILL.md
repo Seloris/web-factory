@@ -1,14 +1,14 @@
 ---
 name: review
 description: "Run the read-only reviewer agent and relay its ranked findings. Scopes: the current work (nothing), a range or files, a blueprint's work (review {blueprint}), a blueprint before it is built (review blueprint {blueprint}), or a page or domain sheet (review {slug}: its spec against the code, FR by FR, and the open blueprints that touch it). Records a clean review of a blueprint's work in its Progress. Use when the person asks to review recent work, a blueprint, or how far a page's code matches its spec."
-argument-hint: "[range | files | {blueprint} | blueprint {blueprint} | {slug}]"
+argument-hint: "[range | files | {blueprint} | blueprint {blueprint} | {slug}] [--worktree {name}]"
 ---
 
 # Review
 
 Read `${CLAUDE_PLUGIN_ROOT}/reference/rules.md` first (the project, manifest, subagents, language, commits). A 1.0 project (the rules' **A 1.0 project**): say so and give `/selo:setup update`.
 
-The prompt gives the scope:
+The prompt gives the scope, and may end with ` --worktree {name}` (the rules' **Choosing the checkout**: that existing worktree entered first, said in one line `Worktree {name} · branch {branch} · slot …`; the work of a blueprint committed on its branch is reviewed there, `{baseBranch}..HEAD`):
 
 - `/selo:review`: the uncommitted changes and the last commits of this work.
 - `/selo:review {range or files}`.

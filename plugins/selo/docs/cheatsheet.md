@@ -17,7 +17,8 @@ Sessions open at the project's root (or at a worktree of it) with the plugin loa
 | Have a free sentence routed to its lane | `"SELO_ROUTING": "on"` in your `~/.claude/settings.json` (below): a free change request runs `/selo:pilot`; a new session after the change |
 | Try changes one by one on the running app, commit once at the end | `/selo:fastlane {request} --iterate`: no test, review or commit until « on valide » |
 | A new page, entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
-| Let it choose the lane and do everything, no click | Selo Ops' « Autonome » box: `/selo:pilot {request} --autonomous` (or `{blueprint}` to resume); ` --mockup {file}`, ` --fastlane`, ` --blueprint`, ` --until-blueprint`, ` --no-browser` |
+| Let it choose the lane and do everything, no click | Selo Ops' « Autonome » box: `/selo:pilot {request} --autonomous` (or `{blueprint}` to resume); ` --mockup {file}`, ` --fastlane`, ` --blueprint`, ` --until-blueprint`, ` --no-browser`, ` --worktree [{name}]` |
+| Run a command in a worktree, new or existing | ` --worktree` (a new one) or ` --worktree {name}` at the end of the prompt, before ` --autonomous` (below, "Worktrees") |
 | Review recent work, a range, files | `/selo:review` (or `/selo:review {range or files}`) |
 | Review a blueprint before building it, or a built one | `/selo:review blueprint {blueprint}`, `/selo:review {blueprint}` |
 | Check a page or domain sheet against the code | `/selo:review {slug}` (lists its open blueprints too) |
@@ -57,7 +58,8 @@ The page's code is read, then each component touched: tests first, build + full 
 ## Mockup and iterate
 
 - `/selo:mockup {request}` → `.planning/mockups/{date}-{name}.html`, one self-contained file (the skin's tokens and recipes inlined), one plate per state and width, shown as an Artifact or in the browser pane. Each turn ends on `Autre chose, ou on valide ?`. Validated, it gets `<meta name="selo:mockup" content="validated">` beside its `<title>` (removed while `revise` iterates it again) and stays uncommitted: the lane given ` --mockup {file}` (or `/selo:pilot {request} --mockup {file}`) commits it with its work and its browser test compares the page with it. Selo Ops lists the uncommitted mockups that carry the meta.
-- `/selo:fastlane {request} --iterate`: on the base branch it asks first whether to move to a worktree. The app runs on the slot; each turn one change, built, no test, review or commit. « On valide »: the spec delta from the final state, the tests, the review, the full suites, the browser test, then the commits on one yes.
+- In a worktree (`/selo:mockup {request} --worktree`, or a session opened there), the validated file is committed on the branch at once, and its `Next:` line carries ` --worktree {name}` so the build lands there.
+- `/selo:fastlane {request} --iterate`: on the base branch it asks first whether to move to a worktree (not with ` --worktree` on the prompt). The app runs on the slot; each turn one change, built, no test, review or commit. « On valide »: the spec delta from the final state, the tests, the review, the full suites, the browser test, then the commits on one yes.
 - Neither runs in autonomous mode: both need you. A validated mockup can be built in it: `/selo:pilot {request} --mockup {file} --autonomous`.
 
 ## Blueprint lane
@@ -65,7 +67,7 @@ The page's code is read, then each component touched: tests first, build + full 
 1. `/selo:blueprint {request}` → `.planning/blueprints/{date}-{name}.md`: a short grill, then one screen: the spec delta, Business decisions, Technical defaults, stages and their commit subjects, tests, Progress.
 2. Read the delta and the stage subjects, say **yes**: one commit. The page and domain specs are untouched.
 3. `/selo:build {blueprint}`: every stage chained, one commit each (`Spec: pending (…)`), the decisions it takes under `### Decided during build`, then the review, the full suites, the browser test, and the delta merged into `.planning/pages/` and `.planning/domain/` (`docs({name}): spec merged`). ` --stage N` runs one stage; ` --no-browser` skips the browser test.
-4. In a worktree (a branch other than the base branch): the build ends with the landing, one squashed commit on the base branch on your yes.
+4. In a worktree (a branch other than the base branch): the build ends with the landing, one squashed commit on the base branch on your yes. A blueprint committed there is found there: its `Next:` line carries ` --worktree {name}`.
 
 ## Pilot
 
@@ -76,6 +78,16 @@ The page's code is read, then each component touched: tests first, build + full 
 The session places the request (one page or one component, no new page, entity or rule: the fastlane; else the blueprint), says the lane and its prompt in one line, then runs it here: the blueprint's grill and one yes, or the fastlane's commit yes. Typing `/selo:pilot` is the yes on the lane. To force a lane, type that lane's command. ` --mockup .planning/mockups/{file}`: built from a validated mockup, passed to the lane picked; a file without the validated meta stops.
 
 ` --autonomous`, added by Selo Ops' « Autonome » box (never typed): every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; `/selo:pilot {blueprint} --autonomous` resumes at its Progress.
+
+## Worktrees
+
+```
+/selo:pilot Add a due date to todos --worktree             a new worktree, named from the request
+/selo:pilot .planning/blueprints/2026-10-21-due-date.md --worktree due-date   an existing one
+/selo:try web --worktree due-date
+```
+
+Without ` --worktree`, a command runs where the session was opened: the branch there decides between the base branch (commits as you go) and the worktree variant (commits on its branch, one squashed landing on your yes). With it (last option before ` --autonomous`), the session enters the worktree before anything else and stays there: a new one when no name is given (`pilot`, `fastlane`, `blueprint`, `build`, `mockup`: named from the request or the blueprint), else the existing one of that name (its folder's last segment, or its branch; `review`, `try` and `run` take a name only), created under that name when none exists. It says so in one line: `Worktree {name} · branch {branch} · slot {n}` (the slot its last run took, `no slot yet` before the first). A step that ends in a worktree writes ` --worktree {name}` into its `Next:` lines and names the worktree and its slot in their summary, so the next step runs there from any session; a mockup or a blueprint committed there is found there only, and a lane that misses one says which worktree holds it.
 
 ## Your settings
 
