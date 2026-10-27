@@ -35,6 +35,7 @@ const engine = (on: Parameters<Parameters<typeof test>[1]>[1], fills: string[]) 
   on('fs.read', (_, e) => ({ value: e.path.includes('installed_plugins') ? PLUGINS : e.path.includes('projects') ? PROJECT : SESSION }))
   on('clock.now', () => ({ value: Date.parse('2026-10-27T10:10:00Z') }))
   on('clock.every', () => ({ value: { cancel: () => {} } }))
+  on('clock.after', () => ({ value: { cancel: () => {} } }))
   on('session.usage', () => ({ value: { startedAt: 0, context: { tokens: 455400, window: 1000000, percent: 46 }, rateLimits: [] } }))
   on('session.cwd', () => ({ value: '/p' }))
   // git, as the session's diff asks it: the base, the files by status, the untracked ones, the line counts.

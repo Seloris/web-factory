@@ -2,6 +2,16 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo-flow/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-27 — selo-feed 3.0.1: the band follows the session without the pane
+
+The person (2026-10-27): the band's figures only loaded once the pane was opened. The export was read at the session's start (often before its `SessionStart` hook had written the file), after each turn, and every 5 s while the pane was open only.
+
+- **Every 5 s, pane open or not**, from the session's start.
+- **Half a second after each prompt and each tool call** (`prompt.submit`, `tool.call`), once the classic hooks have written the export; repeated calls make one read.
+- **One read at a time:** a read asked during another runs once more when it ends, never side by side.
+
+Machines: `claude plugin update selo-feed@selo --scope user`, then a new session. Version 3.0.1.
+
 ## 2026-10-27 — selo-feed 3.0.0: selo-ops is selo-feed
 
 The person (2026-10-27): the export plugin and the dashboard that reads it were both `selo-ops`. The plugin is now `selo-feed` (folder `plugins/selo-feed/`, install `selo-feed@selo`); `selo-ops` is the dashboard's name alone. The workflow plugin it follows is now `selo-flow` (selo-flow 3.0.0).

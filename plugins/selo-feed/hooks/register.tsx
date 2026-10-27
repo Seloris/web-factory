@@ -268,28 +268,48 @@ const summary = (r: Recap) => {
   return [plural(r.items.length, 'prompt'), plural(r.commits, 'commit'), entries ? plural(entries, 'entrée de changelog', 'entrées de changelog') : null].filter(Boolean).join(' · ')
 }
 
-// While the pane is open, the export is read every 5 s: the flow moves during the turn.
+// One read at a time: a call during a read runs one more once it ends.
+let reading: Promise<void> | null = null
+let again = false
+function reload($: EngineInterface): Promise<void> {
+  if (reading) {
+    again = true
+    return reading
+  }
+  reading = (async () => {
+    do {
+      again = false
+      await refresh($)
+    } while (again)
+  })().finally(() => {
+    reading = null
+  })
+  return reading
+}
+
+// A read shortly after a prompt or a tool call: the classic hooks write the export meanwhile.
+let soonTimer: Timer | null = null
+const reloadSoon = ($: EngineInterface) => {
+  soonTimer?.cancel()
+  soonTimer = $.clock.after(500, () => void reload($))
+}
+
+// The export is read every 5 s, pane open or not: the band's figures and flow move during the turn.
 let ticker: Timer | null = null
 const startTicker = ($: EngineInterface) => {
   ticker?.cancel()
-  ticker = $.clock.every(5000, () => void refresh($))
-}
-const endTicker = () => {
-  ticker?.cancel()
-  ticker = null
+  ticker = $.clock.every(5000, () => void reload($))
 }
 
 async function togglePane($: EngineInterface): Promise<void> {
   if (await read($, isOpen)) {
-    endTicker()
     await $.ui.close({ id: PANE })
     await update($, isOpen, () => false)
     return
   }
-  await refresh($)
+  await reload($)
   await $.ui.open({ id: PANE, title: 'Selo' })
   await update($, isOpen, () => true)
-  startTicker($)
 }
 
 // The session tab: the designed timeline on the surfaces that draw an Svg, the text one elsewhere.
@@ -446,7 +466,7 @@ const drawSession = async ($: EngineInterface, e: any) => {
           <Text dimColor>{summary(r)} · {duration(span)}</Text>
           {waited > 0 ? <Text color="warning">· {duration(waited)} à t'attendre</Text> : null}
         </Box>
-        <Button key="refresh" label="Rafraîchir" onPress={() => refresh($)} />
+        <Button key="refresh" label="Rafraîchir" onPress={() => reload($)} />
       </Box>
       <Box gap={1} marginBottom={1}>
         <Text color="suggestion">○</Text>
@@ -537,12 +557,25 @@ async function fillPrompt($: EngineInterface, text: string): Promise<void> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'recap', description: 'Ouvre ou ferme le récap de la session' })
-    // A resumed session has its recap at once; a reload finds its pane open.
-    await refresh($)
+    // A resumed session has its recap at once; a new one, once its SessionStart hook wrote the file.
+    await reload($)
     await update($, versions, () => null)
     void readVersions($).then(v => update($, versions, () => v))
-    if (await read($, isOpen)) startTicker($)
+    startTicker($)
+    reloadSoon($)
     return next(e)
+  })
+
+  // The UserPromptSubmit and tool hooks write the export: the band follows within half a second.
+  on('prompt.submit', async ($, e, next) => {
+    const done = await next(e)
+    reloadSoon($)
+    return done
+  })
+  on('tool.call', async ($, e, next) => {
+    const done = await next(e)
+    reloadSoon($)
+    return done
   })
 
   on('command.run', { command: 'recap' }, async $ => {
@@ -553,7 +586,6 @@ export const register: Register = on => {
   // The person closed the pane from its own mark: the band's button follows.
   on('ui.close', async ($, e, next) => {
     if (e.id === PANE) {
-      endTicker()
       await update($, isOpen, () => false)
     }
     return next(e)
@@ -564,9 +596,9 @@ export const register: Register = on => {
     const done = await next(e)
     void (async () => {
       await $.clock.sleep(800)
-      await refresh($)
+      await reload($)
       await $.clock.sleep(2500)
-      await refresh($)
+      await reload($)
     })()
     return done
   })

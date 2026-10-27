@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { chaptersOf, duration, flowOf } from '../hooks/register'
 
@@ -23,8 +23,39 @@ const engine = (on: Parameters<Parameters<typeof test>[1]>[1], file: string | nu
   on('fs.read', () => ({ value: file ?? '' }))
   on('clock.now', () => ({ value: now }))
   on('clock.every', () => ({ value: { cancel: () => {} } }))
+  on('clock.after', () => ({ value: { cancel: () => {} } }))
   on('session.usage', () => ({ value: { startedAt: 0, context: { tokens: 455400, window: 1000000, percent: 46 }, rateLimits: [] } }))
 }
+
+test('the band follows the export with the pane closed: after a tool call, and on its own every 5 s', async ($, on) => {
+  const clock = mock.clock(on, { now: Date.parse('2026-10-27T10:40:00Z') })
+  let file: string | null = null
+  on('command.register', () => ({ value: { command: 'recap' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.id', () => ({ value: 's' }))
+  on('env.get', (_, e) => ({ value: e.name === 'USERPROFILE' ? '/home/me' : undefined }))
+  on('fs.exists', (_, e) => ({ value: file !== null && e.path.replace(/\\/g, '/').endsWith('/sessions/s.json') }))
+  on('fs.read', () => ({ value: file ?? '' }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { tokens: 1000, window: 1000000, percent: 0 }, rateLimits: [] } }))
+  on('tool.call', () => ({ result: {} }))
+
+  // The SessionStart hook has not written the file yet.
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await band.find({ type: 'Text', text: /0 commit/ })).toBeDefined()
+
+  // A tool call: read half a second later, no pane opened.
+  file = SESSION
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  await clock.advance(600)
+  expect(await band.find({ type: 'Text', text: /1 commit\b/ })).toBeDefined()
+
+  // Nothing happens in the session: the 5 s read still sees a new commit.
+  file = SESSION.replace('"commits":[]}', '"commits":[{"sha":"def5678","subject":"fix: x"}]}')
+  await clock.advance(5000)
+  expect(await band.find({ type: 'Text', text: /2 commits/ })).toBeDefined()
+  await band.unmount()
+})
 
 const BAND = {
   plugin: 'selo-feed',
