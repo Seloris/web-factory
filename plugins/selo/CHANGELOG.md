@@ -2,6 +2,14 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-27 — selo 2.14.0: one next step, `pilot`
+
+The person (2026-10-27), on a validated mockup whose footer gave two `Next:` lines, `/selo:fastlane … --mockup {file}` and "Or through a blueprint": why not `pilot`, which picks the lane itself? Two lines made the person pick a lane selo already knows how to pick, and their summaries were copied in English from the skill's example whatever `language.chat` said.
+
+- **One `Next:` line, `/selo:pilot {request | blueprint}`**, when the next step builds a request or a blueprint (the rules' **The next steps**): pilot says the lane and runs it with its own questions, and moves to the blueprint lane when a fastlane meets a new entity or rule, where a fastlane typed alone stops.
+- **` --autonomous` follows the step that just ended**: added when it ran autonomous, never otherwise. A mockup is drawn with the person, so its line never carries it.
+- `mockup` (step 6), `blueprint` (step 7: `/selo:pilot {blueprint}`, which resumes it at its Progress), `pilot`'s blueprint lane and the cheat sheet follow; the examples' summaries are placeholders in `language.chat`. `build --stage N` still gives `/selo:build {file}` for the next stage.
+
 ## 2026-10-27 — selo 2.13.0: the project's changelog, `.planning/changelog.md`
 
 The person (2026-10-27): a project had no history of its updates that a person can read; the specs say what the app does today, git says what each commit did, nothing says briefly what each feature brought. Wanted: a short recap per feature, stored with `.planning/`.

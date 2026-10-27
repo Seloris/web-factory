@@ -38,7 +38,7 @@ Options, at the end of the prompt, in this order when combined (`/selo:pilot {re
 2. **Say the lane** in one line: the lane, its exact prompt (`/selo:fastlane {request}`, `/selo:blueprint {request}`, `/selo:build {blueprint}`), and why. Having typed `/selo:pilot` is the yes on the lane: no question.
 3. **Run the lane**: call its skill with the Skill tool (`selo:fastlane`, `selo:blueprint` or `selo:build`, the prompt of step 2 as its args, plus ` --mockup {file}` and ` --no-browser` when given), never by reading its `SKILL.md` alone: Selo Ops sees the lane through that call. Then follow it as if the person had typed that prompt: its questions, its yeses (the blueprint's one yes, the fastlane's commit yes on `baseBranch`), its landing in a worktree, its done footer and `Next:` lines.
 
-The blueprint lane stops at the blueprint's commit, as `/selo:blueprint` does: its footer gives `/selo:build {file}` as the next step; pilot does not chain the build. A fastlane that stops because the change needs a blueprint: say so in one line, then call `selo:blueprint` on the same request (with its ` --mockup {file}`).
+The blueprint lane stops at the blueprint's commit, as `/selo:blueprint` does: its footer gives `/selo:pilot {file}` as the next step; pilot does not chain the build. A fastlane that stops because the change needs a blueprint: say so in one line, then call `selo:blueprint` on the same request (with its ` --mockup {file}`).
 
 ## Autonomous mode
 

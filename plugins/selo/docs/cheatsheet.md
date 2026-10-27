@@ -11,7 +11,7 @@ Sessions open at the project's root (or at a worktree of it) with the plugin loa
 | Write the specs of existing pages from their code | `/selo:setup specs` (every page stub), `/selo:setup specs {page …}` (those): one yes, one commit |
 | Give a front a skin, or switch it | `/selo:setup skin {component} {skin}`, then a blueprint to apply it to existing screens |
 | Ask a question, or fix a spec's wording | Just ask. No skill. |
-| See a change before it is coded | `/selo:mockup {request}`: a static mockup on the front's skin, iterated until you validate it; then `/selo:fastlane {request} --mockup {file}` (or `/selo:blueprint`, or `/selo:pilot` to let selo pick) |
+| See a change before it is coded | `/selo:mockup {request}`: a static mockup on the front's skin, iterated until you validate it; then `/selo:pilot {request} --mockup {file}`, which picks the lane (or that lane's command, `--mockup {file}` at its end) |
 | Change something on one page, fix a bug | `/selo:fastlane {request}` |
 | Let selo pick the lane, and still validate | `/selo:pilot {request}`: the lane said in one line, then run here with its own questions (or `{blueprint}` to resume its build) |
 | Have a free sentence routed to its lane | `"SELO_ROUTING": "on"` in your `~/.claude/settings.json` (below): a free change request runs `/selo:pilot`; a new session after the change |
