@@ -2,6 +2,16 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-27 — selo 2.13.0: the project's changelog, `.planning/changelog.md`
+
+The person (2026-10-27): a project had no history of its updates that a person can read; the specs say what the app does today, git says what each commit did, nothing says briefly what each feature brought. Wanted: a short recap per feature, stored with `.planning/`.
+
+- **`.planning/changelog.md`**, from `templates/changelog.md`: one entry per piece of work that reaches the base branch, never one per commit (a blueprint has several stage commits; one entry per stage would be noise). `- {Added|Changed|Fixed} — {one or two sentences from the user's side}` under today's `## {YYYY-MM-DD}`, newest first, a link to the blueprint for a blueprint's work. A `feat`, a `fix` or a change the user sees gets one; a refactor, tests, tooling or docs none.
+- **No commit of its own:** the work's last commit carries it (a build's `spec merged`, a fastlane's last component commit, so the landing's squash too), and the yes that covers that commit covers it. Under `.planning/` rather than at the root, as the person chose: beside the specs and blueprints it links to.
+- **Two worktrees landing the same day** add their entry at the same place: a sync conflict on `changelog.md` alone is resolved without a question, both entries kept, the landing work's first.
+- **The done footer** gets a `Changelog: {entry}` line after its commits, for Selo Ops (selo-ops 2.12.0 reads it into `recap.changelogEntry`).
+- The rules (**The changelog**, **End of turn**, the landing), `build`, `fastlane`, `setup` (the file written, added by `setup update`, never filled from the git history), the project templates (`CLAUDE.md`, `rules/planning.md`) and the cheat sheet follow. A project picks it up with `/selo:setup update`.
+
 ## 2026-10-27 — selo 2.12.0: options as `--{name}`, subcommands as words
 
 The person (2026-10-27): with the hints of 2.11.0 in view, why an em dash rather than a plain dash, and arguments "as /doctor does". The em dash came from prompts Selo Ops writes, never typed by hand; it is hard to type, and the options at the end of the prompt needed a mark that a request's own text would not carry.

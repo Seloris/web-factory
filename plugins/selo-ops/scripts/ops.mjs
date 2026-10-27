@@ -318,6 +318,8 @@ export function parsePrompt(prompt, root, selo = true) {
 const COMMIT_SUBJECT = /^[a-z]+\([^)]+\)!?: /;
 // A next step of the done footer: Next: {summary} · `{prompt}`. The last ` · ` splits them.
 const NEXT_LINE = /^Next:\s*(.+)\s+·\s+`([^`]+)`$/;
+// The work's entry of .planning/changelog.md, as written there: Changelog: {kind} — {text}.
+const CHANGELOG_LINE = /^Changelog:\s*(.+)$/;
 
 // §5.3: where the run stands at the end of a turn, from its last message and the turn's wrap_up ask.
 export function classifyEnd(message, ask = null) {
@@ -326,11 +328,12 @@ export function classifyEnd(message, ask = null) {
   const at = lines.findLastIndex((l) => /^##\s*✅\s*JOB DONE\s*$/.test(l.trim()));
   if (at >= 0) {
     const tail = lines.slice(at + 1).map((l) => l.trim()).filter(Boolean);
-    if (tail.every((l) => l.startsWith(">") || /^`[0-9a-f]{4,40}`/.test(l) || NEXT_LINE.test(l))) {
+    if (tail.every((l) => l.startsWith(">") || /^`[0-9a-f]{4,40}`/.test(l) || NEXT_LINE.test(l) || CHANGELOG_LINE.test(l))) {
       const recap = tail.find((l) => l.startsWith(">"))?.replace(/^>\s*/, "") ?? null;
       const commits = tail.map((l) => /^`([0-9a-f]{4,40})`\s+(.*)$/.exec(l)).filter(Boolean).map((c) => ({ sha: c[1], subject: c[2].split(" · ")[0].trim() }));
+      const changelogEntry = tail.map((l) => CHANGELOG_LINE.exec(l)).find(Boolean)?.[1].trim() ?? null;
       const next = tail.map((l) => NEXT_LINE.exec(l)).filter(Boolean).map((n) => ({ text: n[1].trim(), prompt: n[2] }));
-      return { phase: "job-done", recap: { text: recap, commits }, next, pendingCommit: null, question: null };
+      return { phase: "job-done", recap: { text: recap, commits, changelogEntry }, next, pendingCommit: null, question: null };
     }
   }
   if (lines.at(-1)?.trim() === "```") {

@@ -38,7 +38,7 @@ flowchart TD
     fast --> end1["Review, full suites, browser test"]
     build --> end1
     end1 --> where{Branch?}
-    where -- "base branch" --> done["Commits on the base branch<br/><i>a blueprint: delta merged, docs(name): spec merged</i>"]
+    where -- "base branch" --> done["Commits on the base branch<br/><i>a blueprint: delta merged, docs(name): spec merged</i><br/><i>the changelog entry in the last commit</i>"]
     where -- "worktree" --> land["Landing: sync, delta merged,<br/>ONE squashed commit on your yes"]
     done --> push([A human pushes])
     land --> push
@@ -116,11 +116,12 @@ git add {new files} && git commit --only -m "feat(due-date): api — optional du
 - Name the files: never `-a`, `git add -A`, `git add .` or `--amend`.
 - A code commit carries `Spec: home +FR-18 ~FR-03 · todo ~BR-06`, `Spec: pending (…)` during a build, or `Spec: none ({reason})`. The commit hook warns when it is missing.
 - On the base branch, other sessions share the checkout: `--only`, and a file another session is editing waits for its commit. In a worktree, commits go on its branch and land squashed.
+- `.planning/changelog.md`: one entry per work you see (a blueprint, a fastlane's `feat` or `fix`), `- Added|Changed|Fixed — {what the user can now see or do}` under today's `## {date}`, newest first, carried by the work's last commit (`spec merged`, or the fastlane's last commit). A refactor, tests, tooling or docs: none.
 
 ## Remember
 
 - Agents **never push**. You push.
 - Integration tests run only when you ask, by name.
-- `✅ JOB DONE` footer = the job is done: its commits, on the branch named, then one `Next:` line per next step (what it does · `the prompt`); a free request answered without a commit shows the recap alone.
+- `✅ JOB DONE` footer = the job is done: its commits, on the branch named, the `Changelog:` entry it wrote, then one `Next:` line per next step (what it does · `the prompt`); a free request answered without a commit shows the recap alone.
 - Selo Ops: the `selo-ops` plugin, enabled once at user scope (`claude plugin install selo-ops@selo --scope user`), writes one JSON per session and per project under `~/.claude/selo/` (`SELO_OPS_DIR` overrides it), silently, in a selo project or not. `node {selo-ops}/scripts/ops.mjs scan {root}` rescans a project with no session open.
 - The session's model is yours to pick: your `SELO_MODELS` and `SELO_MODEL_{ROLE}` say which one each role is meant for. Its subagents follow them: the model hook puts `reviewer`, `runner`, and an `Explore` or `Plan` spawned with no model, on their role's model.

@@ -81,8 +81,12 @@ test("parsePrompt strips the harness's leading blocks before the 200-character c
 test("classifyEnd reads the end of a turn (§5.3)", () => {
   const done = classifyEnd("Report.\n\n---\n## ✅ JOB DONE\n> Due dates on todos\n`f677536` feat(due-date): api — optional due date · branch `main` · not pushed\n");
   assert.equal(done.phase, "job-done");
-  assert.deepEqual(done.recap, { text: "Due dates on todos", commits: [{ sha: "f677536", subject: "feat(due-date): api — optional due date" }] });
-  assert.deepEqual(classifyEnd("Answer.\n---\n## ✅ JOB DONE\n> Nothing to commit").recap, { text: "Nothing to commit", commits: [] });
+  assert.deepEqual(done.recap, { text: "Due dates on todos", commits: [{ sha: "f677536", subject: "feat(due-date): api — optional due date" }], changelogEntry: null });
+  assert.deepEqual(classifyEnd("Answer.\n---\n## ✅ JOB DONE\n> Nothing to commit").recap, { text: "Nothing to commit", commits: [], changelogEntry: null });
+  const entry = classifyEnd("## ✅ JOB DONE\n> Due dates on todos\n`f677536` docs(due-date): spec merged · branch `main` · not pushed\nChangelog: Added — A todo can carry a due date. ([blueprint](blueprints/2026-10-21-due-date.md))\nNext: Try it · `/selo:try web`");
+  assert.equal(entry.phase, "job-done");
+  assert.equal(entry.recap.changelogEntry, "Added — A todo can carry a due date. ([blueprint](blueprints/2026-10-21-due-date.md))");
+  assert.equal(entry.next.length, 1);
   assert.equal(classifyEnd("## ✅ JOB DONE\n> x\nAnd one more thing?").phase, "awaiting-answer");
   assert.deepEqual(done.next, []);
 

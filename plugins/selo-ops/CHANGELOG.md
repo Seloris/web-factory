@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-27 — selo-ops 2.12.0: the changelog entry in the recap
+
+selo 2.13.0 adds `.planning/changelog.md` and a `Changelog: {entry}` line to the done footer, after its commit lines. `classifyEnd` accepts that line in the footer and reads it into `recap.changelogEntry` (the entry as written in the file, `null` when the footer has none), so Selo Ops can show what the run brought in the project's own words. A run written before 2.12.0 has no such key.
+
 ## 2026-10-27 — selo-ops 2.11.0: `--{name}` options read
 
 selo 2.12.0 writes a prompt's options as `--{name}` (` --autonomous`, ` --iterate`, ` --stage N`) instead of ` — {name}`. `parsePrompt` reads both forms for a run's `mode` and `step`, so a session started by an older Selo Ops or before selo 2.12.0 still gets its mode; a blueprint's `pilot` prompt is now written `--autonomous`.

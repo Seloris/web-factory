@@ -62,6 +62,7 @@ One script starts a project's components: `node ${CLAUDE_PLUGIN_ROOT}/scripts/ru
     assets/
   mockups/
     2026-10-21-due-date.html  a static mockup on the front's skin, marked validated, committed by the lane that builds it
+  changelog.md              what changed in the app, one entry per work landed
   ideas.md
   technical-debt.md
 ```
@@ -134,6 +135,17 @@ A blueprint (`templates/planning/blueprint.md`) is one screen: the spec delta, t
 
 A blueprint is never edited after `Spec merged`; a new iteration is a new blueprint. A file of `blueprints/` with a `Legacy:` line under its title is a 1.0 plan moved by `/selo:setup update`: history, never built, revised or listed as open.
 
+## The changelog
+
+`.planning/changelog.md` (`templates/changelog.md`) tells what changed in the application, for someone who reads no spec: the specs say what the app does, the changelog when and how it changed. One entry per piece of work that reaches `baseBranch`, never one per commit.
+
+- **Which work:** a blueprint's; a fastlane's of type `feat` or `fix`, or one the user sees (a look, a visible `perf`). A work of type `refactor`, `test`, `docs`, `tools`, `ops` or `chore` gets none; a review fix or a bootstrap spec belongs to its work, never an entry of its own.
+- **The entry:** `- {kind} — {one or two sentences from the user's side: what they can now see or do, never an endpoint, a table or a component}`, plus ` ([blueprint](blueprints/{file}))` for a blueprint's work. The kind: `Added` for a new behaviour, `Changed` for a behaviour that changes, `Fixed` for a fix. Written in `language.repo`, the kinds too.
+- **Where in the file:** under the heading `## {YYYY-MM-DD}` of the day (`timestamp.mjs`), added under the file's intro when the newest heading is not today's; the entry first under it. A missing `changelog.md` is created from the template.
+- **Its commit:** the work's last commit carries it, never a commit of its own: a build's `docs({name}): spec merged`, a fastlane's last component commit. The entry is shown with that commit's message, so the yes that covers the commit covers it; a commit made without a question (a build's `spec merged` on `baseBranch`, autonomous mode) gives the entry in the report.
+- **At a landing**, the sync of a worktree's branch may conflict on `changelog.md` alone: two works added their entry at the same place. Keep both, this work's first, without a question. The entry then moves under today's heading when it was written on an earlier day.
+- An entry is history: never rewritten. A later fix of the same feature is a new entry.
+
 ## Where commits go
 
 The current branch decides (`git branch --show-current` against `baseBranch`): no manifest key.
@@ -155,9 +167,9 @@ Work is committed on `baseBranch` as it goes: no feature branch, no squash. Seve
 
 The session runs in its own worktree, on its own branch. Commits go on that branch, one per stage or per component, without a question; `--only`, the five-minute wait and the foreign-changes mark do not apply. The work's commits are `{baseBranch}..HEAD`; the review takes that range whole. The validation is the landing on `baseBranch`, one squashed commit, on the person's yes:
 
-1. **Sync.** Bring the branch up to date with `baseBranch`: the desktop app's `sync_with_base_branch` when the session has it, else `git merge {baseBranch}`. A git conflict stops and asks.
+1. **Sync.** Bring the branch up to date with `baseBranch`: the desktop app's `sync_with_base_branch` when the session has it, else `git merge {baseBranch}`. A git conflict stops and asks, except on `.planning/changelog.md` alone (**The changelog**).
 2. **Merge the spec delta** (a blueprint; a fastlane has none): **Blueprints** steps 1 to 3, against the specs as `baseBranch` has them now, then the full suites of the touched components again (through `runner`).
-3. **Show the landing:** the branch and its commits; the decisions taken during the build first, then the Business decisions; the spec delta with its final ids; the exact message of the one commit in a code block: subject `{type}({name}): {summary}`, body the stages, the Business decisions, the final `Spec:` line. A bootstrap commit of the work (`docs({page}): bootstrap spec`) is folded into it: the body names it and its ids join the `Spec:` line. One yes.
+3. **Show the landing:** the branch and its commits; the decisions taken during the build first, then the Business decisions; the spec delta with its final ids; the changelog entry; the exact message of the one commit in a code block: subject `{type}({name}): {summary}`, body the stages, the Business decisions, the final `Spec:` line. A bootstrap commit of the work (`docs({page}): bootstrap spec`) is folded into it: the body names it and its ids join the `Spec:` line. One yes.
 4. **Squash**, on the yes, from the checkout that holds `baseBranch` (`git worktree list --porcelain`: the worktree whose `branch` is `refs/heads/{baseBranch}`; a base branch cannot be checked out twice). `{files}` = `git diff --name-only --no-renames {baseBranch}...{branch}` (a moved file names both paths). First `git -C {main} status --porcelain -- {files}`: a dirty file there stops the landing before anything is written, and names the file. A `merge --squash` refused because the main checkout has staged changes stops too, and says so. Then `git -C {main} merge --squash {branch}` and `git -C {main} commit --only -m "{subject}" -m "{body}" -- {files}`: `--only` leaves out what other sessions staged there.
 
 No skill removes a worktree or its branch: the person or the desktop app does (after a squash, `git branch -d` refuses the branch; `-D` removes it).
@@ -207,16 +219,18 @@ When the job committed, end with the done footer, the very last lines:
 ## ✅ JOB DONE
 > {one line in language.chat, at most 120 characters: what the whole job achieved}
 `{short hash}` {subject} · branch `{branch}` · not pushed
+Changelog: {the work's entry, as written in .planning/changelog.md, without its leading "- "}
 Next: {one line in language.chat: what the step does, and where to run it} · `{prompt}`
 ```
 
 - **The recap line** says what the whole job achieved, from its prompt to this footer, not only the last turn: a build stopped on a question (a semantic conflict, a landing) and resumed on the answer spans several turns. Never the commit subject again.
 - **One line per commit.** In the worktree variant, before the landing: `` `{short hash}` {subject} · branch `{branch}` · not merged ``; after it, the squashed commit: `` `{short hash}` {subject} · merged into `{baseBranch}` · not pushed ``.
+- **The changelog line.** The turn that committed the work's entry of `.planning/changelog.md` (**The changelog**) gives it once, after the commit lines: `Changelog: {kind} — {text}`, as written in the file. `Changelog:` stays in English. No line when the work has no entry, or when this turn did not write it.
 - **The next steps.** A workflow step ends with its next prompt(s) here, one `Next:` line each, after the commit lines, the most likely first: the summary in language.chat, then the prompt in backticks, real paths filled in (``Next: Build the 2 stages, best in a new session · `/selo:build .planning/blueprints/2026-10-21-due-date.md` ``). `Next:` stays in English, whatever language.chat is. The next prompts appear only there, never again in code blocks above the footer. No `Next:` line when the skill gives none (autonomous mode, a blueprint done).
 - A free request answered without a commit ends with the recap line alone, and its `Next:` lines when it has some, so "done, nothing to commit" never looks like "stopped halfway".
 - No footer when the turn stops on a question, or on a failure before any commit; a stop after commits still ends with the footer.
 
-Selo Ops reads these shapes from the turn's last message (the ops export of the `selo-ops` plugin): the footer as the last lines flags the job done, and its `Next:` lines are the run's next steps (summary and prompt); a commit message in a code block as the last text, its first line `{type}({scope}): …`, flags a commit waiting for its yes; a last line ending with `?`, or the question of a next-step box, flags a question. A turn that ends on none of them shows as ended without its footer.
+Selo Ops reads these shapes from the turn's last message (the ops export of the `selo-ops` plugin): the footer as the last lines flags the job done, its `Changelog:` line is the run's changelog entry, and its `Next:` lines are the run's next steps (summary and prompt); a commit message in a code block as the last text, its first line `{type}({scope}): …`, flags a commit waiting for its yes; a last line ending with `?`, or the question of a next-step box, flags a question. A turn that ends on none of them shows as ended without its footer.
 
 ## Marks
 

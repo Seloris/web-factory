@@ -1,5 +1,5 @@
 ---
-description: "Planning under .planning/: page specs, domain sheets, blueprints and their spec delta, images, ideas and technical debt. Use when writing or editing a spec or a blueprint."
+description: "Planning under .planning/: page specs, domain sheets, blueprints and their spec delta, the changelog, images, ideas and technical debt. Use when writing or editing a spec or a blueprint."
 paths:
   - "**/.planning/**"
 ---
@@ -18,6 +18,7 @@ paths:
     assets/                 images a blueprint cites (mockups, screenshots)
   mockups/
     {YYYY-MM-DD}-{name}.html  a static mockup on the front's skin (`/selo:mockup`), committed by the lane that builds it
+  changelog.md              what changed in the app, one entry per work landed
   ideas.md
   technical-debt.md
 ```
@@ -38,6 +39,17 @@ The selo plugin's rules (`reference/rules.md`) hold the full conventions; the sk
 One screen, written by `/selo:blueprint`, approved once: the `## Spec delta` (`{slug} + FR-NN — …`, `{slug} ~ FR-NN — « before » → « after »`, `{slug} - FR-NN — « before »`), the Business decisions and Technical defaults, the Stages with their commit subjects, the Tests, the Progress. No pseudo-code, no file-level detail. `/selo:build` runs it and merges the delta into the specs at the end; the specs are untouched until then. A blueprint is never edited after `Spec merged`; a new iteration is a new blueprint.
 
 A blueprint whose first lines say `Legacy:` is a 1.0 plan moved by `/selo:setup update`: history, never built.
+
+## Changelog: `.planning/changelog.md`
+
+What changed in the application, for someone who reads no spec. One entry per piece of work that reaches the base branch (a blueprint's, a fastlane's `feat` or `fix`, a change the user sees), carried by the work's last commit (a build's `spec merged`, a fastlane's last commit), never a commit of its own; a refactor, tests, tooling or docs get none. Newest day first, newest entry first:
+
+```
+## {YYYY-MM-DD}
+- {Added|Changed|Fixed} — {one or two sentences from the user's side: what they can now see or do}. ([blueprint](blueprints/{file}))
+```
+
+The blueprint link only for a blueprint's work. Never an endpoint, a table or a component. An entry is never rewritten: a later fix is a new entry. A conflict on this file alone at a landing keeps both entries, this work's first.
 
 ## Images
 

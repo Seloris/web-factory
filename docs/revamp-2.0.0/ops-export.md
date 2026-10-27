@@ -274,8 +274,8 @@ type Run = {
   pendingCommit: { subject: string; body: string } | null
   /** The question asked, shortened, while `awaiting-answer`: the last line ending with `?`. */
   question: string | null
-  /** The done footer: its recap line and its commits. */
-  recap: { text: string | null; commits: { sha: string; subject: string }[] } | null
+  /** The done footer: its recap line, its commits, and its `Changelog:` line (the work's entry of `.planning/changelog.md`, as written there; null when the work has none; missing on a run written before selo-ops 2.12.0). */
+  recap: { text: string | null; commits: { sha: string; subject: string }[]; changelogEntry?: string | null } | null
   /** The next steps the done footer proposes, its `Next:` lines in order: a summary in the chat language, and the prompt to run. [] outside `job-done`; missing on a run written before selo-ops 2.3.0. Unlike `resumePrompt`, it is what the turn said, in any project, selo or not. Added by selo-ops 2.3.0. */
   next: { text: string; prompt: string }[]
   /** Every commit the run made, oldest first, with its `Spec:` line (`pending (…)` during a build). */
@@ -354,7 +354,7 @@ A prompt that answers the current run (its phase is `awaiting-commit` or `awaiti
 
 From `last_assistant_message`, in this order:
 
-1. Ends with the done footer (`## ✅ JOB DONE`, a `> ` line, zero or more commit lines, zero or more `` Next: {summary} · `{prompt}` `` lines) → `job-done`, `recap` and `next` filled. A free request answered without a commit ends with the footer and its recap line alone (proposal §3 Q4): it is `job-done` too, with no commits. The recap line covers the whole run, every turn since its prompt (a build resumed after a commit's yes included), not only the last turn: `recap.text` is the run's recap as written, never rebuilt from earlier turns.
+1. Ends with the done footer (`## ✅ JOB DONE`, a `> ` line, zero or more commit lines, at most one `Changelog: {entry}` line, zero or more `` Next: {summary} · `{prompt}` `` lines) → `job-done`, `recap` and `next` filled. A free request answered without a commit ends with the footer and its recap line alone (proposal §3 Q4): it is `job-done` too, with no commits. The recap line covers the whole run, every turn since its prompt (a build resumed after a commit's yes included), not only the last turn: `recap.text` is the run's recap as written, never rebuilt from earlier turns.
 2. The last fenced code block is the last text and its first line matches `{type}({scope}): ` → `awaiting-commit`, `pendingCommit` = the block.
 3. A `wrap_up` call of this turn carried an `ask`, or the last non-empty line ends with `?` → `awaiting-answer`, `question` = the `ask`, else that line.
 4. Otherwise `turn-ended`: the turn ended without the footer, a rule the workflow broke, shown as such.
