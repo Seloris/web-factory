@@ -772,21 +772,19 @@ function applyEvent(s, e, root, ctx) {
     }
     const command = String(e.tool_input?.command ?? "");
     const mark = /ops\.mjs["']?\s+mark\s+([\w-]+)([^;&|\n]*)/.exec(command);
-    if (mark) {
-      if (!s.selo) return false;
-      const run = runOf(s, agentId);
-      if (!run) return false;
-      laneBack(run);
+    const markRun = mark && s.selo ? runOf(s, agentId) : null;
+    if (markRun) {
+      laneBack(markRun);
       // An orchestrator stands for its subagents: their marks are its marks too.
       const auto = agentId && orchestrates(main);
-      if (auto && run.skill) main.skill = run.skill;
-      for (const r of auto ? [run, main] : [run]) {
+      if (auto && markRun.skill) main.skill = markRun.skill;
+      for (const r of auto ? [markRun, main] : [markRun]) {
         if (SUBSTEPS.includes(mark[1])) r.substep = mark[1];
         addSheets(r, mark[2].trim().split(/\s+/).filter((w) => /^[\w/-]+$/.test(w)));
         touch(r);
       }
-      return false;
     }
+    // A mark and its commit may share one command (`… mark commit; git commit …`): the commit still counts.
     if (!isCommit(command)) return false;
     // git prints `[branch sha] subject` on success: that sha is this command's commit, never another
     // session's that landed meanwhile. Only a quiet commit (`-q`) falls back to HEAD.

@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-27 — selo-ops 2.12.1: a mark and its commit in one command
+
+A fastlane run in selo-ops ran `node ops.mjs mark commit help; git commit …` as one Bash call. The `PostToolUse` hook read the mark, then returned before it looked for a commit, so the commit never reached `run.commits` and Selo Ops showed none in the session, though the done footer listed it. The mark no longer ends the handling: a command that also commits records its commit.
+
 ## 2026-10-27 — selo-ops 2.12.0: the changelog entry in the recap
 
 selo 2.13.0 adds `.planning/changelog.md` and a `Changelog: {entry}` line to the done footer, after its commit lines. `classifyEnd` accepts that line in the footer and reads it into `recap.changelogEntry` (the entry as written in the file, `null` when the footer has none), so Selo Ops can show what the run brought in the project's own words. A run written before 2.12.0 has no such key.

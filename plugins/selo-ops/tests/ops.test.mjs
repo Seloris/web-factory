@@ -296,6 +296,22 @@ test("subagents: a pilot --autonomous stands for the runs it spawns", () => {
   assert.equal(session().current.error, "overloaded");
 });
 
+test("a mark and a commit in one command: both count", () => {
+  const { dir, g } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const base = { session_id: "s9", cwd: dir };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s9.json"), "utf8"));
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/selo:fastlane rename a label" });
+  writeFileSync(join(dir, "a.txt"), "a\n");
+  g("add", "a.txt");
+  const out = g("commit", "-m", "feat(home): a label");
+  hook(ops, { ...base, hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: `node "${script}" mark commit home; git commit -m 'feat(home): a label' -- a.txt` }, tool_response: { stdout: out } });
+  const run = session().current;
+  assert.equal(run.substep, "commit");
+  assert.deepEqual(run.sheets, ["home"]);
+  assert.deepEqual(run.commits.map((c) => c.subject), ["feat(home): a label"]);
+});
+
 test("a plain root is exported without the workflow (ops-plugin.md §3)", () => {
   const dir = mkdtempSync(join(tmpdir(), "selo-ops-plain-"));
   const g = (...args) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: dir, encoding: "utf8" });
