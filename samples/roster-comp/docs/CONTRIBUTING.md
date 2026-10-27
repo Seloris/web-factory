@@ -2,7 +2,7 @@
 # Development process
 
 1. Work on `main`, or in a worktree whose branch lands on it as one squashed commit on the person's yes. On `main`, each commit names its files (`git commit --only -- {files}`), never `-a`, `git add -A`, `git add .` or `--amend`.
-2. A fastlane or a blueprint's build ends with one review of the whole work by the `reviewer` agent; `/selo:review` when it left findings open.
+2. A fastlane or a blueprint's build ends with one review of the whole work by the `reviewer` agent; `/selo-flow:review` when it left findings open.
 3. Push (a human, never an agent).
 <!-- selo:end contributing -->
 

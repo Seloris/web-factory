@@ -1,5 +1,5 @@
 /* selo skin "pro", copied from the selo plugin (skins/pro/tokens.css). Do not edit:
-   switch skins with /selo:setup skin {component} {skin}; override variables in overrides.css. */
+   switch skins with /selo-flow:setup skin {component} {skin}; override variables in overrides.css. */
 :root {
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-display: var(--font-sans);

@@ -98,7 +98,7 @@ The `write-api-tests` skill reads this table.
 ## Local run
 
 - Prerequisites: the .NET SDK of `global.json`, `dotnet restore` and `dotnet tool restore` (dotnet-ef). Nothing else: the database is a SQLite file, created and migrated at the API's start.
-- Run: `/selo:run api` (or `dotnet run --project src/Api --no-launch-profile`) → http://localhost:5480 on slot 0, the port + 10 per slot; the API reads `PORT`. It applies the pending migrations at start.
+- Run: `/selo-flow:run api` (or `dotnet run --project src/Api --no-launch-profile`) → http://localhost:5480 on slot 0, the port + 10 per slot; the API reads `PORT`. It applies the pending migrations at start.
 - A running API locks its build output: stop it before a `build`, `test` or `handoff` that fails on a locked file, and say so in the report. The demo builds in `Release`, apart from the dev server's `Debug` output: the two run side by side.
 - Reset the local database: stop the API, delete `src/Api/.data/app.db`, start it again.
-- Demo: `dotnet run --project src/Api -c Release --no-launch-profile -- --environment Demo` → http://localhost:5580 (slot 0; `/selo:run api — demo` on this worktree's slot), an in-memory database migrated and seeded by `src/Infrastructure/Data/DemoSeeder.cs` at each start; it never touches `.data/app.db`. `try` starts and stops it. A feature that adds a screen adds its demo rows to `DemoSeeder`.
+- Demo: `dotnet run --project src/Api -c Release --no-launch-profile -- --environment Demo` → http://localhost:5580 (slot 0; `/selo-flow:run api — demo` on this worktree's slot), an in-memory database migrated and seeded by `src/Infrastructure/Data/DemoSeeder.cs` at each start; it never touches `.data/app.db`. `try` starts and stops it. A feature that adds a screen adds its demo rows to `DemoSeeder`.

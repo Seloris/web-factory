@@ -10,9 +10,9 @@ Born from the tooling of a .NET / Angular project, rewritten generic.
 
 ```
 .claude-plugin/marketplace.json the marketplace: selo
-plugins/selo/                   the workflow plugin: agents, skills, scripts, templates, stacks, skins, docs, tests
+plugins/selo-flow/              the workflow plugin: agents, skills, scripts, templates, stacks, skins, docs, tests
   CHANGELOG.md                  why each rule of the process exists
-plugins/selo-ops/               the ops export for Selo Ops: hooks only, enabled once at user scope
+plugins/selo-feed/              the ops export for Selo Ops: hooks only, enabled once at user scope
 samples/todo-app/               a sample project built by the workflow itself
 docs/                           two HTML films: init, then the whole workflow on the todo app
 CLAUDE.md                       rules for working on this repository
@@ -24,45 +24,45 @@ In the project's folder (an empty one is fine):
 
 ```
 /plugin marketplace add C:/WS/webapp-factory
-/plugin install selo@selo
-/selo:setup
+/plugin install selo-flow@selo
+/selo-flow:setup
 ```
 
-For Selo Ops, once per machine, in a shell: `claude plugin install selo-ops@selo --scope user`. Every session is then exported, in a selo project or not.
+For Selo Ops, once per machine, in a shell: `claude plugin install selo-feed@selo --scope user`. Every session is then exported, in a selo project or not.
 
 `setup` interviews you (name, base branch, language, model preset, then each component: name, path, kind, stack, commands, URL) and writes the instruction layer: `selo.yaml`, `CLAUDE.md`, one autonomous `CLAUDE.md` per component, `.planning/`, `.claude/settings.json` (the marketplace known, the plugin enabled, push denied), `.claude/rules/`, `docs/CONTRIBUTING.md`. No application code: that is the job of a stack pack, or yours.
 
 Then three lanes, each step ending with the prompt of the next one ready to copy:
 
 ```
-/selo:fastlane  {request}     "change this": code + page spec delta, one review, commit(s)
-/selo:blueprint {request}     grill → page spec delta + brief, one yes, one commit
-/selo:build     {blueprint}   every stage chained, one commit each, review, delta merged
-/selo:pilot     {request}     selo picks Fastlane or Blueprint, then runs it here
+/selo-flow:fastlane  {request}     "change this": code + page spec delta, one review, commit(s)
+/selo-flow:blueprint {request}     grill → page spec delta + brief, one yes, one commit
+/selo-flow:build     {blueprint}   every stage chained, one commit each, review, delta merged
+/selo-flow:pilot     {request}     selo picks Fastlane or Blueprint, then runs it here
 ```
 
-Before the code, `/selo:mockup {request}` draws the change on the front's skin until you validate it (then ` — mockup {file}` on either lane, or on `/selo:pilot`); `/selo:fastlane {request} — iterate` applies one change per turn on the running app and commits once you validate.
+Before the code, `/selo-flow:mockup {request}` draws the change on the front's skin until you validate it (then ` — mockup {file}` on either lane, or on `/selo-flow:pilot`); `/selo-flow:fastlane {request} — iterate` applies one change per turn on the running app and commits once you validate.
 
-Or with no question: `/selo:pilot {request} — autonomous` (Selo Ops' « Autonome » box) reads the code, picks the lane and runs it, each step a fresh subagent; the recommended answers are taken and listed as Business decisions and Technical defaults (needs the `auto` or `acceptEdits` permission mode).
+Or with no question: `/selo-flow:pilot {request} — autonomous` (Selo Ops' « Autonome » box) reads the code, picks the lane and runs it, each step a fresh subagent; the recommended answers are taken and listed as Business decisions and Technical defaults (needs the `auto` or `acceptEdits` permission mode).
 
-Every code commit carries a `Spec:` line (`Spec: home +FR-12 ~FR-03 · todo +BR-06`, or `Spec: none (refactor)`): the page and domain specs follow the code, `spec-check` keeps its ids straight and the plugin's commit hook warns when the line is missing. `/selo:grill` settles open decisions; `/selo:review` reviews recent work, a blueprint or a page against its spec; `/selo:setup update` brings a project up to date with the plugin.
+Every code commit carries a `Spec:` line (`Spec: home +FR-12 ~FR-03 · todo +BR-06`, or `Spec: none (refactor)`): the page and domain specs follow the code, `spec-check` keeps its ids straight and the plugin's commit hook warns when the line is missing. `/selo-flow:grill` settles open decisions; `/selo-flow:review` reviews recent work, a blueprint or a page against its spec; `/selo-flow:setup update` brings a project up to date with the plugin.
 
-Read `plugins/selo/docs/cheatsheet.md` for the commands and the flow, `plugins/selo/reference/rules.md` for every rule, `plugins/selo/docs/manifest.md` for the manifest.
+Read `plugins/selo-flow/docs/cheatsheet.md` for the commands and the flow, `plugins/selo-flow/reference/rules.md` for every rule, `plugins/selo-flow/docs/manifest.md` for the manifest.
 
 ## Develop the plugin
 
-Every change to the process is committed with the case that motivated it, and `plugins/selo/CHANGELOG.md` says why. The checks:
+Every change to the process is committed with the case that motivated it, and `plugins/selo-flow/CHANGELOG.md` says why. The checks:
 
 ```bash
 node --test "plugins/*/tests/*.test.mjs"
 ```
 
 ```bash
-claude plugin validate plugins/selo
+claude plugin validate plugins/selo-flow
 ```
 
 ```bash
-node plugins/selo/scripts/manifest.mjs plugins/selo/examples/two-components
+node plugins/selo-flow/scripts/manifest.mjs plugins/selo-flow/examples/two-components
 ```
 
 ## License

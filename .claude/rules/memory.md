@@ -17,7 +17,7 @@ Shared, versioned memory for every agent and every teammate. It holds stable pro
 
 ## Entries
 
-- 2026-10-23 — A commit under `plugins/selo/` or `plugins/selo-ops/` is proposed together with its plugin update: one question, one yes for both (button « Oui, commite puis mets à jour »), then commit and run `claude plugin update` right away. The person always wants the update after such a commit; asking twice costs a turn.
+- 2026-10-23 — A commit under `plugins/selo-flow/` or `plugins/selo-feed/` is proposed together with its plugin update: one question, one yes for both (button « Oui, commite puis mets à jour »), then commit and run `claude plugin update` right away. The person always wants the update after such a commit; asking twice costs a turn.
 
 ## Known failing tests
 

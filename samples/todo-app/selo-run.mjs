@@ -1,4 +1,4 @@
-// Starts this project's app outside a Claude Code session, on this worktree's slot, like /selo:run:
+// Starts this project's app outside a Claude Code session, on this worktree's slot, like /selo-flow:run:
 //   node selo-run.mjs [component … | all] [--demo]    in the foreground; Ctrl+C stops every component
 //   node selo-run.mjs --stop                           stops the run of this folder
 // Written by the selo plugin's setup (rewritten by setup update): it finds the plugin installed for this
@@ -16,7 +16,7 @@ const same = (a, b) => resolve(a).replace(/\\/g, "/").toLowerCase() === resolve(
 const pluginRoot = () => {
   if (process.env.SELO_PLUGIN_ROOT) return process.env.SELO_PLUGIN_ROOT;
   const file = join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"), "plugins", "installed_plugins.json");
-  const installs = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")).plugins?.["selo@selo"] ?? []) : [];
+  const installs = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")).plugins?.["selo-flow@selo"] ?? []) : [];
   // A worktree's installs are listed under the main checkout: the folder holding the git common dir.
   let main = here;
   try {
@@ -26,7 +26,7 @@ const pluginRoot = () => {
   }
   const found =
     installs.find((i) => i.projectPath && (same(i.projectPath, here) || same(i.projectPath, main))) ?? installs.find((i) => i.scope === "user") ?? installs[0];
-  if (!found) throw new Error(`selo is not installed for this project (no selo@selo in ${file}): install it, or set SELO_PLUGIN_ROOT`);
+  if (!found) throw new Error(`selo is not installed for this project (no selo-flow@selo in ${file}): install it, or set SELO_PLUGIN_ROOT`);
   return found.installPath;
 };
 

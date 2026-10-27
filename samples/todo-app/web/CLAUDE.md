@@ -75,6 +75,6 @@ None on the front. The `try` skill checks a change in the real app on http://loc
 ## Local run
 
 - Prerequisites: Node 22, `npm ci`.
-- Run: `/selo:run` starts the API, then the front, on this worktree's slot (http://localhost:5173 on slot 0, the port + 10 per slot); `npm run app` at the root does the same outside a session. `npm run dev` alone serves http://localhost:5173 and expects the API on http://localhost:3000.
-- Demo: `npm run demo` → http://localhost:5181 (slot 0; `/selo:run — demo` on this worktree's slot), proxied to the API's demo on port 3101, with `--force` (no stale Vite cache). `try` starts both demos and stops them after the test.
+- Run: `/selo-flow:run` starts the API, then the front, on this worktree's slot (http://localhost:5173 on slot 0, the port + 10 per slot); `npm run app` at the root does the same outside a session. `npm run dev` alone serves http://localhost:5173 and expects the API on http://localhost:3000.
+- Demo: `npm run demo` → http://localhost:5181 (slot 0; `/selo-flow:run — demo` on this worktree's slot), proxied to the API's demo on port 3101, with `--force` (no stale Vite cache). `try` starts both demos and stops them after the test.
 - `prepare` regenerates `src/api/schema.d.ts` from the API's committed handoff file; run it at the start of every front stage.

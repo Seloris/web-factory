@@ -6,14 +6,14 @@
   },
   "plugins": [
     {
-      "name": "selo",
-      "source": "./plugins/selo",
-      "description": "The workflow: /selo:setup sets up the project, then blueprint, build, fastlane, autopilot, grill and review run the spec → plan → code → review loop, driven by the project's selo.yaml manifest."
+      "name": "selo-flow",
+      "source": "./plugins/selo-flow",
+      "description": "The workflow: /selo-flow:setup sets up the project, then blueprint, build, fastlane, pilot, grill and review run the spec → plan → code → review loop, driven by the project's selo.yaml manifest."
     },
     {
-      "name": "selo-ops",
-      "source": "./plugins/selo-ops",
-      "description": "The ops export for Selo Ops: hooks only, no skill. Enabled once at user scope, it exports every session, in a selo project or not."
+      "name": "selo-feed",
+      "source": "./plugins/selo-feed",
+      "description": "The ops export for Selo Ops, and the session recap: hooks only, no skill. Enabled once at user scope, it exports every session, in a selo project or not."
     }
   ]
 }
