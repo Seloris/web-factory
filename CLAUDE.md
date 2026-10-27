@@ -14,7 +14,7 @@ The selo plugin for Claude Code, its ops export plugin `selo-ops`, and their mar
 
 ## Commands
 
-- Plugin tests (manifest, spec-check, commit hook, skins, runs and launcher; ops export and shared copies in `selo-ops`): `node --test "plugins/*/tests/*.test.mjs"`
+- Plugin tests (manifest, spec-check, commit hook, skins, stack options, runs and launcher; ops export and shared copies in `selo-ops`): `node --test "plugins/*/tests/*.test.mjs"`
 - Plugin validation: `claude plugin validate plugins/selo`, `claude plugin validate plugins/selo-ops`, `claude plugin validate .` (the marketplace)
 - Resolved manifest of the test project: `node plugins/selo/scripts/manifest.mjs plugins/selo/examples/two-components`
 

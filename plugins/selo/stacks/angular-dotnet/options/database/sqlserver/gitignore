@@ -1,0 +1,7 @@
+# angular-dotnet pack
+bin/
+obj/
+TestResults/
+node_modules/
+dist/
+.angular/
