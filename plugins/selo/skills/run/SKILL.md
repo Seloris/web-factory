@@ -1,6 +1,7 @@
 ---
 name: run
 description: "Start the app on this worktree's slot and give its URLs: /selo:run [component | all] [— demo | — stop]. Starts the components named (all by default) and those they need, in the manifest's order, each awaited on its URL, in the background, on ports shifted by the slot so several worktrees run side by side; — demo starts their demo (seeded data) instead of their dev servers; — stop stops this worktree's run. Use when the person asks to start, launch, run, open or stop the app, a server or its demo, or asks on which URL it runs."
+argument-hint: "[component | all] [— demo | — stop]"
 ---
 
 # Run the app

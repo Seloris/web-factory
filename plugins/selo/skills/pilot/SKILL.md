@@ -1,6 +1,7 @@
 ---
 name: pilot
 description: "selo picks the lane of a free request (the fastlane, or the blueprint lane), or resumes a committed blueprint. Interactive by default: the lane said in one line, then run in this session with its own questions and yeses. — autonomous: no question, each step a fresh subagent (blueprint, then build: stages, review, browser test, spec merged); in a worktree, stops ready to land and asks the one yes of the landing. — mockup {file} builds a validated /selo:mockup, passed to the lane picked; — fastlane / — blueprint force the lane; — until blueprint stops once the blueprint is committed; — no browser skips the browser test."
+argument-hint: "[request | blueprint] [— mockup {file}] [— fastlane | — blueprint] [— until blueprint] [— no browser] [— autonomous]"
 ---
 
 # Pilot

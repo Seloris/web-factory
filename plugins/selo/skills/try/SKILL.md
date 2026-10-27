@@ -1,6 +1,7 @@
 ---
 name: try
 description: "Test a front component in a browser on this worktree's slot: the demo of the component and of those it needs started in the background through run.mjs (seeded data, the slot's demo held by one session at a time), stopped after the test; without a demo, their dev servers, started and stopped the same way; with a mockup (a blueprint's, or a fastlane's — mockup), a screenshot compared with it. Signed in with the developer's local test accounts (the logins file the component declares). Use when the person asks to test, check, try, click through or reproduce something locally, to verify a front change in the real app, to check what a given profile sees, or to add, change, remove or list the local test accounts."
+argument-hint: "[component] [what to test]"
 ---
 
 # Test in the browser

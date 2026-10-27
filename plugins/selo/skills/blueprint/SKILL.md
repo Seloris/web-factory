@@ -1,6 +1,7 @@
 ---
 name: blueprint
 description: "Write a blueprint under .planning/blueprints/: the page and domain spec delta, the Business decisions, the Technical defaults, the stages and their commit subjects, the tests, on one screen; a short grill first unless the request carries its decisions; one yes, one commit. Use for a new page, a new entity or business rule, or a change across several pages. Never code, never edits a page or domain spec, except a page stub it touches: that one's spec is written from the code first and committed before the blueprint. With — autonomous (from pilot): no question."
+argument-hint: "{request} [— mockup {file}] [— autonomous]"
 ---
 
 # Write a blueprint

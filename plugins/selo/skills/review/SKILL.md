@@ -1,6 +1,7 @@
 ---
 name: review
 description: "Run the read-only reviewer agent and relay its ranked findings. Scopes: the current work (nothing), a range or files, a blueprint's work (review {blueprint}), a blueprint before it is built (review blueprint {blueprint}), or a page or domain sheet (review {slug}: its spec against the code, FR by FR, and the open blueprints that touch it). Records a clean review of a blueprint's work in its Progress. Use when the person asks to review recent work, a blueprint, or how far a page's code matches its spec."
+argument-hint: "[range | files | {blueprint} | blueprint {blueprint} | {slug}]"
 ---
 
 # Review

@@ -1,6 +1,7 @@
 ---
 name: fastlane
 description: "Implement a development request directly (feature, change, bug fix) on one page or one component, no blueprint: each component touched in the manifest's order, layer by layer, test-first, verified by build, full test and lint through runner; the page or domain spec delta in the same commit (a page stub's spec written from the code first, in its own commit); one review, the full suites and the browser test at the end; one commit per component, on the base branch on the person's one yes (no yes with SELO_COMMIT=auto). Stops and proposes a blueprint when the change needs a new page, entity or business rule. — iterate: the person drives a loop of changes on the running app, no test, review or commit until they validate, then the fastlane's end once; — mockup {file}: built after a /selo:mockup, compared with it; — no browser skips the browser test; — autonomous from pilot."
+argument-hint: "{request} [— iterate] [— mockup {file}] [— no browser] [— autonomous]"
 ---
 
 # Fastlane

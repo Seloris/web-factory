@@ -1,6 +1,7 @@
 ---
 name: build
 description: "Build a committed blueprint (.planning/blueprints/{file}): every stage chained in this session by default, one per component in the manifest's order, test-first, verified through runner, one commit each with Spec: pending; the decisions it takes recorded under Decided during build; then one review, the full suites, the browser test (demo, else the dev server), and the spec delta merged with spec-check --merge. In a worktree, ends with the landing on the base branch: one squashed commit on the person's yes. — stage N runs one stage; — no browser skips the browser test; — autonomous from pilot."
+argument-hint: "{blueprint} [— stage N] [— no browser] [— autonomous]"
 ---
 
 # Build a blueprint

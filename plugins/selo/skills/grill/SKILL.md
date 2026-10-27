@@ -1,6 +1,7 @@
 ---
 name: grill
 description: "Grill the person on a blueprint's request, a request or a project setup: at most two rounds of the session's question tool, the recommended answer first, the rest left as open questions, then hand the decisions to blueprint, fastlane or setup. Writes nothing itself. Run it on /grill, when blueprint starts (unless the request already carries its decisions), or when the person accepts the offer: setup and any agent facing an ambiguous request offer it, never start it on their own. With — autonomous (from pilot), every question takes its recommended answer, and one with no recommendation stops the pipeline."
+argument-hint: "[request] [— autonomous]"
 ---
 
 # Grill me

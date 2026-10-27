@@ -1,6 +1,7 @@
 ---
 name: mockup
 description: "Mock up a change of a front before any code: one static, self-contained HTML file under .planning/mockups/, drawn with the front's skin (its tokens and recipes inlined), one plate per state and width; shown as an Artifact when the session can publish one, else in the browser pane; iterated with the person until they validate it, then marked validated in the file (a selo:mockup meta), never committed here: the lane that builds it (— mockup {file} on fastlane, blueprint or pilot) commits it with its work. Use when the person wants to see a change before it is coded, asks for a mockup, a maquette, a sketch of a screen, or to compare layouts."
+argument-hint: "{request} | revise {file}: {changes}"
 ---
 
 # Mockup first

@@ -2,6 +2,12 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-27 — selo 2.11.0: every skill shows its arguments
+
+The person (2026-10-27): typing `/selo:pilot` showed no hint of ` — autonomous`, where a built-in command such as `/doctor` shows its arguments after the name. No skill carried an `argument-hint`, so the options lived only in the descriptions.
+
+- **`argument-hint` on every skill**: its request or target and its ` — ` options, in the order the skill reads them, shown by Claude Code after the command's name. A new option of a skill updates its hint in the same change.
+
 ## 2026-10-27 — selo 2.10.0: SQL Server, an option of the `angular-dotnet` pack
 
 The person (2026-10-27): a project on `angular-dotnet` should be able to use SQL Server instead of SQLite, on the SQL Server instance installed on the developer's Windows machine, with Windows authentication. 2.9.0 chose SQLite so every test runs in process with no server; a project whose production runs on SQL Server had to swap the provider and regenerate the migrations itself.
