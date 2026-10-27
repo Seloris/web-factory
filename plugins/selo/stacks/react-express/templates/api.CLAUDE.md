@@ -114,5 +114,5 @@ The `write-api-tests` skill reads this table.
 - Run: `/selo:run api` (or `npm run dev`) → http://localhost:{{api_port}} on slot 0, the port + 10 per slot; the server reads `PORT`. The `serve` command applies the pending migrations first: a run starts it only when the API is not running, so PGlite's folder is free.
 - PGlite allows one process per data folder: stop the API before `npm run db:migrate` or `drizzle-kit studio`, and say so in the report.
 - Reset the local database: stop the API, delete `.data/pglite`, `npm run db:migrate`.
-- Demo: `npm run demo` → http://localhost:{{api_demo_port}} (slot 0; `/selo:run api — demo` on this worktree's slot), an in-memory database migrated and seeded by `src/seed/demo.ts` at each start; it never touches `.data/pglite`. `try` starts and stops it. A feature that adds a screen adds its demo rows to `seedDemo`.
+- Demo: `npm run demo` → http://localhost:{{api_demo_port}} (slot 0; `/selo:run api demo` on this worktree's slot), an in-memory database migrated and seeded by `src/seed/demo.ts` at each start; it never touches `.data/pglite`. `try` starts and stops it. A feature that adds a screen adds its demo rows to `seedDemo`.
 - {{local_dependencies}}

@@ -33,7 +33,7 @@ A key the parser does not know (at the top level, in a component, its `commands`
 
 ### Models
 
-Not in `selo.yaml`: the models are the person's setting, not the project's (two people on one repository pick their own), read from the environment, the `env` block of `~/.claude/settings.json` (a new session after a change). The resolved manifest's `models` holds them, so a skill reads them there. One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). Two presets: `standard`, the default, and `lean`, sonnet as implementer for the person who wants it (a more detailed blueprint under `pilot — autonomous` only):
+Not in `selo.yaml`: the models are the person's setting, not the project's (two people on one repository pick their own), read from the environment, the `env` block of `~/.claude/settings.json` (a new session after a change). The resolved manifest's `models` holds them, so a skill reads them there. One model per role, any model Claude Code accepts as a subagent's `model:` (`opus`, `sonnet`, `haiku`, `fable`). Roles: `planner` (spec, plan), `implementer` (code), `reviewer`, `runner` (mechanical work), `explorer` (code searches). Two presets: `standard`, the default, and `lean`, sonnet as implementer for the person who wants it (a more detailed blueprint under `pilot --autonomous` only):
 
 | Role | `standard` | `lean` |
 |---|---|---|

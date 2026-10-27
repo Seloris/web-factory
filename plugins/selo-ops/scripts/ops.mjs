@@ -31,7 +31,7 @@ export const SKILLS = {
 const skillOf = (name) => (name && Object.hasOwn(SKILLS, name) ? SKILLS[name] : null);
 // A run written before 2.5.0 has no `flow`: its lane's (`autopilot`, before selo 2.6.0, still read).
 const flowOf = (run) => run?.flow ?? skillOf(run?.lane)?.flow ?? (run?.lane === "autopilot" ? "autopilot" : "free");
-// The orchestrator, which stands for the subagents it spawns: `pilot — autonomous`, or a run of the old `autopilot`.
+// The orchestrator, which stands for the subagents it spawns: `pilot --autonomous`, or a run of the old `autopilot`.
 const orchestrates = (run) => flowOf(run) === "autopilot" || (flowOf(run) === "pilot" && run?.mode === "autonomous");
 export const SUBSTEPS = ["bootstrap", "tests", "code", "suites", "review", "try", "merge", "commit"];
 // shortcut: a session keeps its 100 newest runs; raise it if a dashboard needs the whole history.
@@ -156,7 +156,7 @@ export function blueprintOf(file, text, { subjects = new Map(), draft = false } 
     : stages.length && stages.every((s) => s.done) ? "review"
     : stages.some((s) => s.done || s.sha) ? "building"
     : "ready";
-  const pilot = `/selo:pilot ${file} — autonomous`;
+  const pilot = `/selo:pilot ${file} --autonomous`;
   const next = state === "ready" || state === "building" || state === "merging" ? { label: "build", prompt: `/selo:build ${file}`, pilot }
     : state === "review" ? { label: "review", prompt: `/selo:review ${file}`, pilot }
     : null;
@@ -304,9 +304,9 @@ export function parsePrompt(prompt, root, selo = true) {
   const rest = (skill ? m[2] : clean).trim();
   const file = /(\S*\.planning\/blueprints\/[^\s/]+\.md)/.exec(slash(rest))?.[1] ?? null;
   const text = file && root && existsSync(resolve(root, file)) ? readFileSync(resolve(root, file), "utf8") : null;
-  const stage = /—\s*stage\s+(\d+)/.exec(rest)?.[1];
-  // `mode`: read from the whole text, before `request` is cut at 200 characters; the prompt's suffix, as it says it.
-  const mode = skill === "fastlane" && /—\s*iterate\b/.test(rest) ? "iterate" : skill && /—\s*autonomous\b/.test(rest) ? "autonomous" : null;
+  const stage = /(?:—|--)\s*stage\s+(\d+)/.exec(rest)?.[1];
+  // `mode`: read from the whole text, before `request` is cut at 200 characters; the prompt's suffix, as it says it: `--{name}`, or the old ` — {name}`.
+  const mode = skill === "fastlane" && /(?:—|--)\s*iterate\b/.test(rest) ? "iterate" : skill && /(?:—|--)\s*autonomous\b/.test(rest) ? "autonomous" : null;
   const run = { lane, flow: skillOf(skill)?.flow ?? "free", skill, mode, request: rest.slice(0, 200), blueprint: file ? basename(file, ".md") : null, step: null, lastStep: null };
   if (skill === "build") Object.assign(run, { step: stage ? `stage:${stage}` : text ? stepOf(text) : "stage:1", lastStep: stage ? `stage:${stage}` : null });
   else if (skill === "pilot") run.step = file ? (text ? stepOf(text) : "stage:1") : null;

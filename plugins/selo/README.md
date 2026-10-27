@@ -20,11 +20,11 @@ Then `/selo:setup`. It writes both into the project's `.claude/settings.json` (`
 .claude-plugin/plugin.json
 skills/
   setup/                set up the project, update / migrate it (setup update), specs of existing pages (setup specs)
-  fastlane/             a request on one page or component: code, spec delta, review, commit(s); — iterate: a loop of changes, committed once
+  fastlane/             a request on one page or component: code, spec delta, review, commit(s); --iterate: a loop of changes, committed once
   mockup/               a static mockup on the front's skin, iterated and validated before any code
   blueprint/            one screen: spec delta, decisions, stages, tests; one yes, one commit
   build/                a blueprint's stages chained, review, browser test, delta merged (or the worktree's landing)
-  pilot/                picks the fastlane or the blueprint lane and runs it here; — autonomous: no question, one fresh subagent per step
+  pilot/                picks the fastlane or the blueprint lane and runs it here; --autonomous: no question, one fresh subagent per step
   grill/                the interview that settles decisions
   review/               the reviewer on recent work, a blueprint, or a page against its spec
   try/                  click through a front component locally, on this worktree's slot

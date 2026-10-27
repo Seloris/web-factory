@@ -75,5 +75,5 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 
 - Prerequisites: Node {{node_version}}, `npm ci`.
 - Run: `/selo:run` starts the API, then the front, on this worktree's slot (http://localhost:{{port}} on slot 0, the port + 10 per slot); `npm run app` at the root does the same outside a session. `npm run dev` alone serves http://localhost:{{port}} and expects the API on http://localhost:{{api_port}}.
-- Demo: `npm run demo` → http://localhost:{{demo_port}} (slot 0; `/selo:run — demo` on this worktree's slot), proxied to the API's demo on port {{api_demo_port}}, with `--force` (no stale Vite cache). `try` starts both demos and stops them after the test.
+- Demo: `npm run demo` → http://localhost:{{demo_port}} (slot 0; `/selo:run demo` on this worktree's slot), proxied to the API's demo on port {{api_demo_port}}, with `--force` (no stale Vite cache). `try` starts both demos and stops them after the test.
 - `prepare` regenerates `src/api/schema.d.ts` from the API's committed handoff file; run it at the start of every front stage.

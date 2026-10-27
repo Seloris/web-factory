@@ -2,6 +2,10 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-27 — selo-ops 2.11.0: `--{name}` options read
+
+selo 2.12.0 writes a prompt's options as `--{name}` (` --autonomous`, ` --iterate`, ` --stage N`) instead of ` — {name}`. `parsePrompt` reads both forms for a run's `mode` and `step`, so a session started by an older Selo Ops or before selo 2.12.0 still gets its mode; a blueprint's `pilot` prompt is now written `--autonomous`.
+
 ## 2026-10-26 — selo-ops 2.10.0: the models from the person's settings
 
 selo 2.8.0 moves the models out of `selo.yaml` into the person's `SELO_MODELS` and `SELO_MODEL_{ROLE}`; `scripts/manifest.mjs` is its copy. The project file's `manifest.preset` and `manifest.models` keep their shape and now carry the person's settings as the exporting process sees them: the hooks run with the session's `env`, but `ops.mjs scan` from a bare terminal sees the defaults unless the shell has them. `docs/revamp-2.0.0/ops-export.md` (§4) says so.

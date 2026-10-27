@@ -1,6 +1,6 @@
 # Cheat sheet
 
-Sessions open at the project's root (or at a worktree of it) with the plugin loaded. Skills carry the plugin's prefix: `/selo:…`. Every rule lives in `reference/rules.md`; this page lists the commands.
+Sessions open at the project's root (or at a worktree of it) with the plugin loaded. Skills carry the plugin's prefix: `/selo:…`. Subcommands are plain words after the command (`/selo:setup update`, `/selo:run web demo`); options are `--{name}` at the end (`/selo:pilot {request} --fastlane --autonomous`); typing `/selo:` shows each command's arguments. Every rule lives in `reference/rules.md`; this page lists the commands.
 
 ## Which path?
 
@@ -11,19 +11,19 @@ Sessions open at the project's root (or at a worktree of it) with the plugin loa
 | Write the specs of existing pages from their code | `/selo:setup specs` (every page stub), `/selo:setup specs {page …}` (those): one yes, one commit |
 | Give a front a skin, or switch it | `/selo:setup skin {component} {skin}`, then a blueprint to apply it to existing screens |
 | Ask a question, or fix a spec's wording | Just ask. No skill. |
-| See a change before it is coded | `/selo:mockup {request}`: a static mockup on the front's skin, iterated until you validate it; then `/selo:fastlane {request} — mockup {file}` (or `/selo:blueprint`, or `/selo:pilot` to let selo pick) |
+| See a change before it is coded | `/selo:mockup {request}`: a static mockup on the front's skin, iterated until you validate it; then `/selo:fastlane {request} --mockup {file}` (or `/selo:blueprint`, or `/selo:pilot` to let selo pick) |
 | Change something on one page, fix a bug | `/selo:fastlane {request}` |
 | Let selo pick the lane, and still validate | `/selo:pilot {request}`: the lane said in one line, then run here with its own questions (or `{blueprint}` to resume its build) |
 | Have a free sentence routed to its lane | `"SELO_ROUTING": "on"` in your `~/.claude/settings.json` (below): a free change request runs `/selo:pilot`; a new session after the change |
-| Try changes one by one on the running app, commit once at the end | `/selo:fastlane {request} — iterate`: no test, review or commit until « on valide » |
+| Try changes one by one on the running app, commit once at the end | `/selo:fastlane {request} --iterate`: no test, review or commit until « on valide » |
 | A new page, entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
-| Let it choose the lane and do everything, no click | Selo Ops' « Autonome » box: `/selo:pilot {request} — autonomous` (or `{blueprint}` to resume); ` — mockup {file}`, ` — fastlane`, ` — blueprint`, ` — until blueprint`, ` — no browser` |
+| Let it choose the lane and do everything, no click | Selo Ops' « Autonome » box: `/selo:pilot {request} --autonomous` (or `{blueprint}` to resume); ` --mockup {file}`, ` --fastlane`, ` --blueprint`, ` --until-blueprint`, ` --no-browser` |
 | Review recent work, a range, files | `/selo:review` (or `/selo:review {range or files}`) |
 | Review a blueprint before building it, or a built one | `/selo:review blueprint {blueprint}`, `/selo:review {blueprint}` |
 | Check a page or domain sheet against the code | `/selo:review {slug}` (lists its open blueprints too) |
 | Settle open decisions first | `/selo:grill {request}` |
 | Click through a front | `/selo:try {component} …` (its demo, else its dev servers, on this worktree's slot, started and stopped by the skill) |
-| Start the app, get its URLs | `/selo:run` (`{component}`, ` — demo`, ` — stop`): this worktree's slot, ports + 10 per slot; outside a session `node selo-run.mjs` (`npm run app` with `react-express`) |
+| Start the app, get its URLs | `/selo:run` (`{component}`, `demo`, `stop`): this worktree's slot, ports + 10 per slot; outside a session `node selo-run.mjs` (`npm run app` with `react-express`) |
 
 ## The flow
 
@@ -44,7 +44,7 @@ flowchart TD
     land --> push
 ```
 
-`/selo:pilot` picks the lane and runs it here, with that lane's questions; with ` — autonomous` it runs it with no question (each step a fresh subagent), and in a worktree stops on the landing's yes. A fastlane that meets a new page, entity or rule stops before its commit and proposes `/selo:blueprint {same request}`.
+`/selo:pilot` picks the lane and runs it here, with that lane's questions; with ` --autonomous` it runs it with no question (each step a fresh subagent), and in a worktree stops on the landing's yes. A fastlane that meets a new page, entity or rule stops before its commit and proposes `/selo:blueprint {same request}`.
 
 ## Fastlane
 
@@ -56,15 +56,15 @@ The page's code is read, then each component touched: tests first, build + full 
 
 ## Mockup and iterate
 
-- `/selo:mockup {request}` → `.planning/mockups/{date}-{name}.html`, one self-contained file (the skin's tokens and recipes inlined), one plate per state and width, shown as an Artifact or in the browser pane. Each turn ends on `Autre chose, ou on valide ?`. Validated, it gets `<meta name="selo:mockup" content="validated">` beside its `<title>` (removed while `revise` iterates it again) and stays uncommitted: the lane given ` — mockup {file}` (or `/selo:pilot {request} — mockup {file}`) commits it with its work and its browser test compares the page with it. Selo Ops lists the uncommitted mockups that carry the meta.
-- `/selo:fastlane {request} — iterate`: on the base branch it asks first whether to move to a worktree. The app runs on the slot; each turn one change, built, no test, review or commit. « On valide »: the spec delta from the final state, the tests, the review, the full suites, the browser test, then the commits on one yes.
-- Neither runs in autonomous mode: both need you. A validated mockup can be built in it: `/selo:pilot {request} — mockup {file} — autonomous`.
+- `/selo:mockup {request}` → `.planning/mockups/{date}-{name}.html`, one self-contained file (the skin's tokens and recipes inlined), one plate per state and width, shown as an Artifact or in the browser pane. Each turn ends on `Autre chose, ou on valide ?`. Validated, it gets `<meta name="selo:mockup" content="validated">` beside its `<title>` (removed while `revise` iterates it again) and stays uncommitted: the lane given ` --mockup {file}` (or `/selo:pilot {request} --mockup {file}`) commits it with its work and its browser test compares the page with it. Selo Ops lists the uncommitted mockups that carry the meta.
+- `/selo:fastlane {request} --iterate`: on the base branch it asks first whether to move to a worktree. The app runs on the slot; each turn one change, built, no test, review or commit. « On valide »: the spec delta from the final state, the tests, the review, the full suites, the browser test, then the commits on one yes.
+- Neither runs in autonomous mode: both need you. A validated mockup can be built in it: `/selo:pilot {request} --mockup {file} --autonomous`.
 
 ## Blueprint lane
 
 1. `/selo:blueprint {request}` → `.planning/blueprints/{date}-{name}.md`: a short grill, then one screen: the spec delta, Business decisions, Technical defaults, stages and their commit subjects, tests, Progress.
 2. Read the delta and the stage subjects, say **yes**: one commit. The page and domain specs are untouched.
-3. `/selo:build {blueprint}`: every stage chained, one commit each (`Spec: pending (…)`), the decisions it takes under `### Decided during build`, then the review, the full suites, the browser test, and the delta merged into `.planning/pages/` and `.planning/domain/` (`docs({name}): spec merged`). ` — stage N` runs one stage; ` — no browser` skips the browser test.
+3. `/selo:build {blueprint}`: every stage chained, one commit each (`Spec: pending (…)`), the decisions it takes under `### Decided during build`, then the review, the full suites, the browser test, and the delta merged into `.planning/pages/` and `.planning/domain/` (`docs({name}): spec merged`). ` --stage N` runs one stage; ` --no-browser` skips the browser test.
 4. In a worktree (a branch other than the base branch): the build ends with the landing, one squashed commit on the base branch on your yes.
 
 ## Pilot
@@ -73,9 +73,9 @@ The page's code is read, then each component touched: tests first, build + full 
 /selo:pilot Add a due date to todos
 ```
 
-The session places the request (one page or one component, no new page, entity or rule: the fastlane; else the blueprint), says the lane and its prompt in one line, then runs it here: the blueprint's grill and one yes, or the fastlane's commit yes. Typing `/selo:pilot` is the yes on the lane. To force a lane, type that lane's command. ` — mockup .planning/mockups/{file}`: built from a validated mockup, passed to the lane picked; a file without the validated meta stops.
+The session places the request (one page or one component, no new page, entity or rule: the fastlane; else the blueprint), says the lane and its prompt in one line, then runs it here: the blueprint's grill and one yes, or the fastlane's commit yes. Typing `/selo:pilot` is the yes on the lane. To force a lane, type that lane's command. ` --mockup .planning/mockups/{file}`: built from a validated mockup, passed to the lane picked; a file without the validated meta stops.
 
-` — autonomous`, added by Selo Ops' « Autonome » box (never typed): every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; `/selo:pilot {blueprint} — autonomous` resumes at its Progress.
+` --autonomous`, added by Selo Ops' « Autonome » box (never typed): every question takes its recommended answer, listed as Business decisions (at most five, first in the report) and Technical defaults. Needs the `auto` or `acceptEdits` permission mode with the components' commands allowed. Stops on a real blocker only; `/selo:pilot {blueprint} --autonomous` resumes at its Progress.
 
 ## Your settings
 
@@ -101,8 +101,8 @@ Yours, not the project's, in the `env` block of `~/.claude/settings.json`; a new
 
 ```
 /selo:run            every component, dev servers
-/selo:run web — demo  the front's demo and the API's, seeded data
-/selo:run — stop
+/selo:run web demo  the front's demo and the API's, seeded data
+/selo:run stop
 ```
 
 Each worktree that runs the app gets a slot: its ports are the manifest's `port` and `demo_port` + 10 × slot, so two worktrees run side by side and the same worktree keeps its ports. `try` and the browser test of `build` and `fastlane` run on it too. Outside a session: `node selo-run.mjs [component | all] [--demo]` at the project's root, Ctrl+C stops it.

@@ -20,21 +20,23 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.mjs` from the root and read the
 |---|---|---|
 | **Fastlane** | One page or one component, no new entity or business rule | `/selo:fastlane {request}` |
 | **Blueprint** | A new page, a new entity or rule, several pages | `/selo:blueprint {request}`, then `/selo:build {blueprint}` |
-| **Pilot** | selo picks the lane; ` — autonomous`: the person leaves | `/selo:pilot {request \| blueprint}`, `/selo:pilot {request} — mockup {file}` |
+| **Pilot** | selo picks the lane; ` --autonomous`: the person leaves | `/selo:pilot {request \| blueprint}`, `/selo:pilot {request} --mockup {file}` |
+
+**Arguments.** A word that changes what a command does is a plain word right after it, a subcommand (`/selo:setup update`, `/selo:review blueprint {file}`, `/selo:run web demo`). An option that changes how it does it is `--{name}` at the end of the prompt, after the request (`--autonomous`, `--no-browser`, `--mockup {file}`, `--stage 2`); a two-word name takes a hyphen. The old form ` — {name}` (an em dash, two-word names with a space: ` — no browser`) is read the same, so a prompt written by Selo Ops or a session before 2.12.0 still works; a skill writes `--{name}`. Each skill's `argument-hint` shows its arguments after its name; a new subcommand or option updates it in the same change.
 
 A fastlane that meets a new entity or business rule stops before its commit and proposes `/selo:blueprint {same request}`. A free sentence asking to change something is a fastlane.
 
-`/selo:pilot` places the request itself, says the lane in one line (the lane, its exact prompt, why), then runs it in the session with that lane's own questions and yeses. With ` — autonomous` it runs each step as a fresh subagent, with no question (**Autonomous mode**). With ` — mockup {file}` (a validated mockup, **Mockup first**) it passes the mockup to the lane it picks.
+`/selo:pilot` places the request itself, says the lane in one line (the lane, its exact prompt, why), then runs it in the session with that lane's own questions and yeses. With ` --autonomous` it runs each step as a fresh subagent, with no question (**Autonomous mode**). With ` --mockup {file}` (a validated mockup, **Mockup first**) it passes the mockup to the lane it picks.
 
 **Routing a free request.** A setting of the person, not of the project: `SELO_ROUTING` in the `env` block of `~/.claude/settings.json` (`scripts/settings.mjs` reads it; a new session after a change). `on`: the plugin's lane hook adds a note to every free prompt (not a slash command) in a selo project: a new request to change the application runs the `pilot` skill, said in one line. A prompt that continues work in progress (a skill running, an iterate or mockup loop), answers a question, or asks one gets no lane. Absent or anything else: off, no note.
 
 Two ways for the person to see a change before it is final; drawing and iterating need the person, never in autonomous mode:
 
-- **Mockup first:** `/selo:mockup {request}` draws it as a static HTML file on the front's skin (`.planning/mockups/`), iterated until the person validates it, uncommitted; then either lane, or `pilot` (interactive or ` — autonomous`), takes ` — mockup .planning/mockups/{file}`, commits the file with its work and compares the page with it in its browser test.
-  **The validated mark.** On the person's validation, the mockup skill writes `<meta name="selo:mockup" content="validated">` in the file's `<head>`, right after its `<title>`, inside the file's first 8 KB; never before. `revise {file}` removes it while the mockup is iterated again, and the next validation writes it back. A file under `.planning/mockups/` that carries this meta and is not committed is validated, waiting to be built: Selo Ops lists such files on its new-session page, and `pilot — autonomous` builds only such a file.
-- **Iterate:** `/selo:fastlane {request} — iterate` runs the app and applies one change per turn, with no test, review or commit, until the person validates; then the fastlane's end runs once on the final state (the spec delta, the tests, the review, the suites, the browser test, the commits on one yes).
+- **Mockup first:** `/selo:mockup {request}` draws it as a static HTML file on the front's skin (`.planning/mockups/`), iterated until the person validates it, uncommitted; then either lane, or `pilot` (interactive or ` --autonomous`), takes ` --mockup .planning/mockups/{file}`, commits the file with its work and compares the page with it in its browser test.
+  **The validated mark.** On the person's validation, the mockup skill writes `<meta name="selo:mockup" content="validated">` in the file's `<head>`, right after its `<title>`, inside the file's first 8 KB; never before. `revise {file}` removes it while the mockup is iterated again, and the next validation writes it back. A file under `.planning/mockups/` that carries this meta and is not committed is validated, waiting to be built: Selo Ops lists such files on its new-session page, and `pilot --autonomous` builds only such a file.
+- **Iterate:** `/selo:fastlane {request} --iterate` runs the app and applies one change per turn, with no test, review or commit, until the person validates; then the fastlane's end runs once on the final state (the spec delta, the tests, the review, the suites, the browser test, the commits on one yes).
 
-Every lane ends the same way: one review of the whole work, the full suites of the touched components (through `runner`), the browser test of a touched front, the commit(s). The browser test runs on the front's demo when it has `commands.demo`, else on its dev server (`commands.serve`, or the "Local run" of its `CLAUDE.md`): it is never skipped for want of a demo. Only the person skips it: ` — no browser`.
+Every lane ends the same way: one review of the whole work, the full suites of the touched components (through `runner`), the browser test of a touched front, the commit(s). The browser test runs on the front's demo when it has `commands.demo`, else on its dev server (`commands.serve`, or the "Local run" of its `CLAUDE.md`): it is never skipped for want of a demo. Only the person skips it: ` --no-browser`.
 
 ## Running the app
 
@@ -170,7 +172,7 @@ The session leads: it plans, decides, writes. Each subagent is spawned with its 
 
 Always pass the role's model: the plugin's model hook is the guard, not the source. It puts `reviewer` and `runner` on their role's model whatever the call names, `Explore` and `Plan` on `explorer` and `planner` when the call names none, and leaves any other agent as called (`docs/manifest.md`, "Models").
 
-Put the role first in the spawn's description (`runner · web tests`). A blueprint or an implementation is not a subagent's job, except under `pilot — autonomous`. A subagent without the Agent tool runs its commands itself, filtered to the errors, and says what it could not delegate.
+Put the role first in the spawn's description (`runner · web tests`). A blueprint or an implementation is not a subagent's job, except under `pilot --autonomous`. A subagent without the Agent tool runs its commands itself, filtered to the errors, and says what it could not delegate.
 
 ## Decisions
 
@@ -178,7 +180,7 @@ Recorded in two lists, in the blueprint (in the fastlane, in the commit body and
 
 ## Autonomous mode
 
-Only `pilot` turns it on, by ending a step's prompt with ` — autonomous`; `pilot` gets it the same way, from Selo Ops' new-session page: a person never types it. No question: each takes its recommended answer. A question with no defensible answer stops the step, with nothing committed. The hard rules hold. A mockup given (` — mockup {file}`) is already validated: no question about it; a missing file, or one without the validated mark (**Mockup first**), stops `pilot` before its first step.
+Only `pilot` turns it on, by ending a step's prompt with ` --autonomous`; `pilot` gets it the same way, from Selo Ops' new-session page: a person never types it. No question: each takes its recommended answer. A question with no defensible answer stops the step, with nothing committed. The hard rules hold. A mockup given (` --mockup {file}`) is already validated: no question about it; a missing file, or one without the validated mark (**Mockup first**), stops `pilot` before its first step.
 
 ## Language
 

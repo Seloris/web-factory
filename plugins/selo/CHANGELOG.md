@@ -2,6 +2,15 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-27 — selo 2.12.0: options as `--{name}`, subcommands as words
+
+The person (2026-10-27): with the hints of 2.11.0 in view, why an em dash rather than a plain dash, and arguments "as /doctor does". The em dash came from prompts Selo Ops writes, never typed by hand; it is hard to type, and the options at the end of the prompt needed a mark that a request's own text would not carry.
+
+- **Options**: `--{name}` at the end of the prompt (`--autonomous`, `--fastlane`, `--no-browser`, `--until-blueprint`, `--mockup {file}`, `--stage N`, `--iterate`, `--review {findings}`): the form of every CLI, easy to type, and `--` is rare in a sentence, so the request stays apart. A two-word name takes a hyphen. The old ` — {name}` is read the same, so Selo Ops' prompts and older sessions still work; the skills write `--{name}`. The rules' new **Arguments** says it once.
+- **Subcommands**: plain words after the command, as `/doctor` does and as `setup` and `review` already did. `run` follows: `/selo:run web demo`, `/selo:run stop`.
+- **`pilot`'s hint on one line**: the six options wrapped onto a second line. It keeps the target and the options most used, `--autonomous` first, and ends with `…`; the others stay in its description.
+- The skills, the rules, the cheat sheet, the manifest doc and the stack templates' `/selo:run … demo` follow. A project picks the templates up with `/selo:setup update`.
+
 ## 2026-10-27 — selo 2.11.0: every skill shows its arguments
 
 The person (2026-10-27): typing `/selo:pilot` showed no hint of ` — autonomous`, where a built-in command such as `/doctor` shows its arguments after the name. No skill carried an `argument-hint`, so the options lived only in the descriptions.

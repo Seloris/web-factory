@@ -38,15 +38,19 @@ test("rootKey names a root as ~/.claude/projects does", () => {
 test("parsePrompt opens the run of §5.2", () => {
   assert.deepEqual(parsePrompt("/selo:fastlane add a filter"), { lane: "fastlane", flow: "fastlane", skill: "fastlane", mode: null, request: "add a filter", blueprint: null, step: null, lastStep: null });
   assert.equal(parsePrompt("/selo:blueprint due dates").blueprint, null);
-  assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md — stage 2").step, "stage:2");
-  assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md — stage 2").lastStep, "stage:2");
+  assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md --stage 2").step, "stage:2");
+  assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md --stage 2").lastStep, "stage:2");
   assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md").blueprint, "x");
   assert.equal(parsePrompt("/selo:pilot due dates").step, null);
   // The prompt as it says it: `pilot`, autonomous only with the suffix; the old `/selo:autopilot` is no selo skill.
   assert.deepEqual(["flow", "skill", "mode"].map((k) => parsePrompt("/selo:pilot due dates")[k]), ["pilot", "pilot", null]);
-  assert.deepEqual(["flow", "skill", "mode"].map((k) => parsePrompt("/selo:pilot due dates — fastlane — autonomous")[k]), ["pilot", "pilot", "autonomous"]);
-  assert.equal(parsePrompt("/selo:fastlane add a filter — autonomous").mode, "autonomous");
+  assert.deepEqual(["flow", "skill", "mode"].map((k) => parsePrompt("/selo:pilot due dates --fastlane --autonomous")[k]), ["pilot", "pilot", "autonomous"]);
+  assert.equal(parsePrompt("/selo:fastlane add a filter --autonomous").mode, "autonomous");
+  assert.equal(parsePrompt("/selo:fastlane add a filter --iterate").mode, "iterate");
+  // The old form, with an em dash, is read the same (selo before 2.12.0, older Selo Ops prompts).
+  assert.equal(parsePrompt("/selo:pilot due dates — fastlane — autonomous").mode, "autonomous");
   assert.equal(parsePrompt("/selo:fastlane add a filter — iterate").mode, "iterate");
+  assert.equal(parsePrompt("/selo:build .planning/blueprints/x.md — stage 3").step, "stage:3");
   assert.deepEqual(["flow", "skill"].map((k) => parsePrompt("/selo:autopilot due dates")[k]), ["free", null]);
   assert.deepEqual(["flow", "skill"].map((k) => parsePrompt("/selo:build .planning/blueprints/x.md")[k]), ["blueprint", "build"]);
   assert.equal(parsePrompt("/selo:review .planning/blueprints/x.md").step, "review");
@@ -55,10 +59,10 @@ test("parsePrompt opens the run of §5.2", () => {
   // `/selo:run` is a tool skill now; `lane` keeps the 2.4.0 reading, `free`.
   assert.deepEqual(["lane", "flow", "skill"].map((k) => parsePrompt("/selo:run all")[k]), ["free", "free", "run"]);
   assert.deepEqual(["flow", "skill"].map((k) => parsePrompt("/selo:mockup due dates")[k]), ["free", "mockup"]);
-  assert.deepEqual(["flow", "skill", "mode"].map((k) => parsePrompt("/selo:fastlane due dates — iterate")[k]), ["fastlane", "fastlane", "iterate"]);
-  assert.equal(parsePrompt(`/selo:fastlane ${"x".repeat(300)} — iterate`).mode, "iterate");
+  assert.deepEqual(["flow", "skill", "mode"].map((k) => parsePrompt("/selo:fastlane due dates --iterate")[k]), ["fastlane", "fastlane", "iterate"]);
+  assert.equal(parsePrompt(`/selo:fastlane ${"x".repeat(300)} --iterate`).mode, "iterate");
   assert.equal(parsePrompt("/selo:fastlane due dates").mode, null);
-  assert.equal(parsePrompt("/selo:blueprint due dates — iterate").mode, null);
+  assert.equal(parsePrompt("/selo:blueprint due dates --iterate").mode, null);
   assert.equal(parsePrompt("/selo:nope x").skill, null);
   assert.equal(parsePrompt("what does this do?").lane, "free");
   assert.equal(parsePrompt("x".repeat(300)).request.length, 200);
@@ -125,7 +129,7 @@ test("blueprintOf: state, stages, next prompt", () => {
   assert.equal(ready.mockup, ".planning/blueprints/assets/due.png");
   assert.deepEqual(ready.decisions, ["Late todos? → red (visible)"]);
   assert.deepEqual(ready.delta.map((d) => `${d.sheet} ${d.op} ${d.id}`), ["home + FR-03", "todo ~ BR-01"]);
-  assert.deepEqual(ready.next, { label: "build", prompt: `/selo:build ${BP}`, pilot: `/selo:pilot ${BP} — autonomous` });
+  assert.deepEqual(ready.next, { label: "build", prompt: `/selo:build ${BP}`, pilot: `/selo:pilot ${BP} --autonomous` });
 
   const subjects = new Map([["feat(due-date): api — optional due date", "abc1234"]]);
   const building = blueprintOf(BP, blueprint(), { subjects });
@@ -243,19 +247,19 @@ test("hooks write the session and project files of a build", () => {
   assert.equal(session().runs.length, 2);
 });
 
-test("subagents: a pilot — autonomous stands for the runs it spawns", () => {
+test("subagents: a pilot --autonomous stands for the runs it spawns", () => {
   const { dir } = project();
   const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
   const base = { session_id: "s2", cwd: dir };
   const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s2.json"), "utf8"));
-  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: `/selo:pilot ${BP} — autonomous` });
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: `/selo:pilot ${BP} --autonomous` });
   hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Agent", tool_input: { description: "Review the code", prompt: "p", subagent_type: "reviewer" } });
   hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Agent", tool_input: { description: "Build stage 1", prompt: "p" } });
   hook(ops, { ...base, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "general-purpose" });
   assert.equal(session().runs[0].task, "Build stage 1", "the task of the call of its type");
   assert.equal(session().runs[0].agentType, "general-purpose");
   assert.deepEqual(session().pendingAgents, [{ type: "reviewer", task: "Review the code", prompt: "p" }]);
-  hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: `${BP} — stage 1 — autonomous` } });
+  hook(ops, { ...base, hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: `${BP} --stage 1 --autonomous` } });
   let s = session();
   assert.equal(s.runs[0].agentId, "a1");
   assert.equal(s.runs[0].lane, "build");
@@ -616,15 +620,15 @@ test("the Skill tool names a selo skill by its short or full name", () => {
   assert.equal(other.runs[0].skill, null, "another plugin's skill");
 });
 
-test("a pilot — autonomous takes its subagents' skills, its flow fixed", () => {
-  const s = stub("f4", parsePrompt("/selo:pilot due dates — autonomous"));
+test("a pilot --autonomous takes its subagents' skills, its flow fixed", () => {
+  const s = stub("f4", parsePrompt("/selo:pilot due dates --autonomous"));
   const skill = (agent, name, args) => applyHook(s, { hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: agent, tool_input: { skill: name, args } }, "C:/p");
   const main = () => s.runs.find((r) => !r.agentId);
   applyHook(s, { hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "general-purpose" }, "C:/p");
-  skill("a1", "selo:blueprint", "due dates — autonomous");
+  skill("a1", "selo:blueprint", "due dates --autonomous");
   assert.deepEqual([main().flow, main().skill, main().step], ["pilot", "blueprint", null]);
   applyHook(s, { hook_event_name: "SubagentStart", agent_id: "a2", agent_type: "general-purpose" }, "C:/p");
-  skill("a2", "selo:build", ".planning/blueprints/x.md — stage 1 — autonomous");
+  skill("a2", "selo:build", ".planning/blueprints/x.md --stage 1 --autonomous");
   assert.deepEqual([main().flow, main().skill, main().step], ["pilot", "build", "stage:1"]);
   assert.deepEqual(main().trail.map((x) => x.skill), ["pilot", "blueprint", "build"]);
   const a2 = s.runs.find((r) => r.agentId === "a2");
@@ -673,7 +677,7 @@ test("the trail: one entry per change, phase changes included, deduplicated, cap
 
   // A run written before 2.5.0 gets no trail, and an autopilot's flow is read from its lane.
   const old = stub("f7", { lane: "autopilot", flow: undefined, skill: undefined, trail: undefined, trailCut: undefined });
-  applyHook(old, { hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: ".planning/blueprints/x.md — stage 2" } }, "C:/p");
+  applyHook(old, { hook_event_name: "PreToolUse", tool_name: "Skill", agent_id: "a1", tool_input: { skill: "selo:build", args: ".planning/blueprints/x.md --stage 2" } }, "C:/p");
   assert.equal(old.runs.find((r) => !r.agentId).trail, undefined);
   assert.equal(old.runs.find((r) => !r.agentId).step, "stage:2");
 });
