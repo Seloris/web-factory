@@ -4,6 +4,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Claude Code: the types it lays beside a hooks module it loads from a folder
+plugins/*/.claude-plugin/types/
+
 # Node
 node_modules/
 npm-debug.log*

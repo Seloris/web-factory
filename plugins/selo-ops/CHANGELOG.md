@@ -2,6 +2,16 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-27 — selo-ops 2.14.0: the recap band and pane
+
+The person (2026-10-27), once selo-ops 2.13.0 wrote a recap per turn and per session: show it in the Claude session itself, at no token cost. Drawn by Claude Code from the export's files, never by the model; tried as a session mod, then moved here, the plugin every session already loads.
+
+- **A hooks module** (`hooks/register.tsx`, beside the classic hooks in `hooks/hooks.json`, `"modules"`): it reads `sessions/{sessionId}.json` and `projects/{rootKey}.json` at the session's start, 0.8 s and 3.3 s after each turn (the `Stop` hook writes them), and every 5 s while the pane is open. Its state is declared in `types/index.d.ts`.
+- **The band above the prompt**, always there: the toggles `--autonomous`, `--worktree`, `--no-browser` on the left, the actions on the right (Autopilot `/selo:pilot`, Mockup `/selo:mockup`, Fastlane `/selo:fastlane`, the run's next step, the pane's toggle), each filling the prompt box with its command and the toggles' flags, never sending it. Under them, the figures: the current prompt's flow (its lanes in their colours, the step), the session's diff (files added, modified and deleted, lines, from before its first commit, untracked files included), commits, tokens, the context window's share, the duration, the state.
+- **The pane** (`/recap` or the band's toggle), two tabs. **Session**: one timeline, newest first, `maintenant` on top, the current prompt in a card with its steps, then each past prompt with its recap (`run.recap.text`, else `run.status`), commits and changelog entry. **Plans**: the project's blueprints (their next prompt, `pilot`, a review) and mockups (build, revise), each with a button that copies `--blueprint {file}` or `--mockup {file}`. The installed versions of selo and selo-ops in its header.
+- The desktop and mobile apps get the figures and the timeline as an SVG, after the Selo design canvas "Timeline de session"; the terminal, the same in text. Its words are French, as is Selo Ops'.
+- Its tests are `tests/*.test.tsx`, run by `claude plugin test plugins/selo-ops`; `node --test` keeps the `.test.mjs` ones.
+
 ## 2026-10-27 — selo-ops 2.13.0: a recap per turn and per session
 
 selo 2.15.0 has every turn without the done footer give a `Status: {one line}`. The person wanted a recap at the end of each turn and of each session.
