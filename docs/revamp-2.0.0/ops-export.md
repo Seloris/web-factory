@@ -33,12 +33,12 @@ Read, not written: `{repo}/selo/slots/{n}.json`, the app's runs, one per slot, w
 | `PreToolUse` | any other tool (selo-ops 2.5.0) | Only for a main run still `free`, with no `skill`, `working`, not read yet: reads the run's first transcript rows for a short command (decision 31) and retags the run. Any other call leaves after reading the session file, without the lock. |
 | `PostToolUse` | `Bash\|PowerShell` | A `git commit` that exited 0: reads `HEAD` (sha, subject, `Spec:` line), appends it to the run; a build moves to its next stage, a last stage to `review`, a merge commit closes the blueprint; rescans the project. A `node {plugin}/scripts/ops.mjs mark …` command sets the run's `substep` and `sheets` (§5.4). |
 | `PostToolUse` | `Edit\|Write\|NotebookEdit` | Adds the path to the session's `touchedFiles`. A file under `.planning/blueprints/` names the run's `blueprint` (a draft has one before its commit); a file under `.planning/pages/` or `.planning/domain/` adds its sheet to `sheets`. |
-| `PostToolUse` | `mcp__ccd_turn__wrap_up` | Keeps the call's `ask` for this turn: in the desktop app the question sits in that box, not in the last line of text (§5.3). |
+| `PostToolUse` | `mcp__ccd_turn__wrap_up` | Keeps the call's `ask` and `recap` for this turn: in the desktop app the question sits in that box, not in the last line of text, and its recap stands in for a missing `Status:` line (§5.3). |
 | `PreToolUse` | `Agent\|Task` | Queues the call's task (`description`, else `prompt`) and its `prompt` (300 characters) in `pendingAgents`, under its `subagent_type`. |
 | `SubagentStart` / `SubagentStop` | | Opens the subagent's run, its `task` and `prompt` taken from the oldest queued call of its `agent_type` / closes it, from `last_assistant_message`; sets its `usage` from `agent_transcript_path` read whole, `settled: true` (§5.6); sets its `task` and `requestedModel` from the `description` and `model` of the meta file beside it (`agent-{id}.meta.json`), its `prompt` from the transcript's first user row: its own files, so a task swapped between two calls of one type is set right. |
-| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5). Sets `model` and `context` from the transcript's last assistant message (`context.baseline` from its first one, once). A main run still `free` that called no tool is first read for a short command, as at `PreToolUse` (selo-ops 2.5.0). Sets the current main run's `usage` from its slice (`transcriptFrom` to the end), `settled: false` (§5.6). Rescans the project. |
+| `Stop` | | Classifies `last_assistant_message` (§5.3): `awaiting-commit` with the message of its closing code block, `job-done` with the footer's recap, `awaiting-answer`, else `turn-ended`. Copies `background_tasks`, computes `dirtyFiles` and `close` (§5.5), and the session's `recap` (§5.7). Sets `model` and `context` from the transcript's last assistant message (`context.baseline` from its first one, once). A main run still `free` that called no tool is first read for a short command, as at `PreToolUse` (selo-ops 2.5.0). Sets the current main run's `usage` from its slice (`transcriptFrom` to the end), `settled: false` (§5.6). Rescans the project. |
 | `StopFailure` | | An API error ended the turn: phase `stopped`, `error` set. |
-| `SessionEnd` | | `status: ended`; a run still `working` becomes `stopped`. Settles the current main run's `usage` (§5.6). |
+| `SessionEnd` | | `status: ended`; a run still `working` becomes `stopped`. Settles the current main run's `usage` (§5.6). Sets the session's `recap`, `final: true` (§5.7). |
 
 Every hook also copies the input's `permission_mode` and `effort.level`, when present, to the session file: the latest value wins.
 
@@ -210,6 +210,8 @@ type SeloSession = {
   runs: Run[]
   /** The main loop's latest run: what a tile shows. An orchestrator (`pilot — autonomous`, or a run of the old `autopilot`) stands for its subagents. */
   current: Run | null
+  /** The session's recap (§5.7), set at each `Stop`; null before the first one, and in a session file older than selo-ops 2.13.0. Added by selo-ops 2.13.0. */
+  recap: SessionRecap | null
 }
 
 type Run = {
@@ -276,6 +278,8 @@ type Run = {
   question: string | null
   /** The done footer: its recap line, its commits, and its `Changelog:` line (the work's entry of `.planning/changelog.md`, as written there; null when the work has none; missing on a run written before selo-ops 2.12.0). */
   recap: { text: string | null; commits: { sha: string; subject: string }[]; changelogEntry?: string | null } | null
+  /** The turn's one-line recap, set at each end of turn (§5.3): the footer's recap line, else the last `Status:` line, else the `recap` of the turn's `wrap_up` call; null when none. Missing on a run written before selo-ops 2.13.0. Added by selo-ops 2.13.0. */
+  status?: string | null
   /** The next steps the done footer proposes, its `Next:` lines in order: a summary in the chat language, and the prompt to run. [] outside `job-done`; missing on a run written before selo-ops 2.3.0. Unlike `resumePrompt`, it is what the turn said, in any project, selo or not. Added by selo-ops 2.3.0. */
   next: { text: string; prompt: string }[]
   /** Every commit the run made, oldest first, with its `Spec:` line (`pending (…)` during a build). */
@@ -359,6 +363,8 @@ From `last_assistant_message`, in this order:
 3. A `wrap_up` call of this turn carried an `ask`, or the last non-empty line ends with `?` → `awaiting-answer`, `question` = the `ask`, else that line.
 4. Otherwise `turn-ended`: the turn ended without the footer, a rule the workflow broke, shown as such.
 
+Whatever the phase, `status` is the turn's one-line recap: the footer's recap line, else the message's last `Status: {line}` (the rules' status line, given by every turn without the footer, right before its question or its commit block), else the `recap` of the turn's `wrap_up` call. Cut at 300 characters.
+
 The footer and the commit block are the only shapes the workflow rules fix for this export (proposal §3 Q4 keeps the footer, lighter): "the board reads it" becomes "Selo Ops reads it", one line in `reference/rules.md`. The footer is what flags a session done: every turn that finished its job ends with it, with or without a commit.
 
 ### 5.4 Marks: the page and the substep
@@ -383,6 +389,25 @@ Read from the transcript by `scripts/usage.mjs` (`docs/revamp-2.2.0/proposal.md`
 - **A main run reads its slice**: from its `transcriptFrom` (the size at its `UserPromptSubmit`, which fires before the prompt's row is written) to the end at `Stop` (`settled: false`: the last message may be missing), to the next main run's `transcriptFrom` when that run opens, or to the end at `SessionEnd` (`settled: true`). An Esc'd turn is caught by the settling read. A subagent run reads its own transcript whole at `SubagentStop`.
 - **The session's totals** move by the difference: `usage += new − previous` for the run read. A run dropped past the 100 kept keeps its last contribution.
 - **Cost**: only lines holding `"type":"assistant"` or `"type":"user"` are parsed (a request shape naming a role is not); a cut line is skipped; a slice over 32 MB is read from its last 32 MB, `partial: true`. The slice is read before the session's lock, from the session file read without it, and set under the lock only on a main run whose `id` and `transcriptFrom` are unchanged (a subagent run: on its `agentId`); an empty slice changes nothing: under the lock only JSON is read and written. When the read before the lock failed, or decided the prompt kept the run while it opens one under the lock, the transcript's size and the settling read are taken under the lock instead (rare). The lock wait is shortened so the hook stays inside its 4.5 s, and a hook whose read used up its time writes nothing; the next read catches up.
+
+### 5.7 The session's recap (selo-ops 2.13.0)
+
+```ts
+type SessionRecap = {
+  /** When it was built. */
+  at: string
+  /** True when built at `SessionEnd`; false at a `Stop`, the session may go on. */
+  final: boolean
+  /** Each main run still kept (the last 100 runs), oldest first; `text` is its `recap.text`, else its `status`. */
+  runs: { id: string; request: string; phase: Run['phase']; text: string | null }[]
+  /** The main runs' commits, oldest first, each sha once. */
+  commits: { sha: string; subject: string }[]
+  /** The changelog entries of their done footers, oldest first. */
+  changelogEntries: string[]
+}
+```
+
+Built by the export from what the runs already hold: no model call, no hook that makes the agent write it. Subagent runs are left out: an orchestrator's main run carries their commits.
 
 ## 6. What Selo Ops derives, and from what
 

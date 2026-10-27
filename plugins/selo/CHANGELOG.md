@@ -2,6 +2,13 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-27 — selo 2.15.0: a status line on every turn
+
+The person (2026-10-27): could each turn and each session end with a recap of what is going on? The done footer gave one, but only when the job was done: a turn that stopped on a question, a commit to approve or a failure said nothing of where the job stood, and nothing summed up a session.
+
+- **The status line** (the rules' **End of turn**): every turn without the footer gives `Status: {one line}`, what is done and what is left or blocks, right before its question or its commit's code block so they stay the last text, else as its last line. The iterate loop of `fastlane` and the loop of `mockup` give it above their question.
+- **The session's recap** is not written by the agent: selo-ops 2.13.0 builds it from these lines and the footers' recaps, at each `Stop` and at `SessionEnd`. No hook forces a recap out of the model: that would cost a turn each time.
+
 ## 2026-10-27 — selo 2.14.0: one next step, `pilot`
 
 The person (2026-10-27), on a validated mockup whose footer gave two `Next:` lines, `/selo:fastlane … --mockup {file}` and "Or through a blueprint": why not `pilot`, which picks the lane itself? Two lines made the person pick a lane selo already knows how to pick, and their summaries were copied in English from the skill's example whatever `language.chat` said.

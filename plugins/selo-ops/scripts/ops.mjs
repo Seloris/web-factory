@@ -321,10 +321,20 @@ const NEXT_LINE = /^Next:\s*(.+)\s+·\s+`([^`]+)`$/;
 // The work's entry of .planning/changelog.md, as written there: Changelog: {kind} — {text}.
 const CHANGELOG_LINE = /^Changelog:\s*(.+)$/;
 
-// §5.3: where the run stands at the end of a turn, from its last message and the turn's wrap_up ask.
-export function classifyEnd(message, ask = null) {
-  const text = String(message ?? "").replace(/\r\n/g, "\n").trimEnd();
-  const lines = text.split("\n");
+// Where the job stands after a turn without the done footer: Status: {one line}.
+const STATUS_LINE = /^Status:\s*(.+)$/;
+
+// §5.3: where the run stands at the end of a turn, from its last message and the turn's wrap_up ask and recap.
+// `status`, the turn's one-line recap: the footer's recap line, else the last `Status:` line, else the wrap_up recap.
+export function classifyEnd(message, ask = null, wrapRecap = null) {
+  const lines = String(message ?? "").replace(/\r\n/g, "\n").trimEnd().split("\n");
+  const said = lines.map((l) => STATUS_LINE.exec(l.trim())).filter(Boolean).at(-1)?.[1].trim() ?? null;
+  const end = phaseOf(lines, ask);
+  const status = end.recap?.text ?? said ?? (wrapRecap ? String(wrapRecap).trim() : null);
+  return { ...end, status: status ? status.slice(0, 300) : null };
+}
+
+function phaseOf(lines, ask) {
   const at = lines.findLastIndex((l) => /^##\s*✅\s*JOB DONE\s*$/.test(l.trim()));
   if (at >= 0) {
     const tail = lines.slice(at + 1).map((l) => l.trim()).filter(Boolean);
@@ -359,14 +369,29 @@ export function closeOf(s) {
   return { ok: blockers.length === 0, blockers };
 }
 
+// The session's recap: each main run's last word, oldest first, and what they committed. Set at each Stop; `final` at SessionEnd.
+export function sessionRecap(s, final = false) {
+  const runs = s.runs.filter((r) => !r.agentId).reverse();
+  if (!runs.length) return null;
+  const seen = new Set();
+  const commits = runs.flatMap((r) => r.commits ?? []).filter((c) => !seen.has(c.sha) && seen.add(c.sha)).map((c) => ({ sha: c.sha, subject: c.subject }));
+  return {
+    at: now(),
+    final,
+    runs: runs.map((r) => ({ id: r.id, request: r.request, phase: r.phase, text: r.recap?.text ?? r.status ?? null })),
+    commits,
+    changelogEntries: runs.map((r) => r.recap?.changelogEntry).filter(Boolean),
+  };
+}
+
 export const newSession = (id, root) => ({
   schemaVersion: SCHEMA, writtenAt: now(), writtenBy: VERSION, sessionId: id, root: normRoot(root), rootKey: rootKey(root), selo: true, repo: null, startedAt: now(), status: "live",
-  transcriptPath: null, model: null, permissionMode: null, effort: null, pendingAgents: [], touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null, usage: null, context: null,
+  transcriptPath: null, model: null, permissionMode: null, effort: null, pendingAgents: [], touchedFiles: [], dirtyFiles: [], backgroundTasks: [], close: { ok: false, blockers: ["not-done"] }, runs: [], current: null, ask: null, wrapRecap: null, recap: null, usage: null, context: null,
 });
 
 const openRun = (s, fields, agentId = null) => {
   const since = now();
-  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", flow: "free", skill: null, mode: null, request: "", task: null, blueprint: null, sheets: [], step: null, lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, next: [], commits: [], resumePrompt: null, prompt: null, requestedModel: null, usage: null, transcriptFrom: null, trail: [], trailCut: false, since, updatedAt: since, ...fields };
+  const run = { id: `${s.sessionId}:${Date.parse(since)}`, agentId, agentType: null, lane: "free", flow: "free", skill: null, mode: null, request: "", task: null, blueprint: null, sheets: [], step: null, lastStep: null, substep: null, error: null, phase: "working", pendingCommit: null, question: null, recap: null, status: null, next: [], commits: [], resumePrompt: null, prompt: null, requestedModel: null, usage: null, transcriptFrom: null, trail: [], trailCut: false, since, updatedAt: since, ...fields };
   s.runs = [run, ...s.runs].slice(0, MAX_RUNS);
   return run;
 };
@@ -767,7 +792,10 @@ function applyEvent(s, e, root, ctx) {
       return false;
     }
     if (tool === "mcp__ccd_turn__wrap_up") {
-      if (!agentId) s.ask = e.tool_input?.ask ? String(e.tool_input.ask) : null;
+      if (!agentId) {
+        s.ask = e.tool_input?.ask ? String(e.tool_input.ask) : null;
+        s.wrapRecap = e.tool_input?.recap ? String(e.tool_input.recap) : null;
+      }
       return false;
     }
     const command = String(e.tool_input?.command ?? "");
@@ -833,13 +861,14 @@ function applyEvent(s, e, root, ctx) {
   if (event === "Stop") {
     const cur = mainRun(s);
     if (cur) {
-      Object.assign(cur, classifyEnd(e.last_assistant_message ?? lastAssistantText(e.transcript_path), s.ask), { updatedAt: t });
+      Object.assign(cur, classifyEnd(e.last_assistant_message ?? lastAssistantText(e.transcript_path), s.ask, s.wrapRecap), { updatedAt: t });
       if (cur.phase === "job-done") laneBack(cur);
       cur.resumePrompt = resumeOf(cur, root);
     }
     // Read at Stop, the run may lack its last message: settled at the next run's prompt or at SessionEnd.
     applyRead(s, ctx.read);
     s.ask = null;
+    s.wrapRecap = null;
     s.model = lastModel(e.transcript_path) ?? s.model;
     const context = lastContext(e.transcript_path);
     if (context) s.context = { ...context, baseline: s.context?.baseline ?? ctx.baseline ?? null };
@@ -848,6 +877,7 @@ function applyEvent(s, e, root, ctx) {
     if (!s.backgroundTasks.some((b) => b.status === "running")) for (const r of s.runs) if (r.agentId && r.phase === "working") Object.assign(r, { phase: "stopped", updatedAt: t });
     s.dirtyFiles = dirtyOf(root, s.touchedFiles);
     s.close = closeOf(s);
+    s.recap = sessionRecap(s);
     return true;
   }
   if (event === "StopFailure") {
@@ -860,6 +890,7 @@ function applyEvent(s, e, root, ctx) {
     applyRead(s, ctx.read);
     for (const r of s.runs) if (r.phase === "working") Object.assign(r, { phase: "stopped", updatedAt: t });
     s.close = closeOf(s);
+    s.recap = sessionRecap(s, true);
     return false;
   }
   return false;

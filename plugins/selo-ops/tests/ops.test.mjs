@@ -105,10 +105,20 @@ test("classifyEnd reads the end of a turn (§5.3)", () => {
   assert.deepEqual(commit.pendingCommit, { subject: "feat(due-date): web — due dates", body: "Spec: pending (x.md)" });
   assert.equal(classifyEnd("```js\nconst a = 1\n```").phase, "turn-ended");
 
-  assert.deepEqual(classifyEnd("Which one, A or B ?"), { phase: "awaiting-answer", question: "Which one, A or B ?", pendingCommit: null, recap: null, next: [] });
+  assert.deepEqual(classifyEnd("Which one, A or B ?"), { phase: "awaiting-answer", question: "Which one, A or B ?", pendingCommit: null, recap: null, next: [], status: null });
   assert.equal(classifyEnd("Done here.", "Commit now?").question, "Commit now?");
   assert.equal(classifyEnd("Done here.").phase, "turn-ended");
   assert.equal(classifyEnd(null).phase, "turn-ended");
+
+  // `status`: the footer's recap line, else the last `Status:` line, else the wrap_up recap.
+  assert.equal(done.status, "Due dates on todos");
+  const asked = classifyEnd("Status: API done, web next\nShould late todos be red?");
+  assert.deepEqual([asked.phase, asked.status], ["awaiting-answer", "API done, web next"]);
+  const proposed = classifyEnd("Status: old\nStatus: web stage ready\n\n```\nfeat(due-date): web — due dates\n```");
+  assert.deepEqual([proposed.phase, proposed.status], ["awaiting-commit", "web stage ready"]);
+  assert.equal(classifyEnd("Build failed.", null, "The build fails on api").status, "The build fails on api");
+  assert.equal(classifyEnd("Status: tests red\nBuild failed.", null, "box").status, "tests red", "the text wins over the box");
+  assert.equal(classifyEnd("Build failed.").status, null);
 });
 
 test("closeOf lists what keeps a session open (§5.5)", () => {
@@ -726,4 +736,25 @@ test("mockups: each .planning/mockups/*.html, its title, the validated mark, com
   assert.equal(mockupOf("a.html", "<META NAME='selo:mockup' CONTENT='validated' />").validated, true);
   // No mockups folder: an empty list.
   assert.deepEqual(scanProject(project().dir, { dir: mkdtempSync(join(tmpdir(), "selo-ops-dir-")) }).mockups, []);
+});
+
+test("the session's recap: each main run's last word, oldest first, its commits, final at SessionEnd", () => {
+  const s = stub("r1", parsePrompt("/selo:fastlane add a filter"));
+  const at = (e) => applyHook(s, e, "C:/p");
+  at({ hook_event_name: "Stop", last_assistant_message: "Status: filter drawn, which default?\nAll or open only?" });
+  assert.deepEqual(s.recap.runs.map((r) => [r.phase, r.text]), [["awaiting-answer", "filter drawn, which default?"]]);
+  assert.equal(s.recap.final, false);
+  at({ hook_event_name: "UserPromptSubmit", prompt: "Open only" });
+  s.runs[0].commits.push({ sha: "abc1234", subject: "feat(home): a filter", spec: null, at: "2026-10-27T10:00:00Z" });
+  at({ hook_event_name: "Stop", last_assistant_message: "## ✅ JOB DONE\n> A filter on the list\n`abc1234` feat(home): a filter · branch `main` · not pushed\nChangelog: Added — The list filters open todos." });
+  at({ hook_event_name: "UserPromptSubmit", prompt: "Why is the build slow?" });
+  at({ hook_event_name: "PostToolUse", tool_name: "mcp__ccd_turn__wrap_up", tool_input: { recap: "The slow step is the lint" } });
+  at({ hook_event_name: "Stop", last_assistant_message: "The lint takes 40 s." });
+  assert.equal(s.runs[0].status, "The slow step is the lint", "the wrap_up recap when the text has none");
+  assert.equal(s.wrapRecap, null, "kept for its turn only");
+  at({ hook_event_name: "SessionEnd" });
+  assert.equal(s.recap.final, true);
+  assert.deepEqual(s.recap.runs.map((r) => r.text), ["A filter on the list", "The slow step is the lint"]);
+  assert.deepEqual(s.recap.commits, [{ sha: "abc1234", subject: "feat(home): a filter" }]);
+  assert.deepEqual(s.recap.changelogEntries, ["Added — The list filters open todos."]);
 });

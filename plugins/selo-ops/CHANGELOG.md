@@ -2,6 +2,13 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-27 — selo-ops 2.13.0: a recap per turn and per session
+
+selo 2.15.0 has every turn without the done footer give a `Status: {one line}`. The person wanted a recap at the end of each turn and of each session.
+
+- **`run.status`**, set by `classifyEnd` on every turn: the footer's recap line, else the message's last `Status:` line, else the `recap` of the turn's `wrap_up` call (the desktop app's next-step box, kept at `PostToolUse` like its `ask`), else null. A turn without the line still has a recap in the desktop app.
+- **`session.recap`**, built by the export, no model call: each main run, oldest first, with its request, phase and last word (`recap.text`, else `status`), the commits of the session without duplicates, and the changelog entries. Set at each `Stop`, `final: true` at `SessionEnd`, so a session closed without `SessionEnd` still has the last one.
+
 ## 2026-10-27 — selo-ops 2.12.1: a mark and its commit in one command
 
 A fastlane run in selo-ops ran `node ops.mjs mark commit help; git commit …` as one Bash call. The `PostToolUse` hook read the mark, then returned before it looked for a commit, so the commit never reached `run.commits` and Selo Ops showed none in the session, though the done footer listed it. The mark no longer ends the handling: a command that also commits records its commit.
