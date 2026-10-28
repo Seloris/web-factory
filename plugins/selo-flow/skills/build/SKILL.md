@@ -52,6 +52,5 @@ For each stage:
 
 ## Rules
 
-- Build what the blueprint says, nothing more: no extra feature, refactor, comment or doc on code you did not change. A blueprint that is wrong or incomplete: stop, say so, propose the fix (a new line in the delta or the decisions, asked).
-- **Reuse before writing:** an existing helper, then the framework, then an installed package, then new code. No speculative abstraction or option. Never cut validation, error handling, authorization checks or tests to write less.
+- Write the code as the rules' **Writing code** says: what the blueprint says, nothing more; reuse before writing; the smallest change that works; never cut validation, checks or tests to write less. A blueprint that is wrong or incomplete: stop, say so, propose the fix (a new line in the delta or the decisions, asked).
 - Never edit a page or domain spec before step 13; never edit the blueprint after `Spec merged`.

@@ -75,6 +75,5 @@ The prompt ends with ` --autonomous` (sent by `pilot`). As the rules' **Autonomo
 
 ## Rules
 
-- Implement what the request says, nothing more: no extra feature, refactor, comment or doc on code you did not change.
-- **Reuse before writing:** an existing helper, then the framework, then an installed package, then new code. No speculative abstraction or option. Never cut validation, error handling, authorization checks or tests to write less.
+- Write the code as the rules' **Writing code** says: what the request says, nothing more; reuse before writing; the smallest change that works; never cut validation, checks or tests to write less.
 - Save an image the person shares as `planning.md`'s **Images** says.

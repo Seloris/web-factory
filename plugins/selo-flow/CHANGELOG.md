@@ -2,6 +2,15 @@
 
 Why each rule of the process exists. A rule changes with the case that motivated it; the entry says which. Newest first.
 
+## 2026-10-28 — selo-flow 3.1.0: writing code, the lazy way
+
+The person (2026-10-28) wanted the code written leaner, for the tokens spent as much as for the code kept, and weighed the ponytail plugin (DietrichGebert/ponytail) for every selo project. Its hooks inject its rules into every session and every subagent (the reviewer and the runner too), and its rules ask for one small test where selo writes the tests first: its principles are kept, not the plugin.
+
+- **The rules' new Writing code section** holds how `fastlane` and `build` write application code: only what is asked, reuse before writing (the project, the framework, the standard library, an installed package, then new code), the smallest change that works (no abstraction for one use, no option nobody sets), never cut validation, checks or tests to write less, and a deliberate shortcut recorded as a Technical default (and in `.planning/technical-debt.md` when it is debt). The two skills carried their own copy of the first two lines; they now point to the section.
+- **The reviewer's Simplicity check** (tag `simplicity`): code the work does not need, an abstraction for one use, new code where the project or the standard library already does it, a dependency or a shortcut recorded nowhere. Before, nothing checked it.
+
+Projects: `claude plugin update selo-flow@selo --scope project`, then a new session. Version 3.1.0.
+
 ## 2026-10-27 — selo-flow 3.0.0: selo is selo-flow
 
 The person (2026-10-27): three pieces carried two names. The workflow plugin was `selo`, its ops export plugin `selo-ops`, and the dashboard beside this repository, which reads that export, was `selo-ops` too. Each piece now has its own name with the `selo-` prefix: `selo-flow` (the workflow), `selo-feed` (the export), `selo-ops` (the dashboard).

@@ -204,6 +204,16 @@ Put the role first in the spawn's description (`runner · web tests`). A bluepri
 
 Recorded in two lists, in the blueprint (in the fastlane, in the commit body and the report): **Business decisions** (at most five: a rule, a label, a scope, a new page or domain sheet, what the person would want to check) and **Technical defaults** (the rest, one line each), `- {question} → {answer} ({reason})`. Those `build` takes go under `### Decided during build` (**Blueprints**). A spec holds no decisions.
 
+## Writing code
+
+How `fastlane` and `build` write application code; the reviewer checks it (its **Simplicity** check). Less code is fewer tokens written, read and reviewed, and fewer bugs.
+
+- **Only what is asked:** what the request or the blueprint says, nothing more: no extra feature, refactor, comment or doc on code you did not change.
+- **Reuse before writing:** an existing helper of the project, then the framework, then the language's standard library, then an installed package, then new code. A new dependency is a Technical default.
+- **The smallest change that works:** no abstraction for one use (an interface with one implementation, a helper called once, a layer the component's `CLAUDE.md` does not declare), no option or parameter nobody sets, no code for a case the specs and the request do not name. Editing or deleting code beats adding it.
+- **Never cut to write less:** validation, error handling, authorization and scope checks, data safety, accessibility, i18n, and the tests the lane requires (tests first, as the lane says).
+- **A deliberate shortcut is said:** a Technical default (in `build`, under `### Decided during build`) that names its limit; one the project will have to pay back also gets its line in `.planning/technical-debt.md`, in that file's format.
+
 ## Autonomous mode
 
 Only `pilot` turns it on, by ending a step's prompt with ` --autonomous`; `pilot` gets it the same way, from Selo Ops' new-session page: a person never types it. No question: each takes its recommended answer. A question with no defensible answer stops the step, with nothing committed. The hard rules hold. A mockup given (` --mockup {file}`) is already validated: no question about it; a missing file, or one without the validated mark (**Mockup first**), stops `pilot` before its first step.
