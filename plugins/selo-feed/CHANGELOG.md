@@ -2,6 +2,17 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo-flow/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-28 — selo-feed 3.0.2: every commit of a command is recorded
+
+The person (2026-10-28): in Selo Ops, the files of note-app's notes dashboard showed +0 −0 and no diff. The build's two stage commits were missing from the session's export. The first was a loud commit piped through `| tail -3`: its `[branch sha]` line was cut, so the hook took it for a failed commit. The second was chained with another `-q` commit in one command: the fallback on `HEAD` kept only the last one.
+
+- **Every `[branch sha]` line** of the output counts, not only the first.
+- **A commit with no such line** (quiet, or an output cut by a pipe) is found by its subject: a commit of the last 30, made in the last 10 minutes, whose subject is the first `-m` of one of the command's `git commit`s. Another session's commit landing meanwhile never matches. An output where git says it committed nothing takes none.
+- **`HEAD` stays the fallback** only for a command whose subjects cannot be read (`-F`, a heredoc).
+- **A blueprint's step** moves on the last commit of the command that ends a stage.
+
+Machines: `claude plugin update selo-feed@selo --scope user`, then a new session. Version 3.0.2.
+
 ## 2026-10-27 — selo-feed 3.0.1: the band follows the session without the pane
 
 The person (2026-10-27): the band's figures only loaded once the pane was opened. The export was read at the session's start (often before its `SessionStart` hook had written the file), after each turn, and every 5 s while the pane was open only.

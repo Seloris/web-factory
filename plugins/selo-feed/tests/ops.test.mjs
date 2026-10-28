@@ -325,6 +325,40 @@ test("a mark and a commit in one command: both count", () => {
   assert.deepEqual(run.commits.map((c) => c.subject), ["feat(home): a label"]);
 });
 
+test("a commit whose `[branch sha]` line is cut from the output still counts", () => {
+  const { dir, g } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const base = { session_id: "s10", cwd: dir };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s10.json"), "utf8"));
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/selo-flow:fastlane add a label" });
+  writeFileSync(join(dir, "a.txt"), "a\n");
+  g("add", "a.txt");
+  g("commit", "-m", "feat(home): a label", "-m", "Spec: none (test)");
+  const sha = g("log", "-1", "--format=%h").trim();
+  const cmd = `git add a.txt && git commit --only -m "feat(home): a label" -m "Spec: none (test)" -- a.txt 2>&1 | tail -3 && git log --oneline -1`;
+  hook(ops, { ...base, hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: cmd }, tool_response: { stdout: ` 1 file changed, 1 insertion(+)\n create mode 100644 a.txt\n${sha} feat(home): a label` } });
+  assert.deepEqual(session().current.commits.map((c) => [c.sha, c.spec]), [[sha, "none (test)"]]);
+});
+
+test("every commit of a command counts, oldest first, never another session's", () => {
+  const { dir, g } = project();
+  const ops = mkdtempSync(join(tmpdir(), "selo-ops-dir-"));
+  const base = { session_id: "s11", cwd: dir };
+  const session = () => JSON.parse(readFileSync(join(ops, "sessions", "s11.json"), "utf8"));
+  hook(ops, { ...base, hook_event_name: "UserPromptSubmit", prompt: "/selo-flow:fastlane two labels" });
+  for (const [file, subject] of [["a.txt", "feat(home): a label"], ["b.txt", 'fix(home): the "b" label']]) {
+    writeFileSync(join(dir, file), "x\n");
+    g("add", file);
+    g("commit", "-q", "-m", subject);
+  }
+  writeFileSync(join(dir, "c.txt"), "c\n");
+  g("add", "c.txt");
+  g("commit", "-q", "-m", "chore(other): another session's commit");
+  const cmd = `git commit --only -q -m "feat(home): a label" -- a.txt | grep -v CRLF; git commit --only -q -m 'fix(home): the "b" label' -- b.txt; git log --oneline -3`;
+  hook(ops, { ...base, hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: cmd }, tool_response: { stdout: g("log", "--oneline", "-3") } });
+  assert.deepEqual(session().current.commits.map((c) => c.subject), ["feat(home): a label", 'fix(home): the "b" label']);
+});
+
 test("a plain root is exported without the workflow (ops-plugin.md §3)", () => {
   const dir = mkdtempSync(join(tmpdir(), "selo-ops-plain-"));
   const g = (...args) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: dir, encoding: "utf8" });

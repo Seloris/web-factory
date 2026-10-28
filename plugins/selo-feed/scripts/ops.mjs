@@ -681,6 +681,64 @@ const dirtyOf = (root, touched) => {
   return touched.filter((f) => changed.has(f));
 };
 
+// The command with each quoted string's inside masked, its length kept: a `-m` or a `;` inside a message never counts.
+const masked = (command) => command.replace(/"(?:\\.|[^"\\])*"|'[^']*'/g, (q) => q[0] + "_".repeat(q.length - 2) + q[0]);
+
+// The subject of each `git commit` of a shell command, from its first `-m` (or `--message`): its first paragraph,
+// lines joined as git's `%s` does. A message from a file or a heredoc gives none.
+export const commitSubjects = (command) => {
+  const mask = masked(command);
+  const subjects = [];
+  for (const m of mask.matchAll(/\bgit(?:\s+-[Cc]\s+\S+|\s+--?[\w-]+(?:=\S*)?)*\s+commit\b/g)) {
+    const from = m.index + m[0].length;
+    const end = mask.slice(from).search(/[;&|\n]/);
+    const part = mask.slice(from, end < 0 ? undefined : from + end);
+    const flag = /(?:^|\s)(?:-[A-Za-z]*m|--message)(?:=|\s*)(?=["'])/.exec(part);
+    if (!flag) continue;
+    const at = from + flag.index + flag[0].length;
+    const quote = command[at];
+    const close = mask.indexOf(quote, at + 1);
+    let text = command.slice(at + 1, close);
+    // Inside double quotes the shell drops the backslash before `"`, `\`, `$` and a backtick.
+    if (quote === '"') text = text.replace(/\\(["\\$`])/g, "$1");
+    const subject = text.trim().split(/\r?\n\s*\r?\n/)[0].split(/\r?\n/).map((l) => l.trim()).join(" ");
+    if (subject) subjects.push(subject);
+  }
+  return subjects;
+};
+
+// How recent a commit must be to be taken by its subject: the command that made it has just ended.
+const RECENT_MS = 10 * 60 * 1000;
+
+// The commits a `git commit` command made, oldest first; null when git cannot be read.
+// git prints `[branch sha] subject` for each loud commit: those shas are this command's, never another session's
+// that landed meanwhile. A quiet commit (`-q`) or an output cut by a pipe (`| tail -3`) prints none: a recent
+// commit whose subject is one of the command's `-m` subjects is then this command's. An output where git says it
+// committed nothing takes none of them, and only a command whose subjects cannot be read falls back to HEAD.
+export const commitsOf = (root, command, response) => {
+  const out = response == null ? "" : JSON.stringify(response);
+  const printed = [...out.matchAll(/\[[^\]\s]+(?: \(root-commit\))? ([0-9a-f]{7,40})\]/g)].map((m) => m[1]);
+  const subjects = commitSubjects(command);
+  const isQuiet = /\s(?:-[A-Za-z]*q|--quiet)\b/.test(masked(command));
+  const failed = /nothing (?:added )?to commit|no changes added to commit|(?:"|\\n)(?:error|fatal):/.test(out);
+  if (printed.length === 0 && subjects.length === 0 && response != null && !isQuiet) return [];
+  const log = git(root, ["log", "-30", "--format=%h%x09%cI%x09%s%x00%B%x1e", "HEAD"]);
+  if (log === null) return null;
+  const recent = log.split("\x1e").map((entry) => entry.replace(/^\s+/, "")).filter(Boolean).map((entry) => {
+    const [meta, body = ""] = entry.split("\0");
+    const [sha, at, ...rest] = meta.split("\t");
+    return { sha, subject: rest.join("\t"), spec: /^Spec:\s*(.+)$/m.exec(body)?.[1].trim() ?? null, at };
+  });
+  const isPrinted = (sha) => printed.some((p) => p.startsWith(sha) || sha.startsWith(p));
+  const bySubject = (c) => !failed && subjects.includes(c.subject) && Date.now() - Date.parse(c.at) < RECENT_MS;
+  let found = recent.filter((c) => isPrinted(c.sha) || bySubject(c));
+  if (found.length === 0 && printed.length === 0 && subjects.length === 0 && recent[0]) found = [recent[0]];
+  // A subject made twice (a commit, then a retry) is this command's once: its newest.
+  const seen = new Set();
+  found = found.filter((c) => isPrinted(c.sha) || (!seen.has(c.subject) && seen.add(c.subject)));
+  return found.reverse();
+};
+
 // A stage commit moves its run: to the next stage, the last one to review; the merge commit to `merge`.
 const stepAfter = (run, subject, project) => {
   if (/^docs\([^)]+\): spec merged\b/.test(subject)) return "merge";
@@ -816,27 +874,20 @@ function applyEvent(s, e, root, ctx) {
     }
     // A mark and its commit may share one command (`… mark commit; git commit …`): the commit still counts.
     if (!isCommit(command)) return false;
-    // git prints `[branch sha] subject` on success: that sha is this command's commit, never another
-    // session's that landed meanwhile. Only a quiet commit (`-q`) falls back to HEAD.
-    const printed = /\[[^\]\s]+(?: \(root-commit\))? ([0-9a-f]{7,40})\]/.exec(JSON.stringify(e.tool_response ?? ""))?.[1];
-    // No `[branch sha]` line in the output of a loud commit: it failed (nothing staged, a refusing hook).
-    if (!printed && e.tool_response != null && !/\s(?:-q|--quiet)\b/.test(command)) return false;
-    const head = git(root, ["log", "-1", "--format=%h%x09%cI%x09%s%x00%B", printed ?? "HEAD"]);
     const run = runOf(s, agentId);
-    if (!head || !run) return true;
-    const [meta, body = ""] = head.split("\0");
-    const [sha, at, ...rest] = meta.trim().split("\t");
-    const subject = rest.join("\t");
-    // The command may have failed: HEAD is then a commit this session already has, or someone else's older one.
-    if (s.runs.some((r) => r.commits.some((c) => c.sha === sha))) return false;
-    const specLine = /^Spec:\s*(.+)$/m.exec(body)?.[1].trim() ?? null;
-    const commit = { sha, subject, spec: specLine, at };
-    run.commits.push(commit);
-    const spec = specLine && s.selo ? parseSpecLine(`Spec: ${specLine}`) : null;
-    if (spec?.pending) run.blueprint ??= basename(spec.pending, ".md");
-    addSheets(run, Object.keys(spec?.groups ?? {}));
-    if (agentId && orchestrates(main)) main.commits.push(commit);
-    s.pendingStep = { agentId, subject };
+    const found = commitsOf(root, command, e.tool_response);
+    if (!found || !run) return true;
+    // The command may have failed: a commit found is then one this session already has.
+    const fresh = found.filter(({ sha }) => !s.runs.some((r) => r.commits.some((c) => c.sha === sha)));
+    if (fresh.length === 0) return false;
+    for (const commit of fresh) {
+      run.commits.push(commit);
+      const spec = commit.spec && s.selo ? parseSpecLine(`Spec: ${commit.spec}`) : null;
+      if (spec?.pending) run.blueprint ??= basename(spec.pending, ".md");
+      addSheets(run, Object.keys(spec?.groups ?? {}));
+      if (agentId && orchestrates(main)) main.commits.push(commit);
+    }
+    s.pendingStep = { agentId, subjects: fresh.map((c) => c.subject) };
     touch(run);
     return true;
   }
@@ -906,7 +957,8 @@ const moveStep = (s, project) => {
   const run = p.agentId ? s.runs.find((r) => r.agentId === p.agentId) : mainRun(s);
   const main = mainRun(s);
   if (!run || !["blueprint", "pilot", "autopilot"].includes(flowOf(run))) return;
-  const step = stepAfter(run, p.subject, project);
+  // One command may chain several commits: the last one that moves a step wins.
+  const step = (p.subjects ?? [p.subject]).reduce((last, subject) => stepAfter(run, subject, project) ?? last, null);
   if (!step) return;
   run.step = step;
   if (p.agentId && orchestrates(main)) Object.assign(main, { step, blueprint: main.blueprint ?? run.blueprint });
