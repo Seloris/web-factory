@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }
@@ -17,7 +17,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }
@@ -29,7 +29,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }
@@ -41,7 +41,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       },
@@ -51,7 +51,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       },
@@ -61,7 +61,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }
@@ -72,7 +72,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }
@@ -83,7 +83,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }
@@ -94,7 +94,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }
@@ -105,7 +105,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }
@@ -116,7 +116,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ops.mjs\" hook",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }

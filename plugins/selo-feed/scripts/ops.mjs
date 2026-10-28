@@ -57,9 +57,16 @@ export const rootKey = (root) => normRoot(root).replace(/[^A-Za-z0-9]/g, "-");
 const now = () => new Date().toISOString();
 const slash = (p) => p.replace(/\\/g, "/");
 
+// A hook gives its git work a budget: once `gitDeadline` is near, git is not run and answers null.
+let gitDeadline = Infinity;
+export const setGitDeadline = (at) => {
+  gitDeadline = at;
+};
 const git = (cwd, args) => {
+  const left = gitDeadline - Date.now();
+  if (left < 150) return null;
   try {
-    return execFileSync("git", args, { cwd, encoding: "utf8", timeout: 2000, stdio: ["ignore", "pipe", "ignore"] });
+    return execFileSync("git", args, { cwd, encoding: "utf8", timeout: Math.min(2000, left), stdio: ["ignore", "pipe", "ignore"] });
   } catch {
     return null;
   }
@@ -74,6 +81,12 @@ export function rootOf(cwd) {
 }
 
 const lines = (out) => (out ?? "").split(/\r?\n/).filter(Boolean);
+// The same set, or null when a git command failed or ran out of budget.
+const changedPathsOrNull = (root) => {
+  const a = git(root, ["ls-files", "--modified", "--others", "--exclude-standard"]);
+  const b = a === null ? null : git(root, ["diff", "--cached", "--name-only", "--relative"]);
+  return b === null ? null : new Set([...lines(a), ...lines(b)]);
+};
 const changedPaths = (root) =>
   new Set([...lines(git(root, ["ls-files", "--modified", "--others", "--exclude-standard"])), ...lines(git(root, ["diff", "--cached", "--name-only", "--relative"]))]);
 
@@ -207,7 +220,7 @@ export function mockupOf(file, head, changed = new Set()) {
 }
 
 // A plain root (`selo` false): git counts only, no manifest, no `.planning`, no error.
-export function scanProject(rootIn, { dir = opsDir(), selo = true } = {}) {
+export function scanProject(rootIn, { dir = opsDir(), selo = true, changed: known = null } = {}) {
   const root = normRoot(rootIn);
   const out = { schemaVersion: SCHEMA, writtenAt: now(), selo: VERSION, root, repo: null, branch: null, baseBranch: "main", aheadCount: null, unpushedCount: null, changedCount: 0, manifest: null, sheets: [], blueprints: [], mockups: [], error: null };
   if (selo) try {
@@ -230,7 +243,7 @@ export function scanProject(rootIn, { dir = opsDir(), selo = true } = {}) {
     };
     out.aheadCount = out.branch && out.branch !== out.baseBranch ? count(`${out.baseBranch}..HEAD`) : null;
     out.unpushedCount = count("@{u}..HEAD");
-    changed = changedPaths(root);
+    changed = known ?? changedPaths(root);
     out.changedCount = changed.size;
   }
   if (!selo) return out;
@@ -676,10 +689,7 @@ export function firstContext(path) {
   return null;
 }
 
-const dirtyOf = (root, touched) => {
-  const changed = changedPaths(root);
-  return touched.filter((f) => changed.has(f));
-};
+const dirtyOf = (root, touched, changed = changedPaths(root)) => touched.filter((f) => changed.has(f));
 
 // The command with each quoted string's inside masked, its length kept: a `-m` or a `;` inside a message never counts.
 const masked = (command) => command.replace(/"(?:\\.|[^"\\])*"|'[^']*'/g, (q) => q[0] + "_".repeat(q.length - 2) + q[0]);
@@ -928,6 +938,12 @@ function applyEvent(s, e, root, ctx) {
     s.backgroundTasks =(e.background_tasks ?? []).map((b) => ({ id: String(b.id ?? ""), type: String(b.type ?? ""), status: String(b.status ?? ""), description: String(b.description ?? "") }));
     // A foreground subagent cannot outlive its turn: one with no SubagentStop (an Esc) is stopped.
     if (!s.backgroundTasks.some((b) => b.status === "running")) for (const r of s.runs) if (r.agentId && r.phase === "working") Object.assign(r, { phase: "stopped", updatedAt: t });
+    // `ctx.defer`: the hook writes the phase first; handle settles the dirty files and the project right after.
+    if (ctx.defer) {
+      s.close = closeOf(s);
+      s.recap = sessionRecap(s);
+      return false;
+    }
     s.dirtyFiles = dirtyOf(root, s.touchedFiles);
     s.close = closeOf(s);
     s.recap = sessionRecap(s);
@@ -964,42 +980,72 @@ const moveStep = (s, project) => {
   if (p.agentId && orchestrates(main)) Object.assign(main, { step, blueprint: main.blueprint ?? run.blueprint });
 };
 
-// `deadline`: when the lock must have been taken; a hook stops itself at 4.5 s.
+// Written under the lock: the session file, then the project file the scan gave.
+const store = (s, dir, root, project) => {
+  moveStep(s, project);
+  for (const r of s.runs) syncTrail(r);
+  s.writtenAt = now();
+  s.writtenBy = VERSION;
+  s.current = mainRun(s);
+  writeJson(join(dir, "sessions", `${s.sessionId}.json`), s);
+  // After the session file: the project's blueprints list the sessions working on them, this one included.
+  if (project) {
+    const live = liveSessions(dir, project.root);
+    for (const b of project.blueprints) b.sessions = live.filter((x) => x.current?.blueprint === b.name).map((x) => x.sessionId);
+    writeJson(join(dir, "projects", `${rootKey(root)}.json`), project);
+  }
+};
+
+// `deadline`: when the lock must have been taken; a hook stops itself at 4.5 s. Its git work stops 0.3 s after it.
+// A Stop writes the run's phase first (JSON and the transcript only); the dirty files and the project scan, which
+// run git, come second, so a slow git never leaves the session at `working`.
 export async function handle(e, { dir = opsDir(), deadline = Date.now() + 4000 } = {}) {
   if (!e.cwd || !e.session_id) return;
-  const { root, selo } = rootOf(e.cwd);
-  const file = join(dir, "sessions", `${e.session_id}.json`);
-  // The transcript is read before the lock (each write is an atomic rename): a slow read never makes a
-  // concurrent hook of the session wait for the lock and lose its write. Under it, only JSON is read and written.
-  let ctx = {};
+  setGitDeadline(deadline + 300);
   try {
-    ctx = readFor({ ...newSession(e.session_id, root), ...(readJson(file) ?? {}), selo }, e, root);
-  } catch {
-    // no usage this time: the next Stop or the settling read catches up
+    const { root, selo } = rootOf(e.cwd);
+    const file = join(dir, "sessions", `${e.session_id}.json`);
+    const lock = join(dir, "locks", String(e.session_id));
+    const fresh = () => ({ ...newSession(e.session_id, root), ...(readJson(file) ?? {}), selo });
+    const defer = e.hook_event_name === "Stop";
+    // The transcript is read before the lock (each write is an atomic rename): a slow read never makes a
+    // concurrent hook of the session wait for the lock and lose its write. Under it, only JSON is read and written.
+    let ctx = {};
+    try {
+      ctx = readFor(fresh(), e, root);
+    } catch {
+      // no usage this time: the next Stop or the settling read catches up
+    }
+    // The read ate the hook's time: nothing is written rather than a write cut by the 4.5 s exit.
+    if (Date.now() >= deadline) return;
+    await withLock(
+      lock,
+      () => {
+        const s = fresh();
+        const rescan = applyHook(s, e, root, { ...ctx, defer });
+        store(s, dir, root, rescan ? scanProject(root, { dir, selo }) : null);
+      },
+      { timeoutMs: Math.min(2000, deadline - Date.now()), staleMs: 10000 },
+    );
+    if (!defer) return;
+    // Second step, outside the lock: git. A git that failed or ran out of budget changes nothing.
+    const changed = changedPathsOrNull(root);
+    if (!changed) return;
+    const project = scanProject(root, { dir, selo, changed });
+    await withLock(
+      lock,
+      () => {
+        const s = fresh();
+        s.dirtyFiles = dirtyOf(root, s.touchedFiles, changed);
+        s.close = closeOf(s);
+        s.recap = sessionRecap(s);
+        store(s, dir, root, project);
+      },
+      { timeoutMs: Math.max(0, Math.min(2000, deadline + 300 - Date.now())), staleMs: 10000 },
+    );
+  } finally {
+    setGitDeadline(Infinity);
   }
-  // The read ate the hook's time: nothing is written rather than a write cut by the 4.5 s exit.
-  if (Date.now() >= deadline) return;
-  await withLock(
-    join(dir, "locks", String(e.session_id)),
-    () => {
-      const s = { ...newSession(e.session_id, root), ...(readJson(file) ?? {}), selo };
-      const rescan = applyHook(s, e, root, ctx);
-      const project = rescan ? scanProject(root, { dir, selo }) : null;
-      moveStep(s, project);
-      for (const r of s.runs) syncTrail(r);
-      s.writtenAt = now();
-      s.writtenBy = VERSION;
-      s.current = mainRun(s);
-      writeJson(file, s);
-      // After the session file: the project's blueprints list the sessions working on them, this one included.
-      if (project) {
-        const live = liveSessions(dir, project.root);
-        for (const b of project.blueprints) b.sessions = live.filter((x) => x.current?.blueprint === b.name).map((x) => x.sessionId);
-        writeJson(join(dir, "projects", `${rootKey(root)}.json`), project);
-      }
-    },
-    { timeoutMs: Math.min(2000, deadline - Date.now()), staleMs: 10000 },
-  );
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

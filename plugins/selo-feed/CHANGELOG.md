@@ -2,6 +2,17 @@
 
 Why each change to the ops export exists. Newest first. The export's history before this plugin is in `plugins/selo-flow/CHANGELOG.md` (2.0.0 to 2.0.3).
 
+## 2026-10-28 — selo-feed 3.0.3: a slow git never leaves a finished session at `working`
+
+The person (2026-10-28): in Selo Ops, a finished session of ELI-FR-KOOKIZ showed « En cours ». Its Stop hook took 5.8 s and was cancelled at the 5 s timeout, before it wrote anything. Replayed, the hook takes 1.7 s on that repository when the machine is quiet: about ten sequential git commands (`git log -2000` alone 0.9 s, the dirty-files list twice). With another git client busy on the same repository it crossed 5 s, and the 4.5 s self-exit cannot fire while a synchronous git runs.
+
+- **A Stop writes the run's phase first** (transcript and JSON only, about 0.3 s); the dirty files and the project scan, which run git, come second, in a new write.
+- **The dirty-files list is computed once** per Stop and shared with the project scan.
+- **A git budget:** no git command starts 0.3 s after the hook's 4 s deadline, and none runs longer than what is left. A scan cut short writes nothing rather than wrong dirty files.
+- **Hook timeouts 5 s → 10 s** in `hooks/hooks.json`.
+
+Machines: `claude plugin update selo-feed@selo --scope user`, then a new session. Version 3.0.3.
+
 ## 2026-10-28 — selo-feed 3.0.2: every commit of a command is recorded
 
 The person (2026-10-28): in Selo Ops, the files of note-app's notes dashboard showed +0 −0 and no diff. The build's two stage commits were missing from the session's export. The first was a loud commit piped through `| tail -3`: its `[branch sha]` line was cut, so the hook took it for a failed commit. The second was chained with another `-q` commit in one command: the fallback on `HEAD` kept only the last one.
